@@ -4,7 +4,9 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-import com.uit.backend_cinema.common.sercurity.CustomUserDetailsService;
+import com.uit.backend_cinema.modules.auth.domain.service.CustomUserDetailsService;
+import com.uit.backend_cinema.common.exception.BusinessException;
+import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.common.util.ApiResponse;
 import com.uit.backend_cinema.common.util.JwtUtil;
 import com.uit.backend_cinema.modules.auth.api.dto.*;
@@ -15,6 +17,7 @@ import com.uit.backend_cinema.modules.auth.domain.service.AuthService;
 import com.uit.backend_cinema.modules.auth.domain.service.RefreshTokenService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -88,8 +91,7 @@ public class AuthController {
 
             GoogleIdToken idToken = verifier.verify(request.getIdToken());
             if (idToken == null) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error(400, "Google ID Token không hợp lệ"));
+                throw new BusinessException("Google ID Token không hợp lệ", ErrorCode.INVALID_GOOGLE_TOKEN);
             }
 
             // Lấy thông tin user từ token
@@ -131,7 +133,7 @@ public class AuthController {
                     responseData.put("refreshToken", requestRefreshToken);
                     return ResponseEntity.ok(ApiResponse.success(responseData));
                 })
-                .orElseThrow(() -> new RuntimeException("Refresh token không hợp lệ"));
+                .orElseThrow(() -> new BusinessException("Refresh token không hợp lệ", ErrorCode.TOKEN_INVALID));
     }
 
     // ĐĂNG XUẤT
@@ -143,7 +145,7 @@ public class AuthController {
                     refreshTokenService.deleteByRefreshToken(token);
                     return ResponseEntity.ok(ApiResponse.success(null, "Đăng xuất thành công"));
                 })
-                .orElseThrow(() -> new RuntimeException("Refresh token không hợp lệ"));
+                .orElseThrow(() -> new BusinessException("Refresh token không hợp lệ", ErrorCode.TOKEN_INVALID));
     }
 
     // HÀM TIỆN ÍCH
