@@ -1,16 +1,18 @@
 package com.uit.backend_cinema.modules.auth.domain.service;
 
-import com.uit.backend_cinema.common.exception.TokenRefreshException;
+import com.uit.backend_cinema.common.exception.BusinessException;
+import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.auth.domain.entity.RefreshToken;
 import com.uit.backend_cinema.modules.auth.domain.repository.RefreshTokenRepository;
-import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class RefreshTokenService {
     // Refresh token expiration time in seconds (30 days)
     private final long REFRESH_TOKEN_EXPIRATION = 30L * 24 * 3600;
@@ -41,15 +43,17 @@ public class RefreshTokenService {
     }
 
     // Kiểm tra token đã hết hạn chưa
+    @Transactional
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.isExpired()) {
-            refreshTokenRepository.delete(token); // Nếu đã hết hạn thì xóa luôn
-            throw new TokenRefreshException(token.getToken(), "Token đã hết hạn. Vui lòng đăng nhập lại.");
+            refreshTokenRepository.delete(token);
+            throw new BusinessException("Token đã hết hạn. Vui lòng đăng nhập lại.", ErrorCode.TOKEN_EXPIRED);
         }
         return token;
     }
 
     // Xóa token khi đăng xuất
+    @Transactional
     public void deleteByRefreshToken(RefreshToken token) {
         refreshTokenRepository.delete(token);
     }
