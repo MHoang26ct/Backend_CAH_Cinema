@@ -43,3 +43,4 @@ src/main/resources/application.properties
 *.log
 .env
 postgres_data/deploy.env
+/deploy.env
