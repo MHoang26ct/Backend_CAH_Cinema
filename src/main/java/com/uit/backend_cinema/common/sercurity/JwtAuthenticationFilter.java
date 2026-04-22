@@ -40,7 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String userEmail;
 
         // Nếu không có hặc sai định dạng
-        if (authHeader != null && !authHeader.startsWith("Bearer ")) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             // Vẫn cho đi tếp (Có thể đang gọi API login/sign up)
             // Lát nữa vào trong sẽ bị hệ thống phân quyền (SecurityConfig) chặn lại nếu API đó
             // không cho khách vãng lai gọi

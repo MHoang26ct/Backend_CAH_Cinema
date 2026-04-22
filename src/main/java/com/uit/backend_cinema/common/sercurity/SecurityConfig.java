@@ -28,11 +28,18 @@ import java.util.List;
 public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserDetailsService userDetailsService;
+    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    private final CustomAccessDeniedHandler accessDeniedHandler;
 
     // Inject service vào
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter, UserDetailsService userDetailsService) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter, 
+                          UserDetailsService userDetailsService,
+                          CustomAuthenticationEntryPoint authenticationEntryPoint,
+                          CustomAccessDeniedHandler accessDeniedHandler) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.userDetailsService = userDetailsService;
+        this.authenticationEntryPoint = authenticationEntryPoint;
+        this.accessDeniedHandler = accessDeniedHandler;
     }
 
     @Bean
@@ -68,14 +75,26 @@ public class SecurityConfig {
                         // Khu vực công cộng: Ai cũng vào được (Đăng nhập, Đăng ký, Quên mật khẩu)
                         .requestMatchers("/api/v1/auth/**").permitAll()
 
+                        // Cho phép truy cập Swagger UI tài liệu API
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+
                         // Khu vực công cộng: Khách vãng lai có thể xem danh sách phim
                         .requestMatchers("/api/v1/movies/public/**").permitAll()
 
                         // Khu vực cấm: Chỉ ADMIN mới được vào Quản lý phim (Thêm/Sửa/Xóa)
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
 
-                        // Tất cả các request khác (Đặt vé, Đổi Avatar...) bắt buộc phải có JWT hợp lệ
+                        // Cho phép truy cập route báo lỗi nội bộ của Spring Boot (để tránh bị 403 giả)
+                        .requestMatchers("/error").permitAll()
+
+                        // Tất cả các request khác bắt buộc phải có JWT hợp lệ
                         .anyRequest().authenticated()
+                )
+
+                // Cấu hình custom exception handler để trả về chuẩn ErrorResponse
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(authenticationEntryPoint) // Xử lý lỗi 401
+                        .accessDeniedHandler(accessDeniedHandler)           // Xử lý lỗi 403
                 )
 
                 // Khai báo hệ thống không lưu trạng thái đăng nhập (Stateless)

@@ -42,4 +42,5 @@ src/main/resources/application.properties
 .DS_Store
 *.log
 .env
-postgres_data/
+postgres_data/deploy.env
+/deploy.env
