@@ -45,6 +45,7 @@ public class GlobalExceptionHandler {
             case INVALID_GOOGLE_TOKEN,
                  TOKEN_INVALID,
                  ACCESS_TOKEN_INVALID,
+                 DUPLICATE_RESOURCE,
                  VALIDATION_FAILED                     -> HttpStatus.BAD_REQUEST;
             case INTERNAL_ERROR                        -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
