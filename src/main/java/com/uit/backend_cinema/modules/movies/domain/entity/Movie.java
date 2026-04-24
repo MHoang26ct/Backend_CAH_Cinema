@@ -1,4 +1,4 @@
-package com.uit.backend_cinema.modules.user.movies.domain.entity;
+package com.uit.backend_cinema.modules.movies.domain.entity;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -13,7 +13,7 @@ public class Movie {
     private String description;
     private Integer duration;
     private LocalDate releaseDate;
-    private String ageRating;
+    private AgeRating ageRating;
     private String posterUrl;
     private String trailerUrl;
     private String directorName;

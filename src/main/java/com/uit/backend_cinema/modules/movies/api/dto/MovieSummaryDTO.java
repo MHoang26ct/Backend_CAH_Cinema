@@ -1,8 +1,7 @@
-package com.uit.backend_cinema.modules.user.movies.api.dto;
+package com.uit.backend_cinema.modules.movies.api.dto;
 
 import lombok.Data;
 import java.time.LocalDate;
-import java.util.List;
 
 @Data
 public class MovieSummaryDTO {

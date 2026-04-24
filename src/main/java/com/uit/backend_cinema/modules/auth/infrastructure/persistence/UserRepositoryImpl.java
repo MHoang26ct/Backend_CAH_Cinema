@@ -54,7 +54,7 @@ public class UserRepositoryImpl implements UserRepository {
         // Gán role cho user (1 user = 1 role)
         if (user.getRole() != null) {
             RoleJpaEntity roleEntity = jpaRoleRepository.findByRoleName(user.getRole())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy role: " + user.getRole()));
+                    .orElseThrow(() -> new IllegalStateException("Role không tồn tại: " + user.getRole()));
             jpaEntity.setRoles(Set.of(roleEntity));
         }
 

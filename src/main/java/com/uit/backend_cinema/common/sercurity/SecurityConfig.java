@@ -79,7 +79,7 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                         // Khu vực công cộng: Khách vãng lai có thể xem danh sách phim
-                        .requestMatchers("/api/v1/movies/public/**").permitAll()
+                        .requestMatchers("/api/v1/public/**").permitAll()
 
                         // Khu vực cấm: Chỉ ADMIN mới được vào Quản lý phim (Thêm/Sửa/Xóa)
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

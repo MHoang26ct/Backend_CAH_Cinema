@@ -43,7 +43,7 @@ public class RefreshTokenService {
     }
 
     // Kiểm tra token đã hết hạn chưa
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.isExpired()) {
             refreshTokenRepository.delete(token);

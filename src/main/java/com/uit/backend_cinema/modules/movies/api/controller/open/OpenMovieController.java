@@ -1,10 +1,10 @@
-package com.uit.backend_cinema.modules.user.movies.api.controller;
+package com.uit.backend_cinema.modules.movies.api.controller.open;
 
 import com.uit.backend_cinema.common.util.ApiResponse;
-import com.uit.backend_cinema.modules.user.movies.api.dto.MovieDetailDTO;
-import com.uit.backend_cinema.modules.user.movies.api.dto.MovieSummaryDTO;
-import com.uit.backend_cinema.modules.user.movies.api.mapper.MovieApiMapper;
-import com.uit.backend_cinema.modules.user.movies.domain.service.MovieService;
+import com.uit.backend_cinema.modules.movies.api.dto.MovieDetailDTO;
+import com.uit.backend_cinema.modules.movies.api.dto.MovieSummaryDTO;
+import com.uit.backend_cinema.modules.movies.api.mapper.MovieApiMapper;
+import com.uit.backend_cinema.modules.movies.domain.service.MovieService;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,12 +13,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/user/movies/public")
-public class MovieController {
+@RequestMapping("/api/v1/public/movies")
+public class OpenMovieController {
     private final MovieService movieService;
     private final MovieApiMapper movieApiMapper;
 
-    public MovieController(MovieService movieService, MovieApiMapper movieApiMapper) {
+    public OpenMovieController(MovieService movieService, MovieApiMapper movieApiMapper) {
         this.movieService = movieService;
         this.movieApiMapper = movieApiMapper;
     }

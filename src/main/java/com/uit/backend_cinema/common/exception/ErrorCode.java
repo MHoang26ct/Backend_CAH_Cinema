@@ -23,6 +23,7 @@ public enum ErrorCode {
 
     // Resource
     RESOURCE_NOT_FOUND,         // Tài nguyên không tồn tại
+    DUPLICATE_RESOURCE,         // Tài nguyên đã tồn tại
 
     // Validation
     VALIDATION_FAILED,          // Dữ liệu đầu vào không hợp lệ (@Valid)

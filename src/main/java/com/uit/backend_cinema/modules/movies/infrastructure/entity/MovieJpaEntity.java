@@ -1,8 +1,14 @@
-package com.uit.backend_cinema.modules.user.movies.infrastructure.entity;
+package com.uit.backend_cinema.modules.movies.infrastructure.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLRestriction;
+
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -10,9 +16,12 @@ import java.util.Set;
 
 @Entity
 @Table(name = "movies")
-@Getter @Setter
+@SQLRestriction("is_deleted = false")
+@EntityListeners(AuditingEntityListener.class)
+@Getter
+@Setter
 public class MovieJpaEntity {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "movie_id")
@@ -46,20 +55,17 @@ public class MovieJpaEntity {
     private String actorList;
 
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-        name = "movie_genres",
-        joinColumns = @JoinColumn(name = "movie_id"),
-        inverseJoinColumns = @JoinColumn(name = "genre_id")
-    )
+    @JoinTable(name = "movie_genres", joinColumns = @JoinColumn(name = "movie_id"), inverseJoinColumns = @JoinColumn(name = "genre_id"))
     private Set<GenreJpaEntity> genres = new HashSet<>();
 
-    @Column(name = "created_at")
+    @CreatedDate
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     @Column(name = "is_deleted")
-    private Boolean isDeleted;
-
+    private Boolean isDeleted = false;
 }
