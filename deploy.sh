@@ -23,6 +23,9 @@ fi
 echo "🚚 Đang đẩy file $JAR_NAME lên server $DEPLOY_IP..."
 scp build/libs/$JAR_NAME $DEPLOY_USER@$DEPLOY_IP:$DEPLOY_PATH
 
+echo "🚚 Đang đẩy file .env lên server $DEPLOY_IP..."
+scp ./.env $DEPLOY_USER@$DEPLOY_IP:$DEPLOY_PATH
+
 if [ $? -ne 0 ]; then
     echo "❌ Lỗi khi gửi file qua SCP!"
     exit 1
