@@ -67,14 +67,9 @@ public class AuthService {
     public User loginOrRegisterWithGoogle(String email, String name, String avatarUrl, String providerId) {
         Optional<User> existingUser = userRepository.findByEmail(email);
 
-        if (existingUser.isPresent()) {
-            User user = existingUser.get();
-            user.setName(name);
-            user.setAvatarUrl(avatarUrl);
-            user.setProviderId(providerId);
-            return userRepository.save(user);
-        } else {
-            User user = new User();
+        User user;
+        if (existingUser.isEmpty()) {
+            user = new User();
             user.setEmail(email);
             user.setName(name);
             user.setAvatarUrl(avatarUrl);
@@ -82,7 +77,38 @@ public class AuthService {
             user.setAuthProvider(AuthProvider.GOOGLE);
             user.setRole(DEFAULT_ROLE);
             user.setIsDeleted(false);
-            return userRepository.save(user);
+        } else {
+            user = existingUser.get();
+            user.setName(name);
+            user.setAvatarUrl(avatarUrl);
+            user.setProviderId(providerId);
         }
+        return userRepository.save(user);
+    }
+
+    // Đổi mật khẩu (quên mật khẩu)
+    @Transactional
+    public void changePassword(String email, String newPassword) {
+        Optional<User> user = userRepository.findByEmail(email);
+        if (user.isEmpty()) {
+            throw new BusinessException("Email không tồn tại", ErrorCode.INVALID_CREDENTIALS);
+        }
+        user.get().setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user.get());
+    }
+
+    // Đổi mật khẩu (khi đang đăng nhập)
+    @Transactional
+    public void changePassword(String email, String oldPassword, String newPassword) {
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            throw new BusinessException("Email không tồn tại", ErrorCode.INVALID_CREDENTIALS);
+        }
+        User user = userOpt.get();
+        if (user.getPassword() == null || !passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new BusinessException("Mật khẩu cũ không chính xác", ErrorCode.INVALID_CREDENTIALS);
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }

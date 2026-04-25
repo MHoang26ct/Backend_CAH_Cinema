@@ -7,9 +7,11 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.common.util.JwtUtil;
-import com.uit.backend_cinema.modules.auth.api.dto.AuthResponseDTO;
+import com.uit.backend_cinema.modules.auth.api.dto.response.AuthResponseDTO;
 import com.uit.backend_cinema.modules.auth.api.dto.UserDTO;
+import com.uit.backend_cinema.modules.auth.api.dto.response.FP_VerifyOtpResponseOTP;
 import com.uit.backend_cinema.modules.auth.api.mapper.UserApiMapper;
+import com.uit.backend_cinema.modules.auth.domain.entity.RefreshToken;
 import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.service.AuthService;
 import com.uit.backend_cinema.modules.auth.domain.service.RefreshTokenService;
@@ -79,11 +81,41 @@ public class AuthUseCase {
         return buildAuthResponse(user);
     }
 
+    // Tạo token reset password
+    public FP_VerifyOtpResponseOTP generateResetToken(String email) {
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("Purpose", "Change password");
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+        String resetToken = jwtUtil.generateToken(extraClaims, userDetails);
+        FP_VerifyOtpResponseOTP response = new FP_VerifyOtpResponseOTP();
+        response.setToken(resetToken);
+        return response;
+    }
+
+    // Đổi mật khẩu (quên mật khẩu)
+    public void changePassword_Forget(String email, String newPassword, String token) {
+        try {
+            if (jwtUtil.verifyResetToken(token, email)) {
+                authService.changePassword(email, newPassword, token);
+            }
+        }
+        catch (Exception ex) {
+            throw new BusinessException("Token không hợp lệ", ErrorCode.TOKEN_INVALID);
+        }
+    }
+
+    // Đổi mật khẩu
+    public void changePassword(String email, String oldPassword, String newPassword) {
+        authService.changePassword(email, oldPassword, newPassword);
+    }
+
     // REFRESH TOKEN
     public Map<String, String> refreshAccessToken(String refreshTokenStr) {
         Long userId = refreshTokenService.findByToken(refreshTokenStr)
                 .map(refreshTokenService::verifyExpiration)
-                .map(token -> token.getUserId())
+                .map(RefreshToken::getUserId)
                 .orElseThrow(() -> new BusinessException(
                         "Refresh token không hợp lệ", ErrorCode.TOKEN_INVALID));
 
