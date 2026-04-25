@@ -73,6 +73,7 @@ public class SecurityConfig {
                 // Phân quyền cho từng URL cụ thể
                 .authorizeHttpRequests(auth -> auth
                         // Khu vực công cộng: Ai cũng vào được (Đăng nhập, Đăng ký, Quên mật khẩu)
+                        .requestMatchers("/api/v1/auth/change-password").authenticated() // Yêu cầu JWT hợp lệ
                         .requestMatchers("/api/v1/auth/**").permitAll()
 
                         // Cho phép truy cập Swagger UI tài liệu API
