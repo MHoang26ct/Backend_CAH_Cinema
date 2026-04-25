@@ -20,7 +20,8 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // Helper
-    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String errorPhrase, ErrorCode code, String message, Object details) {
+    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String errorPhrase, ErrorCode code,
+            String message, Object details) {
         ErrorResponse body = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(status.value())
@@ -35,19 +36,22 @@ public class GlobalExceptionHandler {
     // Map ErrorCode → HttpStatus — chỉ tầng handler mới biết HTTP status
     private HttpStatus resolveStatus(ErrorCode code) {
         return switch (code) {
-            case EMAIL_ALREADY_EXISTS                   -> HttpStatus.CONFLICT;
+            case EMAIL_ALREADY_EXISTS -> HttpStatus.CONFLICT;
             case INVALID_CREDENTIALS,
-                 TOKEN_EXPIRED,
-                 ACCESS_TOKEN_EXPIRED,
-                 UNAUTHORIZED                           -> HttpStatus.UNAUTHORIZED;
-            case FORBIDDEN                              -> HttpStatus.FORBIDDEN;
-            case RESOURCE_NOT_FOUND                    -> HttpStatus.NOT_FOUND;
+                    TOKEN_EXPIRED,
+                    ACCESS_TOKEN_EXPIRED,
+                    UNAUTHORIZED ->
+                HttpStatus.UNAUTHORIZED;
+            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case RESOURCE_NOT_FOUND -> HttpStatus.NOT_FOUND;
             case INVALID_GOOGLE_TOKEN,
-                 TOKEN_INVALID,
-                 ACCESS_TOKEN_INVALID,
-                 DUPLICATE_RESOURCE,
-                 VALIDATION_FAILED                     -> HttpStatus.BAD_REQUEST;
-            case INTERNAL_ERROR                        -> HttpStatus.INTERNAL_SERVER_ERROR;
+                    TOKEN_INVALID,
+                    OTP_INVALID,
+                    ACCESS_TOKEN_INVALID,
+                    DUPLICATE_RESOURCE,
+                    VALIDATION_FAILED ->
+                HttpStatus.BAD_REQUEST;
+            case INTERNAL_ERROR -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }
 
@@ -81,9 +85,9 @@ public class GlobalExceptionHandler {
     // Spring Security Authentication — User không tồn tại khi load từ DB
     @ExceptionHandler(UsernameNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUsernameNotFound(UsernameNotFoundException ex) {
-        return buildResponse(HttpStatus.UNAUTHORIZED, "Unauthorized", ErrorCode.INVALID_CREDENTIALS, ex.getMessage(), null);
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Unauthorized", ErrorCode.INVALID_CREDENTIALS, ex.getMessage(),
+                null);
     }
-
 
     // CATCH-ALL 500
     @ExceptionHandler(Exception.class)

@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -26,10 +25,6 @@ public class JwtUtil {
     private SecretKey getSigningKey() {
         byte[] keyBytes = secretKey.getBytes();
         return Keys.hmacShaKeyFor(keyBytes);
-    }
-
-    public String generateToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails);
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
@@ -63,11 +58,18 @@ public class JwtUtil {
     //Kiểm tra coi tên có đúng không && token hết hạn chưa
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        return (username.equals(userDetails.getUsername()) && isTokenActive(token));
     }
 
-    public boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+    public boolean isTokenActive(String token) {
+        return extractExpiration(token).after(new Date());
+    }
+
+    public boolean verifyResetToken(String token, String expectedEmail) {
+        final Claims claims = extractAllClaims(token);
+        String subject = claims.getSubject();
+        boolean hasCorrectPurpose = "Change password".equals(claims.get("Purpose"));
+        return hasCorrectPurpose && expectedEmail.equals(subject) && isTokenActive(token);
     }
 
     private Date extractExpiration(String token) {
