@@ -30,16 +30,12 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public Optional<User> findById(Long userId) {
-        return jpaUserRepository.findById(userId)
-                .filter(user -> !Boolean.TRUE.equals(user.getIsDeleted()))
-                .map(mapper::toDomain);
+        return jpaUserRepository.findById(userId).map(mapper::toDomain);
     }
 
     @Override
     public Optional<User> findByEmail(String email) {
-        return jpaUserRepository.findByEmail(email)
-                .filter(user -> !Boolean.TRUE.equals(user.getIsDeleted()))
-                .map(mapper::toDomain);
+        return jpaUserRepository.findByEmail(email).map(mapper::toDomain);
     }
 
     @Override
