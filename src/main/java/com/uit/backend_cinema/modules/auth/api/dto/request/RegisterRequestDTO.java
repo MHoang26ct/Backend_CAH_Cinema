@@ -1,4 +1,4 @@
-package com.uit.backend_cinema.modules.auth.api.dto;
+package com.uit.backend_cinema.modules.auth.api.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

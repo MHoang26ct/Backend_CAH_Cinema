@@ -1,5 +1,6 @@
-package com.uit.backend_cinema.modules.auth.api.dto;
+package com.uit.backend_cinema.modules.auth.api.dto.response;
 
+import com.uit.backend_cinema.modules.auth.api.dto.UserDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
