@@ -7,9 +7,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.uit.backend_cinema.modules.movies.infrastructure.entity.MovieJpaEntity;
+import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 
+@Repository
 public interface JpaMovieRepository extends JpaRepository<MovieJpaEntity, Long> {
     
     @Query("""
