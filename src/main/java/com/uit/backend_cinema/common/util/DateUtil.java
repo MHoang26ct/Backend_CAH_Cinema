@@ -1,5 +1,7 @@
 package com.uit.backend_cinema.common.util;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -16,6 +18,10 @@ public class DateUtil {
         }
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern(DEFAULT_DATETIME_FORMAT);
         return dateTime.format(formatter);
+    }
+
+    public static boolean isWeekend(LocalDate date) {
+        return date.getDayOfWeek().equals(DayOfWeek.SATURDAY) || date.getDayOfWeek().equals(DayOfWeek.SUNDAY);
     }
 }
 //
