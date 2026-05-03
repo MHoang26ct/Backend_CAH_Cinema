@@ -2,6 +2,7 @@ package com.uit.backend_cinema.common.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -75,6 +76,11 @@ public class GlobalExceptionHandler {
                 ));
         return buildResponse(HttpStatus.BAD_REQUEST, "Validation Failed", ErrorCode.VALIDATION_FAILED,
                 "Dữ liệu đầu vào không hợp lệ", fieldErrors);
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<ErrorResponse> handlePropertyReferenceException(PropertyReferenceException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Tham số đầu vào không hợp lệ", ErrorCode.VALIDATION_FAILED, ex.getMessage(), null);
     }
 
     // IllegalArgumentException — thường do logic đơn giản trong service
