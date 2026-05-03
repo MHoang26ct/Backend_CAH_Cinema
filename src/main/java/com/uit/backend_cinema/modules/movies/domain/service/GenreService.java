@@ -17,12 +17,7 @@ public class GenreService {
     }
 
     public List<Genre> findAll() {
-
-        List<Genre> genres = genreRepository.findAll();
-        if (genres.isEmpty()) {
-            throw new IllegalArgumentException("Danh sách thể loại phim trống");
-        }
-        return genres;
+        return genreRepository.findAll();
     }
 
     public List<Genre> findAllById(List<Long> genreIdList) {
