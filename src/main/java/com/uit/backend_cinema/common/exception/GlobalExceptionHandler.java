@@ -51,6 +51,7 @@ public class GlobalExceptionHandler {
                     OTP_INVALID,
                     ACCESS_TOKEN_INVALID,
                     DUPLICATE_RESOURCE,
+                    SEAT_ALREADY_BOOKED,
                     VALIDATION_FAILED ->
                 HttpStatus.BAD_REQUEST;
             case INTERNAL_ERROR -> HttpStatus.INTERNAL_SERVER_ERROR;

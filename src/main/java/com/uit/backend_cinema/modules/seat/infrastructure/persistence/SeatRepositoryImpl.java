@@ -7,6 +7,7 @@ import com.uit.backend_cinema.modules.seat.infrastructure.repository.JpaSeatRepo
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class SeatRepositoryImpl implements SeatRepository {
@@ -25,5 +26,11 @@ public class SeatRepositoryImpl implements SeatRepository {
                 .stream()
                 .map(mapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public Optional<Seat> findById(Long seatId) {
+        return jpaSeatRepository.findById(seatId)
+                .map(mapper::toDomain);
     }
 }
