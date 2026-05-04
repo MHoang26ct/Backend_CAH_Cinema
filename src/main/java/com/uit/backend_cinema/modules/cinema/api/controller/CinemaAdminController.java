@@ -32,14 +32,6 @@ public class CinemaAdminController {
 
     // ───── Cinema endpoints ─────
 
-    @GetMapping
-    public ResponseEntity<?> getAllCinemas() {
-        List<CinemaResponseDTO> response = cinemaService.findAll().stream()
-                .map(mapper::toDTO)
-                .toList();
-        return ResponseEntity.ok(ApiResponse.success(response, "Lấy danh sách rạp thành công"));
-    }
-
     @GetMapping("/{cinemaId}")
     public ResponseEntity<?> getCinemaById(@PathVariable Long cinemaId) {
         CinemaResponseDTO response = mapper.toDTO(cinemaService.findById(cinemaId));
