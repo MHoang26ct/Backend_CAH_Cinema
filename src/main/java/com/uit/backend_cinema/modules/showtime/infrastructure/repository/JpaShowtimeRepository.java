@@ -34,6 +34,13 @@ public interface JpaShowtimeRepository extends JpaRepository<ShowtimeJpaEntity, 
         AND s.start_time < :endOfDay
         AND s.status != 'HIDDEN'
         ORDER BY s.start_time ASC
+    """, countQuery = """
+        SELECT count(*) FROM showtimes s
+        JOIN rooms r ON s.room_id = r.room_id
+        WHERE r.cinema_id = :cinemaId
+        AND s.start_time >= :startOfDay
+        AND s.start_time < :endOfDay
+        AND s.status != 'HIDDEN'
     """, nativeQuery = true)
     Page<ShowtimeJpaEntity> findByCinemaAndDate(
         @Param("cinemaId") Long cinemaId,

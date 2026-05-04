@@ -7,6 +7,7 @@ import com.uit.backend_cinema.modules.showtime.api.mapper.ShowtimeApiMapper;
 import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +33,7 @@ public class OpenShowtimeController {
             @RequestParam(required = false) Long movieId,
             @RequestParam(required = false) Long cinemaId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @PageableDefault(size = 20) Pageable pageable
+            @PageableDefault(size = 20, sort = "startTime", direction = Sort.Direction.ASC) Pageable pageable
     ) {
         Page<ShowtimeSummaryDTO> result;
 
