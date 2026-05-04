@@ -32,4 +32,6 @@ public enum ErrorCode {
 
     // Server
     INTERNAL_ERROR,             // Lỗi server không xác định
+
+    
 }
