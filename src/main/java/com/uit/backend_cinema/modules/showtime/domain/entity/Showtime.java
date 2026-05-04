@@ -1,5 +1,6 @@
 package com.uit.backend_cinema.modules.showtime.domain.entity;
 
+import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;

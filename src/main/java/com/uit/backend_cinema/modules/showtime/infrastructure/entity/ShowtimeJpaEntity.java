@@ -1,5 +1,7 @@
 package com.uit.backend_cinema.modules.showtime.infrastructure.entity;
 
+import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
+import com.uit.backend_cinema.modules.showtime.domain.entity.ShowtimeStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,8 +23,13 @@ public class ShowtimeJpaEntity {
     @Column(name = "movie_id", nullable = false)
     private Long movieId;
 
+    // MovieFormatConverter @autoApply = true tự xử lý "2D"/"3D"/"IMAX" ↔ enum
     @Column(name = "format", nullable = false)
-    private String format;
+    private MovieFormat format;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private ShowtimeStatus status;
 
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
@@ -32,7 +39,4 @@ public class ShowtimeJpaEntity {
 
     @Column(name = "base_price", nullable = false)
     private BigDecimal basePrice;
-
-    @Column(name = "status", nullable = false)
-    private String status;
 }

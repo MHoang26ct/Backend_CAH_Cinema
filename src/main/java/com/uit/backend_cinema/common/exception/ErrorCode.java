@@ -26,6 +26,7 @@ public enum ErrorCode {
     // Resource
     RESOURCE_NOT_FOUND,         // Tài nguyên không tồn tại
     DUPLICATE_RESOURCE,         // Tài nguyên đã tồn tại
+    SEAT_ALREADY_BOOKED,        // Ghế đã được đặt / đang được chọn
 
     // Validation
     VALIDATION_FAILED,          // Dữ liệu đầu vào không hợp lệ (@Valid)
