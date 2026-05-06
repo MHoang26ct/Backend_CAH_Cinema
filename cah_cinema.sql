@@ -196,6 +196,9 @@ CREATE TABLE bookings (
     is_deleted BOOLEAN DEFAULT FALSE
 );
 
+CREATE INDEX idx_bookings_status_expires_at
+ON bookings (status, expires_at);
+
 CREATE TABLE pending_ticket_items (
     pending_ticket_item_id SERIAL PRIMARY KEY,
     booking_id INT NOT NULL REFERENCES bookings(booking_id),
@@ -221,15 +224,32 @@ CREATE TABLE tickets (
     ticket_id SERIAL PRIMARY KEY,
     seat_id INT NOT NULL REFERENCES seats(seat_id),
     booking_id INT NOT NULL REFERENCES bookings(booking_id),
-    price DECIMAL(18,2) NOT NULL CHECK (price >= 0)
+    price DECIMAL(18,2) NOT NULL CHECK (price >= 0),
+    CONSTRAINT uq_tickets_booking_seat UNIQUE (booking_id, seat_id)
 );
 
 CREATE TABLE food_orders (
     food_order_id SERIAL PRIMARY KEY,
     booking_id INT NOT NULL REFERENCES bookings(booking_id),
     total_price DECIMAL(18,2) NOT NULL DEFAULT 0 CHECK (total_price >= 0),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_food_orders_booking UNIQUE (booking_id)
 );
+
+CREATE TABLE payment_confirmations (
+    payment_confirmation_id SERIAL PRIMARY KEY,
+    payment_ref VARCHAR(100) NOT NULL,
+    booking_id INT NOT NULL REFERENCES bookings(booking_id),
+    paid_at TIMESTAMP,
+    status VARCHAR(30) NOT NULL,
+    gateway VARCHAR(30) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_payment_confirmations_payment_ref UNIQUE (payment_ref)
+);
+
+CREATE UNIQUE INDEX uq_payment_confirmations_success_booking
+ON payment_confirmations (booking_id)
+WHERE status = 'SUCCESS';
 
 CREATE TABLE food_order_items (
     food_order_id INT REFERENCES food_orders(food_order_id),
@@ -245,4 +265,18 @@ CREATE TABLE invoices (
     payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'VNPAY', 'MOMO')),
     amount_paid DECIMAL(18,2) NOT NULL CHECK (amount_paid >= 0),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE outbox_events (
+    outbox_event_id SERIAL PRIMARY KEY,
+    event_type VARCHAR(100) NOT NULL,
+    aggregate_id VARCHAR(100) NOT NULL,
+    payload JSONB NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+    retry_count INT NOT NULL DEFAULT 0,
+    next_retry_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_outbox_event_type_aggregate UNIQUE (event_type, aggregate_id)
 );
