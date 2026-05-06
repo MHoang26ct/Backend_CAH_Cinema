@@ -1,19 +1,21 @@
 package com.uit.backend_cinema.modules.seat.infrastructure.persistence;
 
 import com.uit.backend_cinema.modules.seat.domain.repository.SeatLockRepository;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 @Repository
-public class RedisSeatLockRepository implements SeatLockRepository{
+public class RedisSeatLockRepositoryImpl implements SeatLockRepository{
      // Key format: lock:showtime:{showtimeId}:seat:{seatId}
     private static final String KEY_FORMAT = "lock:showtime:%d:seat:%d";
 
     private final StringRedisTemplate redisTemplate;
 
-    public RedisSeatLockRepository(StringRedisTemplate redisTemplate) {
+    public RedisSeatLockRepositoryImpl(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 
@@ -28,6 +30,27 @@ public class RedisSeatLockRepository implements SeatLockRepository{
         Boolean success = redisTemplate.opsForValue()
                 .setIfAbsent(key, String.valueOf(userId), ttlSeconds, TimeUnit.SECONDS);
         return Boolean.TRUE.equals(success);
+    }
+
+    @Override
+    public boolean promoteLockIfOwner(Long showtimeId, Long seatId, Long userId, long ttlSeconds) {
+        String key = buildKey(showtimeId, seatId);
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setScriptText("""
+                local value = redis.call('GET', KEYS[1])
+                if value == ARGV[1] then
+                    return redis.call('EXPIRE', KEYS[1], ARGV[2])
+                end
+                return 0
+                """);
+        script.setResultType(Long.class);
+        Long result = redisTemplate.execute(
+                script,
+                Collections.singletonList(key),
+                String.valueOf(userId),
+                String.valueOf(ttlSeconds)
+        );
+        return result != null && result == 1L;
     }
 
     @Override

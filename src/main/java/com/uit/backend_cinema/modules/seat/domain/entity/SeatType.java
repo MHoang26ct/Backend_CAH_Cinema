@@ -4,9 +4,10 @@ import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
 
-@Getter @Setter
+@Getter
+@Setter
 public class SeatType {
     private Long seatTypeId;
-    private String typeName;       
-    private BigDecimal priceMultiplier; 
+    private String typeName;
+    private BigDecimal priceMultiplier;
 }

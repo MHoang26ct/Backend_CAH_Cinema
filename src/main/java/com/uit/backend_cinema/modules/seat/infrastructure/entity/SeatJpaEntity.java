@@ -4,13 +4,19 @@ import com.uit.backend_cinema.modules.seat.domain.entity.SeatStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLRestriction;
+
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "seats")
-@Getter @Setter
+@SQLRestriction("is_deleted = false")
+@Getter
+@Setter
 public class SeatJpaEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seat_seq")
+    @SequenceGenerator(name = "seat_seq", sequenceName = "seats_seq", allocationSize = 200)
     @Column(name = "seat_id")
     private Long seatId;
 
@@ -18,10 +24,10 @@ public class SeatJpaEntity {
     private Long roomId;
 
     @Column(name = "seat_row", nullable = false)
-    private String seatRow;
+    private BigDecimal seatRow;
 
-    @Column(name = "seat_number", nullable = false)
-    private Integer seatNumber;
+    @Column(name = "seat_col", nullable = false)
+    private BigDecimal seatCol;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "seat_type_id", nullable = false)

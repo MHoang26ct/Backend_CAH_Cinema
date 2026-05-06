@@ -13,4 +13,6 @@ public interface SeatInfraMapper {
     Seat toDomain(SeatJpaEntity entity);
 
     SeatType toDomain(SeatTypeJpaEntity entity);
+
+    SeatJpaEntity toEntity(Seat seat);
 }
