@@ -88,6 +88,9 @@ public class SecurityConfig {
                         // Cho phép truy cập route báo lỗi nội bộ của Spring Boot (để tránh bị 403 giả)
                         .requestMatchers("/error").permitAll()
 
+                        // Khu vực yêu cầu đăng nhập: Chọn/bỏ chọn ghế
+                        .requestMatchers("/api/v1/seats/**").authenticated()
+
                         // Tất cả các request khác bắt buộc phải có JWT hợp lệ
                         .anyRequest().authenticated()
                 )

@@ -51,8 +51,9 @@ CREATE TABLE cinemas (
 
 CREATE TABLE seat_types (
     seat_type_id SERIAL PRIMARY KEY,
-    type_name VARCHAR(50) NOT NULL,
-    price_multiplier DECIMAL(4,2) NOT NULL DEFAULT 1.0 CHECK (price_multiplier >= 0)
+    type_name VARCHAR(50) NOT NULL CHECK(type_name IN ('NORMAL', 'VIP', 'COUPLE', 'AISLE')),
+    price_multiplier DECIMAL(4,2) NOT NULL DEFAULT 1.0 CHECK (price_multiplier >= 0),
+    CONSTRAINT CHK_aisle_price CHECK (type_name != 'AISLE' OR price_multiplier = 0)
 );
 
 CREATE TABLE foods (
@@ -156,8 +157,8 @@ CREATE TABLE refresh_tokens (
 CREATE TABLE seats (
     seat_id SERIAL PRIMARY KEY,
     room_id INT NOT NULL REFERENCES rooms(room_id),
-    seat_row VARCHAR(10) NOT NULL,
-    seat_number INT NOT NULL CHECK (seat_number > 0),
+    seat_row NUMERIC(5,1) NOT NULL,
+    seat_col NUMERIC(5,1) NOT NULL,
     seat_type_id INT NOT NULL REFERENCES seat_types(seat_type_id),
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'PREPARE')),
     is_deleted BOOLEAN DEFAULT FALSE
@@ -171,6 +172,7 @@ CREATE TABLE showtimes (
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
     base_price DECIMAL(18,2) NOT NULL CHECK (base_price >= 0),
+    is_deleted BOOLEAN DEFAULT FALSE,
     status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'SOLD_OUT', 'HIDDEN')),
     CONSTRAINT CHK_showtime_duration CHECK (start_time < end_time)
 );
@@ -184,12 +186,35 @@ CREATE TABLE bookings (
     user_id INT NOT NULL REFERENCES users(user_id),
     showtime_id INT NOT NULL REFERENCES showtimes(showtime_id),
     voucher_id INT REFERENCES vouchers(voucher_id),
+    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'VNPAY', 'MOMO')),
     discount_amount DECIMAL(18,2) DEFAULT 0 CHECK (discount_amount >= 0),
     total_price DECIMAL(18,2) NOT NULL DEFAULT 0 CHECK (total_price >= 0),
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID', 'CANCELLED', 'EXPIRED', 'REFUNDED', 'CHECKED_IN')),
+    expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE pending_ticket_items (
+    pending_ticket_item_id SERIAL PRIMARY KEY,
+    booking_id INT NOT NULL REFERENCES bookings(booking_id),
+    seat_id INT NOT NULL REFERENCES seats(seat_id),
+    unit_price DECIMAL(18,2) NOT NULL CHECK (unit_price >= 0),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    CONSTRAINT uq_pending_ticket_booking_seat UNIQUE (booking_id, seat_id)
+);
+
+CREATE TABLE booking_food_draft_items (
+    booking_food_draft_item_id SERIAL PRIMARY KEY,
+    booking_id INT NOT NULL REFERENCES bookings(booking_id),
+    food_id INT NOT NULL REFERENCES foods(food_id),
+    quantity INT NOT NULL CHECK (quantity > 0),
+    unit_price DECIMAL(18,2) NOT NULL CHECK (unit_price >= 0),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    CONSTRAINT uq_booking_food_draft UNIQUE (booking_id, food_id)
 );
 
 CREATE TABLE tickets (

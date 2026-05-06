@@ -1,5 +1,6 @@
 package com.uit.backend_cinema.modules.auth.infrastructure.security;
 
+import com.uit.backend_cinema.common.sercurity.CustomUserDetails;
 import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -45,7 +46,8 @@ public class CustomUserDetailsService implements UserDetailsService {
         String username = user.getEmail() != null ? user.getEmail() : user.getPhone();
         String roleName = user.getRole() != null ? user.getRole() : "ROLE_USER";
 
-        return new org.springframework.security.core.userdetails.User(
+        return new CustomUserDetails(
+                user.getUserId(),
                 username,
                 user.getPassword() != null ? user.getPassword() : "",
                 Collections.singletonList(new SimpleGrantedAuthority(roleName))
