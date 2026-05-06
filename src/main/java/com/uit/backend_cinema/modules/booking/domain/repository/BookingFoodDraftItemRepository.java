@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface BookingFoodDraftItemRepository {
     List<BookingFoodDraftItem> saveAll(List<BookingFoodDraftItem> items);
+    List<BookingFoodDraftItem> findAllActiveByBookingId(Long bookingId);
 
     void softDeleteByBookingId(Long bookingId);
 

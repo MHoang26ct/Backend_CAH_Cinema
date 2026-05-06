@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 
 public interface JpaBookingFoodDraftItemRepository extends JpaRepository<BookingFoodDraftItemJpaEntity, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -16,4 +18,6 @@ public interface JpaBookingFoodDraftItemRepository extends JpaRepository<Booking
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from BookingFoodDraftItemJpaEntity f where f.isDeleted = true and f.createdAt < :threshold")
     void hardDeleteSoftDeletedBefore(@Param("threshold") LocalDateTime threshold);
+
+    List<BookingFoodDraftItemJpaEntity> findByBookingId(Long bookingId);
 }

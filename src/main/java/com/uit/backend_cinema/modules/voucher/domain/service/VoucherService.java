@@ -60,17 +60,13 @@ public class VoucherService {
 
     @Transactional
     public void useVoucher(Long id) {
-        Voucher toUse = voucherRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Voucher không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
-        if (!toUse.getIsActive() || LocalDateTime.now().isBefore(toUse.getStartAt())
-                || LocalDateTime.now().isAfter(toUse.getExpiredAt())) {
-            throw new BusinessException("Voucher không còn hiệu lực", ErrorCode.VALIDATION_FAILED);
+        int updated = voucherRepository.consumeVoucherAtomically(id, LocalDateTime.now());
+        if (updated == 0) {
+            throw new BusinessException(
+                    "Voucher không còn hiệu lực hoặc đã hết lượt sử dụng",
+                    ErrorCode.VALIDATION_FAILED
+            );
         }
-        if (toUse.getUsedCount() >= toUse.getQuantity()) {
-            throw new BusinessException("Voucher đã hết lượt sử dụng", ErrorCode.VALIDATION_FAILED);
-        }
-        toUse.setUsedCount(toUse.getUsedCount() + 1);
-        voucherRepository.save(toUse);
     }
 
     @Transactional

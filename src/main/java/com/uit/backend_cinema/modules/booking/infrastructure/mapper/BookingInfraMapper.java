@@ -2,9 +2,11 @@ package com.uit.backend_cinema.modules.booking.infrastructure.mapper;
 
 import com.uit.backend_cinema.modules.booking.domain.entity.Booking;
 import com.uit.backend_cinema.modules.booking.domain.entity.BookingFoodDraftItem;
+import com.uit.backend_cinema.modules.booking.domain.entity.PaymentConfirmation;
 import com.uit.backend_cinema.modules.booking.domain.entity.PendingTicketItem;
 import com.uit.backend_cinema.modules.booking.infrastructure.entity.BookingFoodDraftItemJpaEntity;
 import com.uit.backend_cinema.modules.booking.infrastructure.entity.BookingJpaEntity;
+import com.uit.backend_cinema.modules.booking.infrastructure.entity.PaymentConfirmationJpaEntity;
 import com.uit.backend_cinema.modules.booking.infrastructure.entity.PendingTicketItemJpaEntity;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
@@ -23,6 +25,10 @@ public interface BookingInfraMapper {
     BookingFoodDraftItem toDomain(BookingFoodDraftItemJpaEntity entity);
 
     BookingFoodDraftItemJpaEntity toEntity(BookingFoodDraftItem item);
+
+    PaymentConfirmation toDomain(PaymentConfirmationJpaEntity entity);
+
+    PaymentConfirmationJpaEntity toEntity(PaymentConfirmation paymentConfirmation);
 
     @AfterMapping
     default void normalizeBooking(Booking booking, @MappingTarget BookingJpaEntity entity) {

@@ -4,6 +4,7 @@ import com.uit.backend_cinema.modules.voucher.infrastructure.entity.VoucherJpaEn
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -25,4 +26,16 @@ public interface JpaVoucherRepository extends JpaRepository<VoucherJpaEntity, Lo
                 AND v.expiredAt > :now
             """)
     List<VoucherJpaEntity> findAllForUser(@Param("now") LocalDateTime now);
+
+    @Modifying
+    @Query("""
+    update VoucherJpaEntity v
+    set v.usedCount = v.usedCount + 1
+    where v.voucherId = :voucherId
+      and v.isActive = true
+      and v.startAt <= :now
+      and v.expiredAt >= :now
+      and v.usedCount < v.quantity
+""")
+    int consumeVoucherAtomically(@Param("voucherId") Long voucherId, @Param("now") LocalDateTime now);
 }

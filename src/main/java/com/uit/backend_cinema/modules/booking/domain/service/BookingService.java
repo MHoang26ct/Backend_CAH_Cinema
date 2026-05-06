@@ -2,14 +2,16 @@ package com.uit.backend_cinema.modules.booking.domain.service;
 
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.modules.booking.api.dto.ConfirmPaymentRequestDTO;
+import com.uit.backend_cinema.modules.booking.api.dto.ConfirmPaymentResponseDTO;
 import com.uit.backend_cinema.modules.booking.api.dto.CreateBookingRequestDTO;
 import com.uit.backend_cinema.modules.booking.domain.entity.*;
+import com.uit.backend_cinema.modules.booking.domain.repository.*;
 import com.uit.backend_cinema.modules.food_order.api.entity.FoodOrderItemRequestDTO;
-import com.uit.backend_cinema.modules.booking.domain.repository.BookingFoodDraftItemRepository;
-import com.uit.backend_cinema.modules.booking.domain.repository.BookingRepository;
-import com.uit.backend_cinema.modules.booking.domain.repository.BookingVoucherHoldRepository;
-import com.uit.backend_cinema.modules.booking.domain.repository.PendingTicketItemRepository;
 import com.uit.backend_cinema.modules.food_order.domain.entity.Food;
+import com.uit.backend_cinema.modules.food_order.domain.entity.FoodOrder;
+import com.uit.backend_cinema.modules.food_order.domain.entity.FoodOrderItem;
+import com.uit.backend_cinema.modules.food_order.domain.service.FoodOrderService;
 import com.uit.backend_cinema.modules.food_order.domain.service.FoodService;
 import com.uit.backend_cinema.modules.price_config.domain.service.PriceConfigService;
 import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
@@ -19,6 +21,7 @@ import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
 import com.uit.backend_cinema.modules.voucher.domain.entity.Voucher;
 import com.uit.backend_cinema.modules.voucher.domain.entity.VoucherType;
 import com.uit.backend_cinema.modules.voucher.domain.service.VoucherService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +46,8 @@ public class BookingService {
     private final PriceConfigService priceConfigService;
     private final FoodService foodService;
     private final VoucherService voucherService;
+    private final FoodOrderService foodOrderService;
+    private final PaymentConfirmationRepository paymentConfirmationRepository;
 
     public BookingService(BookingRepository bookingRepository,
                           PendingTicketItemRepository pendingTicketItemRepository,
@@ -52,7 +57,10 @@ public class BookingService {
                           ShowtimeService showtimeService,
                           PriceConfigService priceConfigService,
                           FoodService foodService,
-                          VoucherService voucherService) {
+                          VoucherService voucherService,
+                          FoodOrderService foodOrderService,
+                          PaymentConfirmationRepository paymentConfirmationRepository)
+    {
         this.bookingRepository = bookingRepository;
         this.pendingTicketItemRepository = pendingTicketItemRepository;
         this.bookingFoodDraftItemRepository = bookingFoodDraftItemRepository;
@@ -62,6 +70,8 @@ public class BookingService {
         this.priceConfigService = priceConfigService;
         this.foodService = foodService;
         this.voucherService = voucherService;
+        this.foodOrderService = foodOrderService;
+        this.paymentConfirmationRepository = paymentConfirmationRepository;
     }
 
     @Transactional
@@ -91,6 +101,127 @@ public class BookingService {
             seatService.releaseSeatLocksByOwner(requestDTO.getShowtimeId(), seatIds, userId);
             throw ex;
         }
+    }
+
+    @Transactional
+    public ConfirmPaymentResponseDTO confirmPayment(Long userId, Long bookingId, ConfirmPaymentRequestDTO requestDTO) {
+        Optional<PaymentConfirmation> existingConfirmation = paymentConfirmationRepository.findByPaymentRef(requestDTO.getPaymentRef());
+
+        if (existingConfirmation.isPresent()) {
+            PaymentConfirmation confirmation = existingConfirmation.get();
+            if (confirmation.getBookingId() != bookingId) {
+                throw new BusinessException("Mã tham chiếu thanh toán đã được dùng cho booking khác", ErrorCode.PAYMENT_REF_DUPLICATE);
+            }
+            Booking existingBooking = bookingRepository.findById(bookingId)
+                    .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+
+            return ConfirmPaymentResponseDTO.builder()
+                    .bookingId(existingBooking.getBookingId())
+                    .status(existingBooking.getStatus())
+                    .paymentRef(requestDTO.getPaymentRef())
+                    .gateway(requestDTO.getGateway())
+                    .ticketStatus("PENDING")
+                    .build();
+        }
+
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!booking.getUserId().equals(userId)) {
+            throw new BusinessException("Bạn không có quyền thanh toán cho booking này", ErrorCode.FORBIDDEN);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (booking.getStatus() == BookingStatus.PAID) {
+            throw new BusinessException(
+                    "Booking đã được thanh toán",
+                    ErrorCode.PAYMENT_ALREADY_CONFIRMED
+            );
+        }
+
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new BusinessException(
+                    "Booking không ở trạng thái chờ thanh toán",
+                    ErrorCode.BOOKING_INVALID_STATUS
+            );
+        }
+
+        if (!booking.getExpiresAt().isAfter(now)) {
+            throw new BusinessException(
+                    "Booking đã hết hạn thanh toán",
+                    ErrorCode.BOOKING_EXPIRED
+            );
+        }
+
+        if (booking.getVoucherId() != null) {
+            BookingVoucherHold hold = bookingVoucherHoldRepository.findByBookingId(bookingId)
+                    .orElseThrow(() -> new BusinessException("Voucher hold đã hết hạn", ErrorCode.VOUCHER_HOLD_EXPIRED));
+
+            if (hold.getStatus() != BookingVoucherHoldStatus.HELD || !hold.getExpiresAt().isAfter(now)) {
+                throw new BusinessException(
+                        "Voucher hold đã hết hạn",
+                        ErrorCode.VOUCHER_HOLD_EXPIRED
+                );
+            }
+            voucherService.useVoucher(booking.getVoucherId());
+        }
+
+        finalizeFoodDraftIfAbsent(bookingId);
+
+        booking.setStatus(BookingStatus.PAID);
+        bookingRepository.save(booking);
+
+        PaymentConfirmation confirmation = new PaymentConfirmation();
+        confirmation.setBookingId(bookingId);
+        confirmation.setPaymentRef(requestDTO.getPaymentRef());
+        confirmation.setStatus(PaymentConfirmationStatus.SUCCESS);
+        confirmation.setGateway(requestDTO.getGateway());
+        try {
+            paymentConfirmationRepository.save(confirmation);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(
+                    "Mã tham chiếu thanh toán đã tồn tại",
+                    ErrorCode.PAYMENT_REF_DUPLICATE
+            );
+        }
+
+        return ConfirmPaymentResponseDTO.builder()
+                .bookingId(booking.getBookingId())
+                .status(booking.getStatus())
+                .paymentRef(requestDTO.getPaymentRef())
+                .gateway(requestDTO.getGateway())
+                .ticketStatus("PENDING")
+                .build();
+    }
+
+    private void finalizeFoodDraftIfAbsent(Long bookingId) {
+        if (foodOrderService.getByBookingId(bookingId).isPresent()) {
+            return;
+        }
+
+        List<BookingFoodDraftItem> draftItems =
+                bookingFoodDraftItemRepository.findAllActiveByBookingId(bookingId);
+
+        if (draftItems.isEmpty()) {
+            return;
+        }
+
+        FoodOrder order = new FoodOrder();
+        order.setBookingId(bookingId);
+
+        List<FoodOrderItem> items = draftItems.stream()
+                .map(draft -> {
+                    FoodOrderItem item = new FoodOrderItem();
+                    item.setFoodId(draft.getFoodId());
+                    item.setQuantity(draft.getQuantity());
+                    item.setPrice(draft.getUnitPrice());
+                    return item;
+                })
+                .toList();
+
+        order.setItems(items);
+        foodOrderService.createFoodOrder(order);
     }
 
     @Scheduled(fixedDelayString = "${booking.prepayment.expiry-check-ms:60000}")

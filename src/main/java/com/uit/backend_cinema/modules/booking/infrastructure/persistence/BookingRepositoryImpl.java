@@ -22,6 +22,12 @@ public class BookingRepositoryImpl implements BookingRepository {
     }
 
     @Override
+    public Optional<Booking> findByIdForUpdate(Long bookingId) {
+        return jpaBookingRepository.findByIdForUpdate(bookingId)
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public Booking save(Booking booking) {
         return mapper.toDomain(jpaBookingRepository.save(mapper.toEntity(booking)));
     }

@@ -21,6 +21,14 @@ public class BookingFoodDraftItemRepositoryImpl implements BookingFoodDraftItemR
     }
 
     @Override
+    public List<BookingFoodDraftItem> findAllActiveByBookingId(Long bookingId) {
+        return jpaBookingFoodDraftItemRepository.findByBookingId(bookingId)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public List<BookingFoodDraftItem> saveAll(List<BookingFoodDraftItem> items) {
         return jpaBookingFoodDraftItemRepository.saveAll(items.stream().map(mapper::toEntity).toList())
                 .stream()
