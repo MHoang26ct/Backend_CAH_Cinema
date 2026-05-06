@@ -1,5 +1,7 @@
 package com.uit.backend_cinema.modules.booking.domain.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.booking.api.dto.ConfirmPaymentRequestDTO;
@@ -13,6 +15,9 @@ import com.uit.backend_cinema.modules.food_order.domain.entity.FoodOrder;
 import com.uit.backend_cinema.modules.food_order.domain.entity.FoodOrderItem;
 import com.uit.backend_cinema.modules.food_order.domain.service.FoodOrderService;
 import com.uit.backend_cinema.modules.food_order.domain.service.FoodService;
+import com.uit.backend_cinema.modules.outbox.domain.entity.OutboxEventType;
+import com.uit.backend_cinema.modules.outbox.domain.payload.BookingPaidPayload;
+import com.uit.backend_cinema.modules.outbox.domain.service.OutboxEventService;
 import com.uit.backend_cinema.modules.price_config.domain.service.PriceConfigService;
 import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
 import com.uit.backend_cinema.modules.seat.domain.service.SeatService;
@@ -48,6 +53,8 @@ public class BookingService {
     private final VoucherService voucherService;
     private final FoodOrderService foodOrderService;
     private final PaymentConfirmationRepository paymentConfirmationRepository;
+    private final OutboxEventService outboxEventService;
+    private final ObjectMapper objectMapper;
 
     public BookingService(BookingRepository bookingRepository,
                           PendingTicketItemRepository pendingTicketItemRepository,
@@ -59,7 +66,9 @@ public class BookingService {
                           FoodService foodService,
                           VoucherService voucherService,
                           FoodOrderService foodOrderService,
-                          PaymentConfirmationRepository paymentConfirmationRepository)
+                          PaymentConfirmationRepository paymentConfirmationRepository,
+                          OutboxEventService outboxEventService,
+                          ObjectMapper objectMapper)
     {
         this.bookingRepository = bookingRepository;
         this.pendingTicketItemRepository = pendingTicketItemRepository;
@@ -72,6 +81,8 @@ public class BookingService {
         this.voucherService = voucherService;
         this.foodOrderService = foodOrderService;
         this.paymentConfirmationRepository = paymentConfirmationRepository;
+        this.outboxEventService = outboxEventService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -109,11 +120,15 @@ public class BookingService {
 
         if (existingConfirmation.isPresent()) {
             PaymentConfirmation confirmation = existingConfirmation.get();
-            if (confirmation.getBookingId() != bookingId) {
+            if (confirmation.getBookingId().equals(bookingId)) {
                 throw new BusinessException("Mã tham chiếu thanh toán đã được dùng cho booking khác", ErrorCode.PAYMENT_REF_DUPLICATE);
             }
             Booking existingBooking = bookingRepository.findById(bookingId)
                     .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+
+            if (existingBooking.getStatus() == BookingStatus.PAID) {
+                createBookingPaidOutbox(existingBooking, requestDTO.getPaymentRef());
+            }
 
             return ConfirmPaymentResponseDTO.builder()
                     .bookingId(existingBooking.getBookingId())
@@ -186,6 +201,8 @@ public class BookingService {
             );
         }
 
+        createBookingPaidOutbox(booking, requestDTO.getPaymentRef());
+
         return ConfirmPaymentResponseDTO.builder()
                 .bookingId(booking.getBookingId())
                 .status(booking.getStatus())
@@ -195,6 +212,23 @@ public class BookingService {
                 .build();
     }
 
+    private void createBookingPaidOutbox(Booking booking, String paymentRef) {
+        BookingPaidPayload payload = new BookingPaidPayload();
+        payload.setBookingId(booking.getBookingId());
+        payload.setUserId(booking.getUserId());
+        payload.setShowtimeId(booking.getShowtimeId());
+        payload.setPaymentRef(paymentRef);
+
+        try {
+            outboxEventService.createIfAbsent(
+                    OutboxEventType.BOOKING_PAID,
+                    booking.getBookingId().toString(),
+                    objectMapper.writeValueAsString(payload)
+            );
+        } catch (JsonProcessingException ex) {
+            throw new BusinessException("Không thể tạo payload BOOKING_PAID", ErrorCode.OUTBOX_PAYLOAD_SERIALIZATION_FAILED, ex);
+        }
+    }
     private void finalizeFoodDraftIfAbsent(Long bookingId) {
         if (foodOrderService.getByBookingId(bookingId).isPresent()) {
             return;
@@ -287,10 +321,7 @@ public class BookingService {
     }
 
     private void persistFoodDraftItems(Long bookingId, List<BookingFoodDraftItem> foodDraftItems) {
-        List<BookingFoodDraftItem> bookingFoodDraftItems = foodDraftItems.stream().map(item -> {
-            item.setBookingId(bookingId);
-            return item;
-        }).toList();
+        List<BookingFoodDraftItem> bookingFoodDraftItems = foodDraftItems.stream().peek(item -> item.setBookingId(bookingId)).toList();
         bookingFoodDraftItemRepository.saveAll(bookingFoodDraftItems);
     }
 
