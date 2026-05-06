@@ -8,9 +8,13 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SQLRestriction;
+
 @Entity
 @Table(name = "showtimes")
-@Getter @Setter
+@SQLRestriction("is_deleted = false")
+@Getter
+@Setter
 public class ShowtimeJpaEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,4 +43,7 @@ public class ShowtimeJpaEntity {
 
     @Column(name = "base_price", nullable = false)
     private BigDecimal basePrice;
+
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted;
 }

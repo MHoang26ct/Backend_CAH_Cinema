@@ -22,7 +22,7 @@ public class SeatRepositoryImpl implements SeatRepository {
 
     @Override
     public List<Seat> findByRoomId(Long roomId) {
-        return jpaSeatRepository.findByRoomIdAndIsDeletedFalse(roomId)
+        return jpaSeatRepository.findByRoomIdOrderBySeatRowAscSeatColAsc(roomId)
                 .stream()
                 .map(mapper::toDomain)
                 .toList();
@@ -32,5 +32,30 @@ public class SeatRepositoryImpl implements SeatRepository {
     public Optional<Seat> findById(Long seatId) {
         return jpaSeatRepository.findById(seatId)
                 .map(mapper::toDomain);
+    }
+
+    @Override
+    public List<Seat> findByIds(List<Long> seatIds) {
+        return jpaSeatRepository.findBySeatIdInOrderBySeatRowAscSeatColAsc(seatIds)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public void createSeatMap(List<Seat> seats) {
+        jpaSeatRepository.saveAll(seats.stream()
+                .map(mapper::toEntity)
+                .toList());
+    }
+
+    @Override
+    public void softDeleteByRoomId(Long roomId) {
+        jpaSeatRepository.softDeleteByRoomId(roomId);
+    }
+
+    @Override
+    public boolean existsByRoomId(Long roomId) {
+        return jpaSeatRepository.existsByRoomId(roomId);
     }
 }

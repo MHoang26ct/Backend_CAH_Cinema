@@ -1,17 +1,22 @@
 package com.uit.backend_cinema.modules.showtime.infrastructure.mapper;
 
+import com.uit.backend_cinema.modules.showtime.domain.entity.CinemaShowtimes;
+import com.uit.backend_cinema.modules.showtime.domain.entity.MovieShowtimes;
 import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
 import com.uit.backend_cinema.modules.showtime.infrastructure.entity.ShowtimeJpaEntity;
+import com.uit.backend_cinema.modules.showtime.infrastructure.repository.dto.CinemaShowtimeRowDto;
+import com.uit.backend_cinema.modules.showtime.infrastructure.repository.dto.MovieShowtimeRowDto;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface  ShowtimeInfraMapper {
-    @Mapping(target = "roomName", ignore = true)
-    @Mapping(target = "cinemaId", ignore = true)
-    @Mapping(target = "cinemaName", ignore = true)
-    @Mapping(target = "movieTitle", ignore = true)
-    @Mapping(target = "moviePosterUrl", ignore = true)
-    @Mapping(target = "movieDuration", ignore = true)
     Showtime toDomain(ShowtimeJpaEntity entity);
+    ShowtimeJpaEntity toJpaEntity(Showtime showtime);
+
+    MovieShowtimes.MovieInfo toMovieInfo(MovieShowtimeRowDto projection);
+    MovieShowtimes.ShowtimeInfo toMovieShowtimeInfo(MovieShowtimeRowDto projection);
+
+    CinemaShowtimes.MovieInfo toCinemaMovieInfo(CinemaShowtimeRowDto projection);
+    CinemaShowtimes.ShowtimeInfo toCinemaShowtimeInfo(CinemaShowtimeRowDto projection);
 }

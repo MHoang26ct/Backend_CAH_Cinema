@@ -1,19 +1,18 @@
 package com.uit.backend_cinema.modules.showtime.api.controller;
 
 import com.uit.backend_cinema.common.util.ApiResponse;
+import com.uit.backend_cinema.modules.showtime.api.dto.CinemaShowtimesResponseDTO;
+import com.uit.backend_cinema.modules.showtime.api.dto.MovieShowtimesResponseDTO;
 import com.uit.backend_cinema.modules.showtime.api.dto.ShowtimeDetailDTO;
-import com.uit.backend_cinema.modules.showtime.api.dto.ShowtimeSummaryDTO;
 import com.uit.backend_cinema.modules.showtime.api.mapper.ShowtimeApiMapper;
 import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
+
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/public/showtimes")
@@ -26,35 +25,27 @@ public class OpenShowtimeController {
         this.mapper = mapper;
     }
 
-    // GET /api/v1/public/showtimes?movieId=1&date=2025-05-10
-    // GET /api/v1/public/showtimes?cinemaId=1&date=2025-05-10
-    @GetMapping
-    public ResponseEntity<?> getShowtimes(
-            @RequestParam(required = false) Long movieId,
-            @RequestParam(required = false) Long cinemaId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @PageableDefault(size = 20, sort = "startTime", direction = Sort.Direction.ASC) Pageable pageable
+    // GET /api/v1/public/showtimes/movies/1?date=2025-05-10
+    @GetMapping("/movies/{movieId}")
+    public ResponseEntity<?> getShowtimesByMovie(
+            @PathVariable Long movieId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        Page<ShowtimeSummaryDTO> result;
-
-        if (movieId != null) {
-            result = showtimeService.findByMovieAndDate(movieId, date, pageable)
-                    .map(mapper::toSummaryDto);
-        } else if (cinemaId != null) {
-            result = showtimeService.findByCinemaAndDate(cinemaId, date, pageable)
-                    .map(mapper::toSummaryDto);
-        } else {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(400, "Cần truyền movieId hoặc cinemaId"));
-        }
-
+        MovieShowtimesResponseDTO result = mapper.toMovieShowtimesResponseDto(
+                showtimeService.getShowtimesByMovieId(movieId, date)
+        );
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
-    // GET /api/v1/public/showtimes/1
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getDetail(@PathVariable Long id) {
-        ShowtimeDetailDTO result = mapper.toDetailDto(showtimeService.getById(id));
+    // GET /api/v1/public/showtimes/cinemas/1?date=2025-05-10
+    @GetMapping("/cinemas/{cinemaId}")
+    public ResponseEntity<?> getShowtimesByCinema(
+            @PathVariable Long cinemaId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        List<CinemaShowtimesResponseDTO> result = showtimeService.getShowtimesByCinemaId(cinemaId, date).stream()
+                .map(mapper::toCinemaShowtimesResponseDto)
+                .toList();
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

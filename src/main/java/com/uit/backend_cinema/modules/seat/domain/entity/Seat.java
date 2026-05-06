@@ -3,13 +3,15 @@ package com.uit.backend_cinema.modules.seat.domain.entity;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 @Getter @Setter
 public class Seat {
 
     private Long seatId;
     private Long roomId;
-    private String seatRow;      
-    private Integer seatNumber;   
+    private BigDecimal seatRow;
+    private BigDecimal seatCol;
     private SeatType seatType;
     private SeatStatus status;
     private Boolean isDeleted;
