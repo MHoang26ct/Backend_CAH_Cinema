@@ -35,6 +35,11 @@ public enum ErrorCode {
     PAYMENT_REF_DUPLICATE,
     PAYMENT_ALREADY_CONFIRMED,
 
+    // Outbox / Ticket
+    OUTBOX_EVENT_CREATE_FAILED,
+    OUTBOX_PAYLOAD_SERIALIZATION_FAILED,
+    TICKET_CREATE_FAILED,
+
     // Validation
     VALIDATION_FAILED,          // Dữ liệu đầu vào không hợp lệ (@Valid)
 

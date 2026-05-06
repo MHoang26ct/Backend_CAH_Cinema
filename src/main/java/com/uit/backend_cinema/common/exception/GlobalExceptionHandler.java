@@ -64,7 +64,10 @@ public class GlobalExceptionHandler {
                  VALIDATION_FAILED ->
                     HttpStatus.BAD_REQUEST;
 
-            case INTERNAL_ERROR -> HttpStatus.INTERNAL_SERVER_ERROR;
+            case INTERNAL_ERROR,
+                 OUTBOX_EVENT_CREATE_FAILED,
+                 OUTBOX_PAYLOAD_SERIALIZATION_FAILED,
+                 TICKET_CREATE_FAILED -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }
 

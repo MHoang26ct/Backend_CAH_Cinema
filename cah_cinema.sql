@@ -280,3 +280,6 @@ CREATE TABLE outbox_events (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_outbox_event_type_aggregate UNIQUE (event_type, aggregate_id)
 );
+
+CREATE INDEX idx_outbox_events_status_next_retry_at
+ON outbox_events (status, next_retry_at);
