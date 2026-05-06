@@ -5,7 +5,6 @@ import com.uit.backend_cinema.modules.voucher.api.mapper.VoucherApiMapper;
 import com.uit.backend_cinema.modules.voucher.domain.entity.Voucher;
 import com.uit.backend_cinema.modules.voucher.domain.service.VoucherService;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class VoucherUseCase {
