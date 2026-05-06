@@ -28,6 +28,13 @@ public enum ErrorCode {
     DUPLICATE_RESOURCE,         // Tài nguyên đã tồn tại
     SEAT_ALREADY_BOOKED,        // Ghế đã được đặt / đang được chọn
 
+    // Booking / Payment
+    BOOKING_EXPIRED,
+    BOOKING_INVALID_STATUS,
+    VOUCHER_HOLD_EXPIRED,
+    PAYMENT_REF_DUPLICATE,
+    PAYMENT_ALREADY_CONFIRMED,
+
     // Validation
     VALIDATION_FAILED,          // Dữ liệu đầu vào không hợp lệ (@Valid)
 

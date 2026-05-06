@@ -38,22 +38,32 @@ public class GlobalExceptionHandler {
     // Map ErrorCode → HttpStatus — chỉ tầng handler mới biết HTTP status
     private HttpStatus resolveStatus(ErrorCode code) {
         return switch (code) {
-            case EMAIL_ALREADY_EXISTS -> HttpStatus.CONFLICT;
+            case EMAIL_ALREADY_EXISTS,
+                 BOOKING_EXPIRED,
+                 BOOKING_INVALID_STATUS,
+                 VOUCHER_HOLD_EXPIRED,
+                 PAYMENT_REF_DUPLICATE,
+                 PAYMENT_ALREADY_CONFIRMED ->
+                    HttpStatus.CONFLICT;
+
             case INVALID_CREDENTIALS,
-                    TOKEN_EXPIRED,
-                    ACCESS_TOKEN_EXPIRED,
-                    UNAUTHORIZED ->
-                HttpStatus.UNAUTHORIZED;
+                 TOKEN_EXPIRED,
+                 ACCESS_TOKEN_EXPIRED,
+                 UNAUTHORIZED ->
+                    HttpStatus.UNAUTHORIZED;
+
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case RESOURCE_NOT_FOUND -> HttpStatus.NOT_FOUND;
+
             case INVALID_GOOGLE_TOKEN,
-                    TOKEN_INVALID,
-                    OTP_INVALID,
-                    ACCESS_TOKEN_INVALID,
-                    DUPLICATE_RESOURCE,
-                    SEAT_ALREADY_BOOKED,
-                    VALIDATION_FAILED ->
-                HttpStatus.BAD_REQUEST;
+                 TOKEN_INVALID,
+                 OTP_INVALID,
+                 ACCESS_TOKEN_INVALID,
+                 DUPLICATE_RESOURCE,
+                 SEAT_ALREADY_BOOKED,
+                 VALIDATION_FAILED ->
+                    HttpStatus.BAD_REQUEST;
+
             case INTERNAL_ERROR -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }
