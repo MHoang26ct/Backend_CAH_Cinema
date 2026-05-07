@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Transactional(readOnly = true)
@@ -41,24 +42,36 @@ public class ShowtimeService {
         return showtimeRepository.findShowtimesByCinemaId(cinemaId, date);
     }
 
+    @Transactional
     public void createShowtime(Showtime newShowtime) {
+        validateShowtimePayload(newShowtime);
+        if (newShowtime.getStatus() == null) {
+            newShowtime.setStatus(ShowtimeStatus.AVAILABLE);
+        }
+        if (newShowtime.getIsDeleted() == null) {
+            newShowtime.setIsDeleted(false);
+        }
         if (isValidShowtime(newShowtime, true)) {
             showtimeRepository.save(newShowtime);
         }
     }
 
+    @Transactional
     public void updateShowtime(Showtime newShowtime) {
+        validateShowtimePayload(newShowtime);
         if (isValidShowtime(newShowtime, false)) {
             showtimeRepository.save(newShowtime);
         }
     }
 
+    @Transactional
     public void deleteShowtime(Long showtimeId) {
         Showtime existingShowtime = getById(showtimeId);
         existingShowtime.setIsDeleted(true);
         showtimeRepository.save(existingShowtime);
     }
 
+    @Transactional
     public void changeStatusToSoldOut(Long showtimeId) {
         Showtime existingShowtime = getById(showtimeId);
         existingShowtime.setStatus(ShowtimeStatus.SOLD_OUT);
@@ -66,6 +79,7 @@ public class ShowtimeService {
     }
 
     private boolean isValidShowtime(Showtime newShowtime, boolean isCreate) {
+        validateRequiredFields(newShowtime, isCreate);
         if (isCreate) {
             try {
                 movieService.getById(newShowtime.getMovieId());
@@ -86,7 +100,7 @@ public class ShowtimeService {
         if (startTime.isBefore(LocalTime.of(8, 0)) || startTime.isAfter(LocalTime.MAX)) {
             throw new BusinessException("Suất chiếu phải bắt đầu từ 08:00 đến 23:59", ErrorCode.VALIDATION_FAILED);
         }
-        if (endTime.isBefore(startTime)) {
+        if (!newShowtime.getEndTime().isAfter(newShowtime.getStartTime())) {
             throw new BusinessException("Suất chiếu phải kết thúc sau khi bắt đầu", ErrorCode.VALIDATION_FAILED);
         }
         if (endTime.isAfter(LocalTime.of(2, 0)) && endTime.isBefore(LocalTime.of(8, 0))) {
@@ -96,21 +110,20 @@ public class ShowtimeService {
         LocalDateTime startDateTime = newShowtime.getStartTime();
         LocalDateTime endDateTime = newShowtime.getEndTime();
 
-        List<Showtime> existingShowtimes = showtimeRepository.findAllByMovieIdAndRoomIdAndDate(
-                newShowtime.getMovieId(),
+        List<Showtime> existingShowtimes = showtimeRepository.findAllByRoomIdAndDate(
                 newShowtime.getRoomId(),
                 newShowtime.getStartTime().toLocalDate());
         for (Showtime showtime : existingShowtimes) {
-            if (showtime.getStartTime().isBefore(endDateTime) && showtime.getEndTime().isAfter(startDateTime)) {
+            if (!isCreate && Objects.equals(showtime.getShowtimeId(), newShowtime.getShowtimeId())) {
+                continue;
+            }
+
+            LocalDateTime existingStart = showtime.getStartTime();
+            LocalDateTime existingEnd = showtime.getEndTime();
+            if (existingStart.isBefore(endDateTime) && existingEnd.isAfter(startDateTime)) {
                 throw new BusinessException("Suất chiếu trùng lặp với suất chiếu hiện có", ErrorCode.VALIDATION_FAILED);
             }
-            else if (showtime.getStartTime().isAfter(startDateTime) && showtime.getStartTime().isBefore(endDateTime)) {
-                throw new BusinessException("Suất chiếu trùng lặp với suất chiếu hiện có", ErrorCode.VALIDATION_FAILED);
-            }
-            if (endTime.plusMinutes(30).isAfter(showtime.getStartTime().toLocalTime())) {
-                throw new BusinessException("Khoảng cách giữa 2 suất chiếu phải ít nhất 30 phút", ErrorCode.VALIDATION_FAILED);
-            }
-            else if (startTime.minusMinutes(30).isBefore(showtime.getEndTime().toLocalTime())) {
+            if (endDateTime.plusMinutes(30).isAfter(existingStart) && startDateTime.minusMinutes(30).isBefore(existingEnd)) {
                 throw new BusinessException("Khoảng cách giữa 2 suất chiếu phải ít nhất 30 phút", ErrorCode.VALIDATION_FAILED);
             }
         }
@@ -118,5 +131,35 @@ public class ShowtimeService {
             throw new BusinessException("Suất chiếu không được tạo trước 30 ngày", ErrorCode.VALIDATION_FAILED);
         }
         return true;
+    }
+
+    private void validateShowtimePayload(Showtime showtime) {
+        if (showtime == null) {
+            throw new BusinessException("Thông tin suất chiếu không được trống", ErrorCode.VALIDATION_FAILED);
+        }
+    }
+
+    private void validateRequiredFields(Showtime showtime, boolean isCreate) {
+        if (!isCreate && showtime.getShowtimeId() == null) {
+            throw new BusinessException("ID suất chiếu không được trống", ErrorCode.VALIDATION_FAILED);
+        }
+        if (showtime.getMovieId() == null) {
+            throw new BusinessException("ID phim không được trống", ErrorCode.VALIDATION_FAILED);
+        }
+        if (showtime.getRoomId() == null) {
+            throw new BusinessException("ID phòng chiếu không được trống", ErrorCode.VALIDATION_FAILED);
+        }
+        if (showtime.getStartTime() == null) {
+            throw new BusinessException("Thời gian bắt đầu không được trống", ErrorCode.VALIDATION_FAILED);
+        }
+        if (showtime.getEndTime() == null) {
+            throw new BusinessException("Thời gian kết thúc không được trống", ErrorCode.VALIDATION_FAILED);
+        }
+        if (showtime.getFormat() == null) {
+            throw new BusinessException("Định dạng suất chiếu không được trống", ErrorCode.VALIDATION_FAILED);
+        }
+        if (showtime.getBasePrice() == null) {
+            throw new BusinessException("Giá vé cơ bản không được trống", ErrorCode.VALIDATION_FAILED);
+        }
     }
 }

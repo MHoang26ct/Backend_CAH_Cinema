@@ -47,10 +47,10 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepository {
     }
 
     @Override
-    public List<Showtime> findAllByMovieIdAndRoomIdAndDate(Long movieId, Long roomId, LocalDate date) {
+    public List<Showtime> findAllByRoomIdAndDate(Long roomId, LocalDate date) {
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
-        return jpaShowtimeRepository.findAllByMovieIdAndDate(movieId, roomId, startOfDay, endOfDay).stream()
+        return jpaShowtimeRepository.findAllByRoomIdAndDate(roomId, startOfDay, endOfDay).stream()
                 .map(mapper::toDomain)
                 .toList();
     }

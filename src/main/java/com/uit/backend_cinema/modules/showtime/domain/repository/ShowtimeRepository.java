@@ -12,6 +12,6 @@ public interface ShowtimeRepository {
     Optional<Showtime> findById(Long showtimeId);
     MovieShowtimes findShowtimesByMovieId(Long movieId, LocalDate date);
     void save(Showtime showtime);
-    List<Showtime> findAllByMovieIdAndRoomIdAndDate(Long movieId, Long roomId, LocalDate date);
+    List<Showtime> findAllByRoomIdAndDate(Long roomId, LocalDate date);
     List<CinemaShowtimes> findShowtimesByCinemaId(Long cinemaId, LocalDate date);
 }
