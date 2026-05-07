@@ -12,6 +12,9 @@ public interface ShowtimeRepository {
     Optional<Showtime> findById(Long showtimeId);
     MovieShowtimes findShowtimesByMovieId(Long movieId, LocalDate date);
     void save(Showtime showtime);
+    void softDeleteByRoomId(Long roomId);
+    void softDeleteByRoomIds(List<Long> roomIds);
+    void softDeleteByMovieId(Long movieId);
     List<Showtime> findAllByRoomIdAndDate(Long roomId, LocalDate date);
     List<CinemaShowtimes> findShowtimesByCinemaId(Long cinemaId, LocalDate date);
 }

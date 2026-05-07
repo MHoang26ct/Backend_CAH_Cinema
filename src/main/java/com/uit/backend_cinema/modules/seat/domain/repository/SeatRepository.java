@@ -16,5 +16,7 @@ public interface SeatRepository {
 
     void softDeleteByRoomId(Long roomId);
 
+    void softDeleteByRoomIds(List<Long> roomIds);
+
     boolean existsByRoomId(Long roomId);
 }

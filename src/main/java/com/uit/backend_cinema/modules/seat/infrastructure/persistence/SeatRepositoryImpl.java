@@ -55,6 +55,14 @@ public class SeatRepositoryImpl implements SeatRepository {
     }
 
     @Override
+    public void softDeleteByRoomIds(List<Long> roomIds) {
+        if (roomIds == null || roomIds.isEmpty()) {
+            return;
+        }
+        jpaSeatRepository.softDeleteByRoomIds(roomIds);
+    }
+
+    @Override
     public boolean existsByRoomId(Long roomId) {
         return jpaSeatRepository.existsByRoomId(roomId);
     }

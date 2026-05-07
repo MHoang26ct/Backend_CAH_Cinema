@@ -47,6 +47,24 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepository {
     }
 
     @Override
+    public void softDeleteByRoomId(Long roomId) {
+        jpaShowtimeRepository.softDeleteByRoomId(roomId);
+    }
+
+    @Override
+    public void softDeleteByRoomIds(List<Long> roomIds) {
+        if (roomIds == null || roomIds.isEmpty()) {
+            return;
+        }
+        jpaShowtimeRepository.softDeleteByRoomIds(roomIds);
+    }
+
+    @Override
+    public void softDeleteByMovieId(Long movieId) {
+        jpaShowtimeRepository.softDeleteByMovieId(movieId);
+    }
+
+    @Override
     public List<Showtime> findAllByRoomIdAndDate(Long roomId, LocalDate date) {
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();

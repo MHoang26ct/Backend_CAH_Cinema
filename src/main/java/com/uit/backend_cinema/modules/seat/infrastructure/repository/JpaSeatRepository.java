@@ -2,7 +2,7 @@ package com.uit.backend_cinema.modules.seat.infrastructure.repository;
 
 import com.uit.backend_cinema.modules.seat.infrastructure.entity.SeatJpaEntity;
 
-import io.lettuce.core.dynamic.annotation.Param;
+import org.springframework.data.repository.query.Param;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -24,4 +24,8 @@ public interface JpaSeatRepository extends JpaRepository<SeatJpaEntity, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update SeatJpaEntity s set s.isDeleted = true where s.roomId = :roomId and s.isDeleted = false")
     void softDeleteByRoomId(@Param("roomId") Long roomId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update SeatJpaEntity s set s.isDeleted = true where s.roomId in :roomIds and s.isDeleted = false")
+    void softDeleteByRoomIds(@Param("roomIds") List<Long> roomIds);
 }
