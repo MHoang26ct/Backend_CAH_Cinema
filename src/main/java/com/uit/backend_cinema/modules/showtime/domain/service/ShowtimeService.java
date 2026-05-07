@@ -110,6 +110,19 @@ public class ShowtimeService {
         LocalDateTime startDateTime = newShowtime.getStartTime();
         LocalDateTime endDateTime = newShowtime.getEndTime();
 
+        LocalDate startDate = startDateTime.toLocalDate();
+
+        LocalDateTime boundaryNextDay = startDate.plusDays(1).atTime(2, 0);
+        LocalDateTime morningNextDay = startDate.plusDays(1).atTime(8, 0);
+
+        if (endDateTime.isAfter(boundaryNextDay) && endDateTime.isBefore(morningNextDay)) {
+            throw new BusinessException("Suất chiếu phải kết thúc trước 02:00 ngày hôm sau", ErrorCode.VALIDATION_FAILED);
+        }
+
+        if (endDateTime.isAfter(morningNextDay) || endDateTime.isEqual(morningNextDay)) {
+            throw new BusinessException("Suất chiếu không được kéo dài quá 08:00 ngày hôm sau", ErrorCode.VALIDATION_FAILED);
+        }
+
         List<Showtime> existingShowtimes = showtimeRepository.findAllByRoomIdAndDate(
                 newShowtime.getRoomId(),
                 newShowtime.getStartTime().toLocalDate());
