@@ -79,7 +79,8 @@ public class FoodOrderService {
                 })
                 .toList();
         order.setItems(items);
-        createFoodOrder(order);
+        order.setTotalPrice(calculateOrderTotalFromItems(items));
+        foodOrderRepository.save(order);
     }
 
     @Transactional
@@ -114,6 +115,15 @@ public class FoodOrderService {
                 .multiply(new BigDecimal(item.getQuantity()))).reduce(BigDecimal.ZERO, BigDecimal::add));
         foodOrderRepository.save(order);
         return order.getTotalPrice();
+    }
+
+    private BigDecimal calculateOrderTotalFromItems(List<FoodOrderItem> items) {
+        if (items == null || items.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return items.stream()
+                .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     @Transactional(readOnly = true)
