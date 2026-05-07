@@ -1,9 +1,9 @@
 package com.uit.backend_cinema.modules.food_order.api.entity;
 
+import java.math.BigDecimal;
+
 import com.uit.backend_cinema.modules.food_order.domain.entity.Category;
 import lombok.Data;
-
-import java.math.BigDecimal;
 
 @Data
 public class FoodDTO {

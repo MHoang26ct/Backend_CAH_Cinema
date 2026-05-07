@@ -1,10 +1,11 @@
 package com.uit.backend_cinema.modules.seat.api.dto;
 
+import java.util.List;
+
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
 
-import java.util.List;
+import lombok.Data;
 
 @Data
 public class SeatBatchLockRequestDTO {

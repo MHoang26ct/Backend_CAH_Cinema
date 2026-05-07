@@ -1,14 +1,23 @@
 package com.uit.backend_cinema.modules.showtime.infrastructure.entity;
 
-import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
-import com.uit.backend_cinema.modules.showtime.domain.entity.ShowtimeStatus;
-import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import org.hibernate.annotations.SQLRestriction;
+
+import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
+import com.uit.backend_cinema.modules.showtime.domain.entity.ShowtimeStatus;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "showtimes")

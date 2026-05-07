@@ -1,13 +1,14 @@
 package com.uit.backend_cinema.modules.cinema.infrastructure.persistence;
 
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.stereotype.Repository;
+
 import com.uit.backend_cinema.modules.cinema.domain.entity.Room;
 import com.uit.backend_cinema.modules.cinema.domain.repository.RoomRepository;
 import com.uit.backend_cinema.modules.cinema.infrastructure.mapper.RoomInfraMapper;
 import com.uit.backend_cinema.modules.cinema.infrastructure.repository.JpaRoomRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.List;
-import java.util.Optional;
 
 @Repository
 public class RoomRepositoryImpl implements RoomRepository {

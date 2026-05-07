@@ -1,8 +1,8 @@
 package com.uit.backend_cinema.modules.ticket.domain.repository;
 
-import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
-
 import java.util.List;
+
+import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 
 public interface TicketRepository {
     boolean existsByBookingIdAndSeatId(Long bookingId, Long seatId);

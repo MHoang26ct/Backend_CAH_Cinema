@@ -1,5 +1,10 @@
 package com.uit.backend_cinema.modules.cinema.domain.service;
 
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.cinema.domain.entity.Cinema;
@@ -8,10 +13,6 @@ import com.uit.backend_cinema.modules.cinema.domain.repository.CinemaRepository;
 import com.uit.backend_cinema.modules.cinema.domain.repository.RoomRepository;
 import com.uit.backend_cinema.modules.seat.domain.repository.SeatRepository;
 import com.uit.backend_cinema.modules.showtime.domain.repository.ShowtimeRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Transactional(readOnly = true)

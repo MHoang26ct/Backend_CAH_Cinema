@@ -2,7 +2,6 @@ package com.uit.backend_cinema.modules.food_order.infrastructure.entity;
 
 import java.math.BigDecimal;
 
-import com.uit.backend_cinema.modules.food_order.domain.entity.Category;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,8 +10,11 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.Data;
+
 import org.hibernate.annotations.SQLRestriction;
+
+import com.uit.backend_cinema.modules.food_order.domain.entity.Category;
+import lombok.Data;
 
 @Entity
 @Table(name = "foods")

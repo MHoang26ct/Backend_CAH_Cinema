@@ -1,10 +1,11 @@
 package com.uit.backend_cinema.modules.showtime.api.dto;
 
-import lombok.Builder;
-import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder

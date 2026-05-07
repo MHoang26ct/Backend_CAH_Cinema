@@ -1,14 +1,14 @@
 package com.uit.backend_cinema.modules.movies.api.mapper;
 
-import com.uit.backend_cinema.modules.movies.api.dto.UpdateOrCreateMovieDTO;
-import com.uit.backend_cinema.modules.movies.domain.entity.Genre;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.Named;
 
 import com.uit.backend_cinema.modules.movies.api.dto.MovieDetailDTO;
 import com.uit.backend_cinema.modules.movies.api.dto.MovieSummaryDTO;
+import com.uit.backend_cinema.modules.movies.api.dto.UpdateOrCreateMovieDTO;
+import com.uit.backend_cinema.modules.movies.domain.entity.Genre;
 import com.uit.backend_cinema.modules.movies.domain.entity.Movie;
-import org.mapstruct.Mapping;
-import org.mapstruct.Named;
 
 @Mapper(componentModel = "spring", uses = {GenreApiMapper.class})
 public interface  MovieApiMapper {

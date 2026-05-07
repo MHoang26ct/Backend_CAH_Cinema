@@ -1,9 +1,9 @@
 package com.uit.backend_cinema.modules.price_config.domain.entity;
 
+import java.time.LocalDate;
+
 import lombok.Getter;
 import lombok.Setter;
-
-import java.time.LocalDate;
 
 @Setter
 @Getter

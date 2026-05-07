@@ -1,18 +1,17 @@
 package com.uit.backend_cinema.modules.movies.domain.service;
 
-import com.uit.backend_cinema.common.exception.BusinessException;
-import com.uit.backend_cinema.common.exception.ErrorCode;
-import com.uit.backend_cinema.modules.movies.domain.entity.Movie;
-import com.uit.backend_cinema.modules.movies.domain.repository.MovieRepository;
-import com.uit.backend_cinema.modules.showtime.domain.repository.ShowtimeRepository;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.util.Optional;
+import com.uit.backend_cinema.common.exception.BusinessException;
+import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.modules.movies.domain.entity.Movie;
+import com.uit.backend_cinema.modules.movies.domain.repository.MovieRepository;
+import com.uit.backend_cinema.modules.showtime.domain.repository.ShowtimeRepository;
 
 @Service
 @Transactional(readOnly = true)

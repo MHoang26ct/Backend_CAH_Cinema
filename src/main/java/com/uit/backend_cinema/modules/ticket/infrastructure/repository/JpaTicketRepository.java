@@ -1,13 +1,14 @@
 package com.uit.backend_cinema.modules.ticket.infrastructure.repository;
 
-import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
-import com.uit.backend_cinema.modules.ticket.infrastructure.entity.TicketJpaEntity;
+import java.util.Collection;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.util.Collection;
-import java.util.List;
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
+import com.uit.backend_cinema.modules.ticket.infrastructure.entity.TicketJpaEntity;
 
 public interface JpaTicketRepository extends JpaRepository<TicketJpaEntity, Long> {
     boolean existsByBookingIdAndSeatId(Long bookingId, Long seatId);

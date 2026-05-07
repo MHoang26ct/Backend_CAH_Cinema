@@ -1,12 +1,12 @@
 package com.uit.backend_cinema.modules.showtime.domain.repository;
 
-import com.uit.backend_cinema.modules.showtime.domain.entity.CinemaShowtimes;
-import com.uit.backend_cinema.modules.showtime.domain.entity.MovieShowtimes;
-import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+
+import com.uit.backend_cinema.modules.showtime.domain.entity.CinemaShowtimes;
+import com.uit.backend_cinema.modules.showtime.domain.entity.MovieShowtimes;
+import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
 
 public interface ShowtimeRepository {
     Optional<Showtime> findById(Long showtimeId);

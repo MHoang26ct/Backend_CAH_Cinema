@@ -1,15 +1,21 @@
 package com.uit.backend_cinema.modules.price_config.api.controller;
 
+import java.util.List;
+
+import jakarta.validation.Valid;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.uit.backend_cinema.common.util.ApiResponse;
 import com.uit.backend_cinema.modules.price_config.api.dto.request.UpdatePriceConfigRequest;
 import com.uit.backend_cinema.modules.price_config.api.dto.response.PriceConfigResponse;
 import com.uit.backend_cinema.modules.price_config.api.mapper.ApiMapper;
 import com.uit.backend_cinema.modules.price_config.domain.service.PriceConfigService;
-import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin/price-config")

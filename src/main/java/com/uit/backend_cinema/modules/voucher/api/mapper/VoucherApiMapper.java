@@ -1,12 +1,13 @@
 package com.uit.backend_cinema.modules.voucher.api.mapper;
 
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
 import com.uit.backend_cinema.modules.voucher.api.entity.BasicVoucherDTO;
 import com.uit.backend_cinema.modules.voucher.api.entity.CreateVoucherRequestDTO;
 import com.uit.backend_cinema.modules.voucher.api.entity.UpdateVoucherRequestDTO;
 import com.uit.backend_cinema.modules.voucher.api.entity.VoucherResponseDTO;
 import com.uit.backend_cinema.modules.voucher.domain.entity.Voucher;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface VoucherApiMapper {

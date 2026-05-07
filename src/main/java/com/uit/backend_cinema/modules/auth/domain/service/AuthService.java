@@ -1,16 +1,16 @@
 package com.uit.backend_cinema.modules.auth.domain.service;
 
-import com.uit.backend_cinema.common.exception.BusinessException;
-import com.uit.backend_cinema.common.exception.ErrorCode;
-import com.uit.backend_cinema.modules.auth.domain.entity.AuthProvider;
-import com.uit.backend_cinema.modules.auth.domain.entity.User;
-import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
+import java.util.Optional;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
+import com.uit.backend_cinema.common.exception.BusinessException;
+import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.modules.auth.domain.entity.AuthProvider;
+import com.uit.backend_cinema.modules.auth.domain.entity.User;
+import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 
 @Service
 @Transactional(readOnly = true) // Cấu hình mặc định cho các hàm là chỉ đọc (tối ưu hiệu suất DB)

@@ -1,5 +1,10 @@
 package com.uit.backend_cinema.modules.outbox.domain.service;
 
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uit.backend_cinema.common.exception.BusinessException;
@@ -13,10 +18,6 @@ import com.uit.backend_cinema.modules.outbox.domain.entity.OutboxEvent;
 import com.uit.backend_cinema.modules.outbox.domain.payload.SendTicketEmailPayload;
 import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 import com.uit.backend_cinema.modules.ticket.domain.service.TicketService;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 public class SendTicketEmailOutboxHandler {

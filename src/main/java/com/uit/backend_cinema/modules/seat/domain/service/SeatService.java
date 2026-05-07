@@ -1,5 +1,16 @@
 package com.uit.backend_cinema.modules.seat.domain.service;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
@@ -8,17 +19,6 @@ import com.uit.backend_cinema.modules.seat.domain.repository.SeatLockRepository;
 import com.uit.backend_cinema.modules.seat.domain.repository.SeatRepository;
 import com.uit.backend_cinema.modules.seat.domain.repository.SeatTypeRepository;
 import com.uit.backend_cinema.modules.ticket.domain.service.TicketService;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)

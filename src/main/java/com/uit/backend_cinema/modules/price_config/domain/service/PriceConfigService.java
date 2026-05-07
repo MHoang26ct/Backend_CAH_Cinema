@@ -1,5 +1,14 @@
 package com.uit.backend_cinema.modules.price_config.domain.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.common.util.DateUtil;
@@ -9,14 +18,6 @@ import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
 import com.uit.backend_cinema.modules.price_config.domain.helper.TimeSlot;
 import com.uit.backend_cinema.modules.price_config.domain.repository.HolidayRepository;
 import com.uit.backend_cinema.modules.price_config.domain.repository.PriceConfigRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 
 @Service
 @Transactional(readOnly = true)

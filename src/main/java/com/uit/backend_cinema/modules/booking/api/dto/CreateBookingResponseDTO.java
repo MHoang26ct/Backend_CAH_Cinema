@@ -1,11 +1,11 @@
 package com.uit.backend_cinema.modules.booking.api.dto;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
 import lombok.Builder;
 import lombok.Data;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Data
 @Builder

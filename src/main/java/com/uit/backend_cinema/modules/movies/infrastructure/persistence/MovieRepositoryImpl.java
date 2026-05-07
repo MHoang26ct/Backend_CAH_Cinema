@@ -1,22 +1,23 @@
 package com.uit.backend_cinema.modules.movies.infrastructure.persistence;
 
-import com.uit.backend_cinema.modules.movies.infrastructure.entity.MovieJpaEntity;
-import com.uit.backend_cinema.modules.movies.infrastructure.entity.GenreJpaEntity;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Repository;
-
-import com.uit.backend_cinema.modules.movies.domain.entity.Movie;
-import com.uit.backend_cinema.modules.movies.domain.repository.MovieRepository;
-import com.uit.backend_cinema.modules.movies.infrastructure.mapper.MovieInfraMapper;
-import com.uit.backend_cinema.modules.movies.infrastructure.repository.JpaMovieRepository;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.uit.backend_cinema.modules.movies.domain.entity.Movie;
+import com.uit.backend_cinema.modules.movies.domain.repository.MovieRepository;
+import com.uit.backend_cinema.modules.movies.infrastructure.entity.GenreJpaEntity;
+import com.uit.backend_cinema.modules.movies.infrastructure.entity.MovieJpaEntity;
+import com.uit.backend_cinema.modules.movies.infrastructure.mapper.MovieInfraMapper;
+import com.uit.backend_cinema.modules.movies.infrastructure.repository.JpaMovieRepository;
 
 @Repository
 public class MovieRepositoryImpl implements MovieRepository{

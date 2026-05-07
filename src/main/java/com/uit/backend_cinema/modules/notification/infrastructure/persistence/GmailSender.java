@@ -1,11 +1,12 @@
 package com.uit.backend_cinema.modules.notification.infrastructure.persistence;
 
-import com.uit.backend_cinema.modules.notification.domain.repository.EmailSender;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Repository;
+
+import com.uit.backend_cinema.modules.notification.domain.repository.EmailSender;
+import lombok.RequiredArgsConstructor;
 
 @Repository
 @RequiredArgsConstructor

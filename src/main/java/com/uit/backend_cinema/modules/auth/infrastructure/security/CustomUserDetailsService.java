@@ -1,15 +1,16 @@
 package com.uit.backend_cinema.modules.auth.infrastructure.security;
 
-import com.uit.backend_cinema.common.sercurity.CustomUserDetails;
-import com.uit.backend_cinema.modules.auth.domain.entity.User;
-import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
+import java.util.Collections;
+
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
+import com.uit.backend_cinema.common.sercurity.CustomUserDetails;
+import com.uit.backend_cinema.modules.auth.domain.entity.User;
+import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 
 /**
  * Adapter triển khai UserDetailsService của Spring Security.

@@ -1,8 +1,8 @@
 package com.uit.backend_cinema.modules.auth.domain.repository;
 
-import com.uit.backend_cinema.modules.auth.domain.entity.RefreshToken;
-
 import java.util.Optional;
+
+import com.uit.backend_cinema.modules.auth.domain.entity.RefreshToken;
 
 public interface RefreshTokenRepository {
     Optional<RefreshToken> findByToken(String token);

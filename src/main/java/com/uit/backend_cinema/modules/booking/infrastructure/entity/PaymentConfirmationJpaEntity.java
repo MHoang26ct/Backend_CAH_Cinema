@@ -1,13 +1,24 @@
 package com.uit.backend_cinema.modules.booking.infrastructure.entity;
 
-import com.uit.backend_cinema.modules.booking.domain.entity.PaymentConfirmationStatus;
-import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDateTime;
+import com.uit.backend_cinema.modules.booking.domain.entity.PaymentConfirmationStatus;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(

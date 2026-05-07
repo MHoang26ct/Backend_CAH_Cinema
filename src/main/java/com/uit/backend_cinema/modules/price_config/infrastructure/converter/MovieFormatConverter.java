@@ -1,8 +1,9 @@
 package com.uit.backend_cinema.modules.price_config.infrastructure.converter;
 
-import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
+
+import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
 
 @Converter(autoApply = true)
 public class MovieFormatConverter implements AttributeConverter<MovieFormat, String> {

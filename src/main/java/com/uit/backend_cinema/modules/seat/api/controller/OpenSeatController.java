@@ -1,17 +1,19 @@
 package com.uit.backend_cinema.modules.seat.api.controller;
 
-import com.uit.backend_cinema.common.exception.BusinessException;
-import com.uit.backend_cinema.common.exception.ErrorCode;
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.uit.backend_cinema.common.util.ApiResponse;
 import com.uit.backend_cinema.modules.seat.api.dto.SeatDTO;
 import com.uit.backend_cinema.modules.seat.api.mapper.SeatApiMapper;
 import com.uit.backend_cinema.modules.seat.domain.service.SeatService;
 import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
 import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/public/seats")
