@@ -38,6 +38,10 @@ public class VoucherRepositoryImpl implements VoucherRepository {
         return jpaVoucherRepository.findAllBy(pageable).map(voucherInfraMapper::toDomain);
     }
 
+    @Override
+    public int consumeVoucherAtomically(Long voucherId, LocalDateTime now) {
+        return jpaVoucherRepository.consumeVoucherAtomically(voucherId, now);
+    }
 
     @Override
     public List<Voucher> findAllForUser(LocalDateTime now) {

@@ -15,4 +15,5 @@ public interface VoucherRepository {
     List<Voucher> findAllForUser(LocalDateTime now);
     Voucher save(Voucher voucher);
     void delete(Voucher voucher);
+    int consumeVoucherAtomically(Long voucherId, LocalDateTime now);
 }

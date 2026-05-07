@@ -1,6 +1,6 @@
-package com.uit.backend_cinema.modules.booking.domain.repository;
+package com.uit.backend_cinema.modules.ticket.domain.repository;
 
-import com.uit.backend_cinema.modules.booking.domain.entity.PendingTicketItem;
+import com.uit.backend_cinema.modules.ticket.domain.entity.PendingTicketItem;
 
 import java.time.LocalDateTime;
 import java.util.List;

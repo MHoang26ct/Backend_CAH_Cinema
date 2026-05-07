@@ -4,8 +4,10 @@ import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.notification.domain.repository.EmailSender;
 import com.uit.backend_cinema.modules.notification.domain.repository.OtpStorage;
+import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Random;
 
 @Service
@@ -36,5 +38,33 @@ public class NotificationService {
         else {
             throw new BusinessException("OTP không hợp lệ hoặc đã hết hạn", ErrorCode.OTP_INVALID);
         }
+    }
+
+    public void sendTicketEmail(String email, Long bookingId, List<Ticket> tickets) {
+        String subject = "Vé xem phim của bạn - Booking #" + bookingId;
+        emailSender.sendEmail(email, subject, buildTicketEmailContent(bookingId, tickets));
+    }
+
+    private String buildTicketEmailContent(Long bookingId, List<Ticket> tickets) {
+        StringBuilder content = new StringBuilder();
+        content.append("Cảm ơn bạn đã thanh toán thành công.\n\n");
+        content.append("Booking ID: ").append(bookingId).append("\n");
+        content.append("Danh sách vé:\n");
+
+        for (Ticket ticket : tickets) {
+            content.append("- Ticket #")
+                    .append(ticket.getTicketId())
+                    .append(", Seat #")
+                    .append(ticket.getSeatId())
+                    .append(", QR: TICKET:")
+                    .append(ticket.getTicketId())
+                    .append(":BOOKING:")
+                    .append(bookingId)
+                    .append(":SEAT:")
+                    .append(ticket.getSeatId())
+                    .append("\n");
+        }
+
+        return content.toString();
     }
 }

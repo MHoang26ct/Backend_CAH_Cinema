@@ -1,4 +1,4 @@
-package com.uit.backend_cinema.modules.booking.domain.entity;
+package com.uit.backend_cinema.modules.voucher.domain.entity;
 
 import lombok.Getter;
 import lombok.Setter;

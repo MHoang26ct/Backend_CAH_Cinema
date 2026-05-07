@@ -12,5 +12,7 @@ public interface BookingRepository {
 
     Optional<Booking> findById(Long bookingId);
 
+    Optional<Booking> findByIdForUpdate(Long bookingId);
+
     List<Booking> findByStatusAndExpiresAtBefore(BookingStatus status, LocalDateTime threshold);
 }

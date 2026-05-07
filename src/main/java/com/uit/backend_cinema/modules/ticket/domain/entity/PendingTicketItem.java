@@ -1,4 +1,4 @@
-package com.uit.backend_cinema.modules.booking.domain.entity;
+package com.uit.backend_cinema.modules.ticket.domain.entity;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -8,11 +8,10 @@ import java.time.LocalDateTime;
 
 @Getter
 @Setter
-public class BookingFoodDraftItem {
-    private Long bookingFoodDraftItemId;
+public class PendingTicketItem {
+    private Long pendingTicketItemId;
     private Long bookingId;
-    private Long foodId;
-    private Integer quantity;
+    private Long seatId;
     private BigDecimal unitPrice;
     private Boolean isDeleted;
     private LocalDateTime createdAt;

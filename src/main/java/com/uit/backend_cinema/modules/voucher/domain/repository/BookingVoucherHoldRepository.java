@@ -1,7 +1,7 @@
-package com.uit.backend_cinema.modules.booking.domain.repository;
+package com.uit.backend_cinema.modules.voucher.domain.repository;
 
-import com.uit.backend_cinema.modules.booking.domain.entity.BookingVoucherHold;
-import com.uit.backend_cinema.modules.booking.domain.entity.BookingVoucherHoldStatus;
+import com.uit.backend_cinema.modules.voucher.domain.entity.BookingVoucherHold;
+import com.uit.backend_cinema.modules.voucher.domain.entity.BookingVoucherHoldStatus;
 
 import java.time.LocalDateTime;
 import java.util.Optional;

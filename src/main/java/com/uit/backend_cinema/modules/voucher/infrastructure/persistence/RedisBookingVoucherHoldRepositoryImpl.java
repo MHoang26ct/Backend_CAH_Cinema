@@ -1,8 +1,8 @@
-package com.uit.backend_cinema.modules.booking.infrastructure.persistence;
+package com.uit.backend_cinema.modules.voucher.infrastructure.persistence;
 
-import com.uit.backend_cinema.modules.booking.domain.entity.BookingVoucherHold;
-import com.uit.backend_cinema.modules.booking.domain.entity.BookingVoucherHoldStatus;
-import com.uit.backend_cinema.modules.booking.domain.repository.BookingVoucherHoldRepository;
+import com.uit.backend_cinema.modules.voucher.domain.entity.BookingVoucherHold;
+import com.uit.backend_cinema.modules.voucher.domain.entity.BookingVoucherHoldStatus;
+import com.uit.backend_cinema.modules.voucher.domain.repository.BookingVoucherHoldRepository;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 
