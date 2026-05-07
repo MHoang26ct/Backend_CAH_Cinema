@@ -59,6 +59,8 @@ public class ShowtimeService {
     @Transactional
     public void updateShowtime(Showtime newShowtime) {
         validateShowtimePayload(newShowtime);
+        Showtime existingShowtime = getById(newShowtime.getShowtimeId());
+        newShowtime.setIsDeleted(existingShowtime.getIsDeleted());
         if (isValidShowtime(newShowtime, false)) {
             showtimeRepository.save(newShowtime);
         }
@@ -80,17 +82,15 @@ public class ShowtimeService {
 
     private boolean isValidShowtime(Showtime newShowtime, boolean isCreate) {
         validateRequiredFields(newShowtime, isCreate);
-        if (isCreate) {
-            try {
-                movieService.getById(newShowtime.getMovieId());
+        try {
+            movieService.getById(newShowtime.getMovieId());
+        }
+        catch (BusinessException ex) {
+            if (ex.getCode() == ErrorCode.RESOURCE_NOT_FOUND) {
+                throw new BusinessException("Không tìm thấy phim với ID: " + newShowtime.getMovieId(), ErrorCode.RESOURCE_NOT_FOUND);
             }
-            catch (BusinessException ex) {
-                if (ex.getCode() == ErrorCode.RESOURCE_NOT_FOUND) {
-                    throw new BusinessException("Không tìm thấy phim với ID: " + newShowtime.getMovieId(), ErrorCode.RESOURCE_NOT_FOUND);
-                }
-                else {
-                    throw ex;
-                }
+            else {
+                throw ex;
             }
         }
 

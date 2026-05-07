@@ -6,6 +6,7 @@ import com.uit.backend_cinema.modules.showtime.api.dto.UpdateShowtimeDTO;
 import com.uit.backend_cinema.modules.showtime.api.mapper.ShowtimeApiMapper;
 import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
 import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,13 +22,13 @@ public class AdminShowtimeController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createShowtime(@RequestBody CreateShowtimeDTO createShowtimeDTO) {
+    public ResponseEntity<?> createShowtime(@Valid @RequestBody CreateShowtimeDTO createShowtimeDTO) {
         showtimeService.createShowtime(mapper.toDomain(createShowtimeDTO));
         return ResponseEntity.ok(ApiResponse.success("Tạo suất chiếu thành công"));
     }
 
     @PutMapping
-    public ResponseEntity<?> updateShowtime(@RequestBody UpdateShowtimeDTO updateShowtimeDTO) {
+    public ResponseEntity<?> updateShowtime(@Valid @RequestBody UpdateShowtimeDTO updateShowtimeDTO) {
         showtimeService.updateShowtime(mapper.toDomain(updateShowtimeDTO));
         return ResponseEntity.ok(ApiResponse.success("Cập nhật suất chiếu thành công"));
     }

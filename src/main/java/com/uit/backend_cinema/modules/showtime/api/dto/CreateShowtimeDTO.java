@@ -1,7 +1,5 @@
 package com.uit.backend_cinema.modules.showtime.api.dto;
 
-import com.uit.backend_cinema.common.exception.BusinessException;
-import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
