@@ -7,6 +7,7 @@ import com.uit.backend_cinema.modules.seat.domain.entity.SeatType;
 import com.uit.backend_cinema.modules.seat.domain.repository.SeatLockRepository;
 import com.uit.backend_cinema.modules.seat.domain.repository.SeatRepository;
 import com.uit.backend_cinema.modules.seat.domain.repository.SeatTypeRepository;
+import com.uit.backend_cinema.modules.ticket.domain.service.TicketService;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,18 +29,27 @@ public class SeatService {
     private final SeatRepository seatRepository;
     private final SeatLockRepository seatLockRepository;
     private final SeatTypeRepository seatTypeRepository;
+    private final TicketService ticketService;
 
     public SeatService(SeatRepository seatRepository, SeatLockRepository seatLockRepository,
-            SeatTypeRepository seatTypeRepository) {
+            SeatTypeRepository seatTypeRepository, TicketService ticketService) {
         this.seatRepository = seatRepository;
         this.seatLockRepository = seatLockRepository;
         this.seatTypeRepository = seatTypeRepository;
+        this.ticketService = ticketService;
     }
 
     // Lấy danh sách ghế theo phòng, kèm trạng thái lock từ Redis
     public List<Seat> getSeatsByRoomId(Long roomId, Long showtimeId) {
         List<Seat> seats = seatRepository.findByRoomId(roomId);
-        seats.forEach(seat -> seat.setIsLocked(seatLockRepository.isLocked(showtimeId, seat.getSeatId())));
+        Set<Long> soldSeatIds = new java.util.HashSet<>(ticketService.findSoldSeatIdsByShowtimeId(showtimeId));
+        seats.forEach(seat -> {
+            boolean sold = soldSeatIds.contains(seat.getSeatId());
+            boolean locked = seatLockRepository.isLocked(showtimeId, seat.getSeatId());
+            seat.setIsSold(sold);
+            seat.setIsLocked(locked);
+            seat.setOccupancyStatus(sold ? "SOLD" : locked ? "LOCKED" : "AVAILABLE");
+        });
         return seats;
     }
 
@@ -57,6 +67,7 @@ public class SeatService {
     @Transactional
     public boolean preLockSeats(Long showtimeId, List<Long> seatIds, Long roomId, Long userId) {
         List<Seat> seats = getValidatedSeatsForBooking(seatIds, roomId);
+        ticketService.validateSeatsNotSold(showtimeId, seats.stream().map(Seat::getSeatId).toList());
         List<Long> lockedSeatIds = new ArrayList<>();
         for (Seat seat : seats) {
             boolean success = seatLockRepository.lockSeat(showtimeId, seat.getSeatId(), userId, PRE_LOCK_TTL_SECONDS);
@@ -72,6 +83,7 @@ public class SeatService {
     @Transactional
     public List<Seat> promoteLocksForCheckout(Long showtimeId, List<Long> seatIds, Long roomId, Long userId) {
         List<Seat> seats = getValidatedSeatsForBooking(seatIds, roomId);
+        ticketService.validateSeatsNotSold(showtimeId, seats.stream().map(Seat::getSeatId).toList());
         List<Long> promotedSeatIds = new ArrayList<>();
         for (Seat seat : seats) {
             boolean promoted = seatLockRepository.promoteLockIfOwner(
@@ -87,6 +99,12 @@ public class SeatService {
             promotedSeatIds.add(seat.getSeatId());
         }
         return seats;
+    }
+
+
+    @Transactional(readOnly = true)
+    public void validateSeatsNotSold(Long showtimeId, List<Long> seatIds) {
+        ticketService.validateSeatsNotSold(showtimeId, normalizeSeatIds(seatIds));
     }
 
     @Transactional
