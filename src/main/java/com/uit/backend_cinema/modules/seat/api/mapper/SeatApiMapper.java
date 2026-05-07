@@ -26,7 +26,6 @@ public interface SeatApiMapper {
     @Mapping(target = "seatCol", source = "col")
     @Mapping(target = "isDeleted", constant = "false")
     @Mapping(target = "seatId", ignore = true)
-    @Mapping(target = "roomId", ignore = true)
     @Mapping(target = "isLocked", constant = "false")
     @Mapping(target = "isSold", constant = "false")
     @Mapping(target = "occupancyStatus", constant = "AVAILABLE")

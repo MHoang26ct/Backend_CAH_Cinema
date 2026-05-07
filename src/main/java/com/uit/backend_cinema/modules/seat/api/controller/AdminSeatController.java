@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -15,7 +16,6 @@ import com.uit.backend_cinema.modules.seat.api.dto.CreateSeatDTO;
 import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
 import com.uit.backend_cinema.modules.seat.domain.service.SeatService;
 
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import jakarta.validation.Valid;
 
 @RestController
@@ -31,7 +31,7 @@ public class AdminSeatController {
 
     @PostMapping("/create")
     public ResponseEntity<?> createSeatMap(
-            @Valid @RequestBody List<CreateSeatDTO> createSeatDTOs) {
+            @RequestBody List<@Valid CreateSeatDTO> createSeatDTOs) {
         List<Seat> seatMap = createSeatDTOs.stream().map(seatApiMapper::toDomain).toList();
         seatService.createSeatMap(seatMap);
         return ResponseEntity.ok(ApiResponse.success("Tạo sơ đồ ghế thành công"));
