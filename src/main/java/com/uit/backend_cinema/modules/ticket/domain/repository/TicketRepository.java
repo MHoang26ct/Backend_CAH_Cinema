@@ -10,4 +10,8 @@ public interface TicketRepository {
     int saveAll(List<Ticket> tickets);
 
     List<Ticket> findAllByBookingId(Long bookingId);
+
+    boolean existsSoldSeatByShowtimeIdAndSeatIds(Long showtimeId, List<Long> seatIds);
+
+    List<Long> findSoldSeatIdsByShowtimeId(Long showtimeId);
 }

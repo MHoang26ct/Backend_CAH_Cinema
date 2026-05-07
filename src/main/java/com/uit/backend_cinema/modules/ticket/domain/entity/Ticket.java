@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 public class Ticket {
     private Long ticketId;
     private Long seatId;
+    private Long showtimeId;
     private Long bookingId;
     private BigDecimal price;
 }

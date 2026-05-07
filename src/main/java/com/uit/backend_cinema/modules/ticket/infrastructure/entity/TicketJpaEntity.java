@@ -9,10 +9,16 @@ import java.math.BigDecimal;
 @Entity
 @Table(
         name = "tickets",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uq_tickets_booking_seat",
-                columnNames = {"booking_id", "seat_id"}
-        )
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uq_tickets_booking_seat",
+                        columnNames = {"booking_id", "seat_id"}
+                ),
+                @UniqueConstraint(
+                        name = "uq_tickets_showtime_seat",
+                        columnNames = {"showtime_id", "seat_id"}
+                )
+        }
 )
 @Getter
 @Setter
@@ -24,6 +30,9 @@ public class TicketJpaEntity {
 
     @Column(name = "seat_id", nullable = false)
     private Long seatId;
+
+    @Column(name = "showtime_id", nullable = false)
+    private Long showtimeId;
 
     @Column(name = "booking_id", nullable = false)
     private Long bookingId;
