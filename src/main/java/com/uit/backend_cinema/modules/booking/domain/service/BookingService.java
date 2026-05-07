@@ -120,11 +120,15 @@ public class BookingService {
 
         if (existingConfirmation.isPresent()) {
             PaymentConfirmation confirmation = existingConfirmation.get();
-            if (confirmation.getBookingId().equals(bookingId)) {
+            if (!confirmation.getBookingId().equals(bookingId)) {
                 throw new BusinessException("Mã tham chiếu thanh toán đã được dùng cho booking khác", ErrorCode.PAYMENT_REF_DUPLICATE);
             }
             Booking existingBooking = bookingRepository.findById(bookingId)
                     .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+
+            if (!existingBooking.getUserId().equals(userId)) {
+                throw new BusinessException("Bạn không có quyền thanh toán cho booking này", ErrorCode.FORBIDDEN);
+            }
 
             if (existingBooking.getStatus() == BookingStatus.PAID) {
                 createBookingPaidOutbox(existingBooking, requestDTO.getPaymentRef());
@@ -133,8 +137,8 @@ public class BookingService {
             return ConfirmPaymentResponseDTO.builder()
                     .bookingId(existingBooking.getBookingId())
                     .status(existingBooking.getStatus())
-                    .paymentRef(requestDTO.getPaymentRef())
-                    .gateway(requestDTO.getGateway())
+                    .paymentRef(confirmation.getPaymentRef())
+                    .gateway(confirmation.getGateway())
                     .ticketStatus("PENDING")
                     .build();
         }
