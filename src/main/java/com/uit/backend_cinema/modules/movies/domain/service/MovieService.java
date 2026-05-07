@@ -4,6 +4,7 @@ import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.movies.domain.entity.Movie;
 import com.uit.backend_cinema.modules.movies.domain.repository.MovieRepository;
+import com.uit.backend_cinema.modules.showtime.domain.repository.ShowtimeRepository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,10 +17,12 @@ import java.util.Optional;
 @Service
 @Transactional(readOnly = true)
 public class MovieService {
-     private final MovieRepository movieRepository;
+    private final MovieRepository movieRepository;
+    private final ShowtimeRepository showtimeRepository;
 
-    public MovieService(MovieRepository movieRepository) {
+    public MovieService(MovieRepository movieRepository, ShowtimeRepository showtimeRepository) {
         this.movieRepository = movieRepository;
+        this.showtimeRepository = showtimeRepository;
     }
 
     public Page<Movie> search(String title, Long genreId, String ageRating, Pageable pageable) {
@@ -66,6 +69,7 @@ public class MovieService {
             throw new BusinessException("Phim không tồn tại", ErrorCode.RESOURCE_NOT_FOUND);
         }
         Movie movie = movieOpt.get();
+        showtimeRepository.softDeleteByMovieId(id);
         movie.setIsDeleted(true);
         return movieRepository.save(movie);
     }
