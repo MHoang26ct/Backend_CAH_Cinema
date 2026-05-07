@@ -99,14 +99,15 @@ public class FoodOrderService {
     @Transactional
     public BigDecimal createFoodOrder(FoodOrder order) {
         List<FoodOrderItem> items = order.getItems();
+        validateOrderItems(items);
         List<Food> foods = foodService.findAllByListId(items.stream().map(FoodOrderItem::getFoodId).collect(Collectors.toSet()));
         Map<Long, Food> foodMap = foods.stream().collect(Collectors.toMap(Food::getFoodId, f -> f));
         for (FoodOrderItem item : items) {
             Food food = foodMap.get(item.getFoodId());
-            if (!food.isAvailable()) {
-                throw new BusinessException("Món ăn " + food.getName() + " không còn trong kho", ErrorCode.VALIDATION_FAILED);
+            if (food == null || !food.isAvailable()) {
+                throw new BusinessException("Món ăn không khả dụng", ErrorCode.VALIDATION_FAILED);
             }
-            item.setPrice(foodMap.get(item.getFoodId()).getPrice());
+            item.setPrice(food.getPrice());
         }
         order.setTotalPrice(items.stream().map(item -> item.getPrice()
                 .multiply(new BigDecimal(item.getQuantity()))).reduce(BigDecimal.ZERO, BigDecimal::add));
@@ -117,6 +118,20 @@ public class FoodOrderService {
     @Transactional(readOnly = true)
     public List<FoodOrder> getFoodOrdersByBookingIds(Set<Long> bookingIds) {
         return foodOrderRepository.getAllByListBookingId(bookingIds);
+    }
+
+    private void validateOrderItems(List<FoodOrderItem> items) {
+        if (items == null || items.isEmpty()) {
+            throw new BusinessException("Danh sách món ăn không được trống", ErrorCode.VALIDATION_FAILED);
+        }
+        for (FoodOrderItem item : items) {
+            if (item == null || item.getFoodId() == null) {
+                throw new BusinessException("Món ăn không hợp lệ", ErrorCode.VALIDATION_FAILED);
+            }
+            if (item.getQuantity() <= 0) {
+                throw new BusinessException("Số lượng món ăn phải lớn hơn 0", ErrorCode.VALIDATION_FAILED);
+            }
+        }
     }
 
     private Map<Long, Integer> normalizeFoodItems(List<FoodOrderItemRequestDTO> foodItems) {

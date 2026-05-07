@@ -5,6 +5,7 @@ import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.voucher.domain.entity.BookingVoucherHold;
 import com.uit.backend_cinema.modules.voucher.domain.entity.BookingVoucherHoldStatus;
 import com.uit.backend_cinema.modules.voucher.domain.entity.Voucher;
+import com.uit.backend_cinema.modules.voucher.domain.entity.VoucherType;
 import com.uit.backend_cinema.modules.voucher.domain.repository.BookingVoucherHoldRepository;
 import com.uit.backend_cinema.modules.voucher.domain.repository.VoucherRepository;
 import org.springframework.data.domain.Pageable;
@@ -200,11 +201,16 @@ public class VoucherService {
         if (voucher.getStartAt().isAfter(voucher.getExpiredAt())) {
             throw new BusinessException("Ngày bắt đầu phải trước ngày hết hạn", ErrorCode.VALIDATION_FAILED);
         }
-        String type = voucher.getType().name();
+        BigDecimal value = voucher.getValue();
         BigDecimal maxDiscount = voucher.getMaxDiscount();
-        if ("PERCENT".equals(type) && (maxDiscount == null || maxDiscount.compareTo(BigDecimal.ZERO) <= 0)) {
-            throw new BusinessException("Voucher giảm theo phần trăm phải có giá trị giảm tối đa lớn hơn 0", ErrorCode.VALIDATION_FAILED);
-        } else if ("FIXED_AMOUNT".equals(type) && (maxDiscount != null && maxDiscount.compareTo(BigDecimal.ZERO) != 0)) {
+        if (VoucherType.PERCENT.equals(voucher.getType())) {
+            if (value == null || value.compareTo(BigDecimal.ZERO) <= 0 || value.compareTo(BigDecimal.valueOf(100)) > 0) {
+                throw new BusinessException("Voucher giảm theo phần trăm phải có giá trị lớn hơn 0 và không vượt quá 100", ErrorCode.VALIDATION_FAILED);
+            }
+            if (maxDiscount == null || maxDiscount.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BusinessException("Voucher giảm theo phần trăm phải có giá trị giảm tối đa lớn hơn 0", ErrorCode.VALIDATION_FAILED);
+            }
+        } else if (VoucherType.FIXED_AMOUNT.equals(voucher.getType()) && (maxDiscount != null && maxDiscount.compareTo(BigDecimal.ZERO) != 0)) {
             throw new BusinessException("Voucher giảm theo số tiền cố định không được có giá trị giảm tối đa", ErrorCode.VALIDATION_FAILED);
         }
         return true;

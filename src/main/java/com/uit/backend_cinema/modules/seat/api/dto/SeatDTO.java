@@ -21,4 +21,6 @@ public class SeatDTO {
     private SeatTypeDTO seatType;
     private String status;     // ACTIVE, PREPARE
     private Boolean isLocked;  // true = đang có người giữ (từ Redis)
+    private Boolean isSold;    // true = đã bán vé cuối cùng cho showtime
+    private String occupancyStatus; // AVAILABLE, LOCKED, SOLD
 }

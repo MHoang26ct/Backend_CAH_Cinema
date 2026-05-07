@@ -28,6 +28,8 @@ public interface SeatApiMapper {
     @Mapping(target = "seatId", ignore = true)
     @Mapping(target = "roomId", ignore = true)
     @Mapping(target = "isLocked", constant = "false")
+    @Mapping(target = "isSold", constant = "false")
+    @Mapping(target = "occupancyStatus", constant = "AVAILABLE")
     @Mapping(target = "status", constant = "ACTIVE")
     Seat toDomain(CreateSeatDTO createSeatDTO);
 }

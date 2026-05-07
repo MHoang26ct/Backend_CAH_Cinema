@@ -1,5 +1,6 @@
 package com.uit.backend_cinema.modules.food_order.api.entity;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -12,5 +13,5 @@ public class OrderFoodRequestDTO {
     private Long bookingId;
 
     @NotEmpty(message = "Danh sách food không được trống")
-    private List<FoodOrderItemRequestDTO> items;
+    private List<@Valid FoodOrderItemRequestDTO> items;
 }
