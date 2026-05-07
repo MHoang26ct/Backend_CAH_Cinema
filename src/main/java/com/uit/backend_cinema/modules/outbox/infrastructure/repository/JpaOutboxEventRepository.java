@@ -35,4 +35,21 @@ public interface JpaOutboxEventRepository extends JpaRepository<OutboxEventJpaEn
             nativeQuery = true
     )
     List<OutboxEventJpaEntity> findDueEventsForUpdate(@Param("now") LocalDateTime now, @Param("limit") int limit);
+
+    @Query(
+            value = """
+                    select *
+                    from outbox_events
+                    where status = 'PROCESSING'
+                      and coalesce(updated_at, created_at) <= :processingBefore
+                    order by coalesce(updated_at, created_at)
+                    for update skip locked
+                    limit :limit
+                    """,
+            nativeQuery = true
+    )
+    List<OutboxEventJpaEntity> findTimedOutProcessingEventsForUpdate(
+            @Param("processingBefore") LocalDateTime processingBefore,
+            @Param("limit") int limit
+    );
 }

@@ -53,4 +53,12 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
                 .map(mapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<OutboxEvent> findTimedOutProcessingEvents(java.time.LocalDateTime processingBefore, int limit) {
+        List<OutboxEventJpaEntity> entities = jpaOutboxEventRepository.findTimedOutProcessingEventsForUpdate(processingBefore, limit);
+        return entities.stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
 }

@@ -18,4 +18,6 @@ public interface OutboxEventRepository {
     Optional<OutboxEvent> findByEventTypeAndAggregateId(OutboxEventType eventType, String aggregateId);
 
     List<OutboxEvent> claimDueEvents(List<OutboxEventStatus> statuses, LocalDateTime now, int limit);
+
+    List<OutboxEvent> findTimedOutProcessingEvents(LocalDateTime processingBefore, int limit);
 }

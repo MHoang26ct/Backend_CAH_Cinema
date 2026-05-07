@@ -17,6 +17,7 @@ import java.util.List;
 public class OutboxEventService {
     private static final int MAX_RETRY = 5;
     private static final int MAX_ERROR_LENGTH = 2000;
+    private static final String PROCESSING_TIMEOUT_MESSAGE = "Reclaimed timed-out PROCESSING event";
 
     private final OutboxEventRepository outboxEventRepository;
 
@@ -64,6 +65,34 @@ public class OutboxEventService {
 
         return events;
     }
+
+    @Transactional
+    public int reclaimTimedOutProcessingEvents(long timeoutSeconds, int limit) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime processingBefore = now.minusSeconds(timeoutSeconds);
+        List<OutboxEvent> timedOutEvents = outboxEventRepository.findTimedOutProcessingEvents(processingBefore, limit);
+
+        for (OutboxEvent event : timedOutEvents) {
+            int currentRetry = event.getRetryCount() == null ? 0 : event.getRetryCount();
+            int nextRetry = currentRetry + 1;
+
+            event.setRetryCount(nextRetry);
+            event.setLastError(PROCESSING_TIMEOUT_MESSAGE);
+
+            if (nextRetry >= MAX_RETRY) {
+                event.setStatus(OutboxEventStatus.FAILED);
+                event.setNextRetryAt(now);
+            } else {
+                event.setStatus(OutboxEventStatus.RETRY);
+                event.setNextRetryAt(now.plusSeconds(backoffSeconds(event.getEventType(), currentRetry)));
+            }
+
+            outboxEventRepository.save(event);
+        }
+
+        return timedOutEvents.size();
+    }
+
 
     @Transactional
     public void markDone(Long outboxEventId) {
