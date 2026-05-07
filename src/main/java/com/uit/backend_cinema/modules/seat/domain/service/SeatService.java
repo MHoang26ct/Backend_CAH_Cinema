@@ -48,7 +48,7 @@ public class SeatService {
             boolean locked = seatLockRepository.isLocked(showtimeId, seat.getSeatId());
             seat.setIsSold(sold);
             seat.setIsLocked(locked);
-            seat.setOccupancyStatus(sold ? "SOLD" : locked ? "LOCKED" : "AVAILABLE");
+            seat.setOccupancyStatus(resolveOccupancyStatus(sold, locked));
         });
         return seats;
     }
@@ -101,6 +101,15 @@ public class SeatService {
         return seats;
     }
 
+    private String resolveOccupancyStatus(Boolean isSold, Boolean isLocked) {
+        if (Boolean.TRUE.equals(isSold)) {
+            return "SOLD";
+        }
+        if (Boolean.TRUE.equals(isLocked)) {
+            return "LOCKED";
+        }
+        return "AVAILABLE";
+    }
 
     @Transactional(readOnly = true)
     public void validateSeatsNotSold(Long showtimeId, List<Long> seatIds) {

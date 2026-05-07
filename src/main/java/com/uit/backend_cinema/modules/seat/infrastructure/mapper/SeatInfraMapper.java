@@ -10,6 +10,8 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface SeatInfraMapper {
     @Mapping(target = "isLocked", ignore = true) // DB không có field này, set sau từ Redis
+    @Mapping(target = "isSold", ignore = true)
+    @Mapping(target = "occupancyStatus", ignore = true)
     Seat toDomain(SeatJpaEntity entity);
 
     SeatType toDomain(SeatTypeJpaEntity entity);
