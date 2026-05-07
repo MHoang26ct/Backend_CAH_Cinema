@@ -88,7 +88,7 @@ public class AuthService {
 
     // Đổi mật khẩu (quên mật khẩu)
     @Transactional
-    public void changePassword(String email, String newPassword) {
+    public void resetPassword(String email, String newPassword) {
         Optional<User> user = userRepository.findByEmail(email);
         if (user.isEmpty()) {
             throw new BusinessException("Email không tồn tại", ErrorCode.INVALID_CREDENTIALS);
@@ -99,7 +99,7 @@ public class AuthService {
 
     // Đổi mật khẩu (khi đang đăng nhập)
     @Transactional
-    public void changePassword(String email, String oldPassword, String newPassword) {
+    public void changePasswordWithOldPassword(String email, String oldPassword, String newPassword) {
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
             throw new BusinessException("Email không tồn tại", ErrorCode.INVALID_CREDENTIALS);

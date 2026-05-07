@@ -97,9 +97,13 @@ public class AuthUseCase {
     // Đổi mật khẩu (quên mật khẩu)
     public void changePassword_Forget(String email, String newPassword, String token) {
         try {
-            if (jwtUtil.verifyResetToken(token, email)) {
-                authService.changePassword(email, newPassword, token);
+            if (!jwtUtil.verifyResetToken(token, email)) {
+                throw new BusinessException("Token không hợp lệ", ErrorCode.TOKEN_INVALID);
             }
+            authService.resetPassword(email, newPassword);
+        }
+        catch (BusinessException ex) {
+            throw ex;
         }
         catch (Exception ex) {
             throw new BusinessException("Token không hợp lệ", ErrorCode.TOKEN_INVALID);
@@ -108,7 +112,7 @@ public class AuthUseCase {
 
     // Đổi mật khẩu
     public void changePassword(String email, String oldPassword, String newPassword) {
-        authService.changePassword(email, oldPassword, newPassword);
+        authService.changePasswordWithOldPassword(email, oldPassword, newPassword);
     }
 
     // REFRESH TOKEN
