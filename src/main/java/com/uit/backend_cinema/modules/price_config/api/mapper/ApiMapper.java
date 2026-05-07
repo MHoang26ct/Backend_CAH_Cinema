@@ -1,5 +1,8 @@
 package com.uit.backend_cinema.modules.price_config.api.mapper;
 
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
 import com.uit.backend_cinema.modules.price_config.api.dto.request.CreateHolidayRequest;
 import com.uit.backend_cinema.modules.price_config.api.dto.request.UpdateHolidayRequest;
 import com.uit.backend_cinema.modules.price_config.api.dto.request.UpdatePriceConfigRequest;
@@ -7,8 +10,6 @@ import com.uit.backend_cinema.modules.price_config.api.dto.response.HolidaysResp
 import com.uit.backend_cinema.modules.price_config.api.dto.response.PriceConfigResponse;
 import com.uit.backend_cinema.modules.price_config.domain.entity.Holiday;
 import com.uit.backend_cinema.modules.price_config.domain.entity.PriceConfig;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface ApiMapper {

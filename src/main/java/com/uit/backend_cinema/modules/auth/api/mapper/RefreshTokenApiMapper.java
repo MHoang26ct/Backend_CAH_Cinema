@@ -1,9 +1,10 @@
 package com.uit.backend_cinema.modules.auth.api.mapper;
 
-import com.uit.backend_cinema.modules.auth.api.dto.RefreshTokenDTO;
-import com.uit.backend_cinema.modules.auth.domain.entity.RefreshToken;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+
+import com.uit.backend_cinema.modules.auth.api.dto.RefreshTokenDTO;
+import com.uit.backend_cinema.modules.auth.domain.entity.RefreshToken;
 
 @Mapper(componentModel = "spring")
 public interface RefreshTokenApiMapper {

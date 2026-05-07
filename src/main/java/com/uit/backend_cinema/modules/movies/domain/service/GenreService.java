@@ -1,11 +1,12 @@
 package com.uit.backend_cinema.modules.movies.domain.service;
 
-import com.uit.backend_cinema.modules.movies.domain.entity.Genre;
-import com.uit.backend_cinema.modules.movies.domain.repository.GenreRepository;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import com.uit.backend_cinema.modules.movies.domain.entity.Genre;
+import com.uit.backend_cinema.modules.movies.domain.repository.GenreRepository;
 
 @Service
 @Transactional(readOnly = true)

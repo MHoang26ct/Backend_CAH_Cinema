@@ -1,10 +1,10 @@
 package com.uit.backend_cinema.modules.price_config.domain.repository;
 
-import com.uit.backend_cinema.modules.price_config.domain.entity.Holiday;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+
+import com.uit.backend_cinema.modules.price_config.domain.entity.Holiday;
 
 public interface HolidayRepository {
     boolean isHoliday(LocalDate date);

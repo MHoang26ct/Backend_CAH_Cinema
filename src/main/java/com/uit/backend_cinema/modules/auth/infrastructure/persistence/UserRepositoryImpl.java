@@ -1,5 +1,10 @@
 package com.uit.backend_cinema.modules.auth.infrastructure.persistence;
 
+import java.util.Optional;
+import java.util.Set;
+
+import org.springframework.stereotype.Repository;
+
 import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 import com.uit.backend_cinema.modules.auth.infrastructure.entity.RoleJpaEntity;
@@ -7,10 +12,6 @@ import com.uit.backend_cinema.modules.auth.infrastructure.entity.UserJpaEntity;
 import com.uit.backend_cinema.modules.auth.infrastructure.mapper.UserInfraMapper;
 import com.uit.backend_cinema.modules.auth.infrastructure.repository.JpaRoleRepository;
 import com.uit.backend_cinema.modules.auth.infrastructure.repository.JpaUserRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.Optional;
-import java.util.Set;
 
 @Repository
 public class UserRepositoryImpl implements UserRepository {

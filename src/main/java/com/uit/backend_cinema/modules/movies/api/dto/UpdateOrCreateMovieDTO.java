@@ -1,12 +1,13 @@
 package com.uit.backend_cinema.modules.movies.api.dto;
 
+import java.time.LocalDate;
+import java.util.List;
+
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
-import lombok.Data;
 
-import java.time.LocalDate;
-import java.util.List;
+import lombok.Data;
 
 @Data
 public class UpdateOrCreateMovieDTO {

@@ -1,13 +1,14 @@
 package com.uit.backend_cinema.modules.showtime.api.dto;
 
-import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
+import lombok.Data;
 
 @Data
 public class CreateShowtimeDTO {

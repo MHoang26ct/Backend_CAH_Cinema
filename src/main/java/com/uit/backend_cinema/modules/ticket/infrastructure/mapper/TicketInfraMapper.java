@@ -1,8 +1,9 @@
 package com.uit.backend_cinema.modules.ticket.infrastructure.mapper;
 
+import org.mapstruct.Mapper;
+
 import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 import com.uit.backend_cinema.modules.ticket.infrastructure.entity.TicketJpaEntity;
-import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")
 public interface TicketInfraMapper {

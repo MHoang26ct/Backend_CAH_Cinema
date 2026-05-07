@@ -1,11 +1,11 @@
 package com.uit.backend_cinema.modules.seat.api.dto;
 
-import lombok.Data;
-
 import java.math.BigDecimal;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+
+import lombok.Data;
 
 @Data
 public class CreateSeatDTO {

@@ -1,13 +1,14 @@
 package com.uit.backend_cinema.modules.price_config.infrastructure.repository;
 
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
 import com.uit.backend_cinema.modules.price_config.domain.helper.DayType;
 import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
 import com.uit.backend_cinema.modules.price_config.domain.helper.TimeSlot;
 import com.uit.backend_cinema.modules.price_config.infrastructure.entity.PriceConfigJpaEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.Optional;
 
 @Repository
 public interface JpaPriceConfigRepository extends JpaRepository<PriceConfigJpaEntity, Long> {

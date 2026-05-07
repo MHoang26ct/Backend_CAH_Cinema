@@ -1,8 +1,8 @@
 package com.uit.backend_cinema.modules.movies.domain.repository;
 
-import com.uit.backend_cinema.modules.movies.domain.entity.Genre;
-
 import java.util.List;
+
+import com.uit.backend_cinema.modules.movies.domain.entity.Genre;
 
 public interface GenreRepository {
     List<Genre> findAll();

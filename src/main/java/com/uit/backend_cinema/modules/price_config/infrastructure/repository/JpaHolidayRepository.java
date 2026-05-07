@@ -1,12 +1,13 @@
 package com.uit.backend_cinema.modules.price_config.infrastructure.repository;
 
-import com.uit.backend_cinema.modules.price_config.infrastructure.entity.HolidayJpaEntity;
+import java.time.LocalDate;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
+import com.uit.backend_cinema.modules.price_config.infrastructure.entity.HolidayJpaEntity;
 
 @Repository
 public interface JpaHolidayRepository extends JpaRepository<HolidayJpaEntity, Long> {

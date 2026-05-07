@@ -1,15 +1,14 @@
 package com.uit.backend_cinema.modules.seat.infrastructure.repository;
 
-import com.uit.backend_cinema.modules.seat.infrastructure.entity.SeatJpaEntity;
-
-import org.springframework.data.repository.query.Param;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import com.uit.backend_cinema.modules.seat.infrastructure.entity.SeatJpaEntity;
 
 @Repository
 public interface JpaSeatRepository extends JpaRepository<SeatJpaEntity, Long> {

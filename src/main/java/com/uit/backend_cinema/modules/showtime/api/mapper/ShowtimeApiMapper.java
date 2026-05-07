@@ -1,11 +1,15 @@
 package com.uit.backend_cinema.modules.showtime.api.mapper;
 
-import com.uit.backend_cinema.modules.showtime.api.dto.*;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import com.uit.backend_cinema.modules.showtime.api.dto.CinemaShowtimesResponseDTO;
+import com.uit.backend_cinema.modules.showtime.api.dto.CreateShowtimeDTO;
+import com.uit.backend_cinema.modules.showtime.api.dto.MovieShowtimesResponseDTO;
+import com.uit.backend_cinema.modules.showtime.api.dto.UpdateShowtimeDTO;
 import com.uit.backend_cinema.modules.showtime.domain.entity.CinemaShowtimes;
 import com.uit.backend_cinema.modules.showtime.domain.entity.MovieShowtimes;
 import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface ShowtimeApiMapper {

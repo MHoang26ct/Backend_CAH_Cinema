@@ -1,5 +1,14 @@
 package com.uit.backend_cinema.modules.showtime.domain.service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.Objects;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.movies.domain.service.MovieService;
@@ -8,14 +17,6 @@ import com.uit.backend_cinema.modules.showtime.domain.entity.MovieShowtimes;
 import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
 import com.uit.backend_cinema.modules.showtime.domain.entity.ShowtimeStatus;
 import com.uit.backend_cinema.modules.showtime.domain.repository.ShowtimeRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.List;
-import java.util.Objects;
 
 @Service
 @Transactional(readOnly = true)

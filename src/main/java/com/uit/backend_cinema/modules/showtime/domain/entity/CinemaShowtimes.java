@@ -1,10 +1,10 @@
 package com.uit.backend_cinema.modules.showtime.domain.entity;
 
-import lombok.Data;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import lombok.Data;
 
 @Data
 public class CinemaShowtimes {

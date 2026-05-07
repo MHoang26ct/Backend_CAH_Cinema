@@ -1,14 +1,15 @@
 package com.uit.backend_cinema.modules.auth.infrastructure.mapper;
 
-import com.uit.backend_cinema.modules.auth.domain.entity.AuthProvider;
-import com.uit.backend_cinema.modules.auth.domain.entity.User;
-import com.uit.backend_cinema.modules.auth.infrastructure.entity.RoleJpaEntity;
-import com.uit.backend_cinema.modules.auth.infrastructure.entity.UserJpaEntity;
+import java.util.Set;
+
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 
-import java.util.Set;
+import com.uit.backend_cinema.modules.auth.domain.entity.AuthProvider;
+import com.uit.backend_cinema.modules.auth.domain.entity.User;
+import com.uit.backend_cinema.modules.auth.infrastructure.entity.RoleJpaEntity;
+import com.uit.backend_cinema.modules.auth.infrastructure.entity.UserJpaEntity;
 
 @Mapper(componentModel = "spring")
 public interface UserInfraMapper {

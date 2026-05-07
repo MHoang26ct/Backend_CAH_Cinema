@@ -1,12 +1,13 @@
 package com.uit.backend_cinema.modules.voucher.domain.repository;
 
-import com.uit.backend_cinema.modules.voucher.domain.entity.Voucher;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+
+import com.uit.backend_cinema.modules.voucher.domain.entity.Voucher;
 
 public interface VoucherRepository {
     Optional<Voucher> findById(long voucherId);

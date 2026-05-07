@@ -1,13 +1,14 @@
 package com.uit.backend_cinema.modules.movies.infrastructure.persistence;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Repository;
+
 import com.uit.backend_cinema.modules.movies.domain.entity.Genre;
 import com.uit.backend_cinema.modules.movies.domain.repository.GenreRepository;
 import com.uit.backend_cinema.modules.movies.infrastructure.mapper.GenreInfraMapper;
 import com.uit.backend_cinema.modules.movies.infrastructure.repository.JpaGenreRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Repository
 public class GenreRepositoryImpl implements GenreRepository {

@@ -1,14 +1,15 @@
 package com.uit.backend_cinema.modules.booking.api.dto;
 
-import com.uit.backend_cinema.modules.booking.domain.entity.BookingPaymentMethod;
-import com.uit.backend_cinema.modules.food_order.api.entity.FoodOrderItemRequestDTO;
+import java.util.ArrayList;
+import java.util.List;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingPaymentMethod;
+import com.uit.backend_cinema.modules.food_order.api.entity.FoodOrderItemRequestDTO;
+import lombok.Data;
 
 @Data
 public class CreateBookingRequestDTO {

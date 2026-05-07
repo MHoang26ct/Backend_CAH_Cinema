@@ -1,10 +1,11 @@
 package com.uit.backend_cinema.modules.auth.infrastructure.repository;
 
-import com.uit.backend_cinema.modules.auth.infrastructure.entity.UserJpaEntity;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import com.uit.backend_cinema.modules.auth.infrastructure.entity.UserJpaEntity;
 
 @Repository
 public interface JpaUserRepository extends JpaRepository<UserJpaEntity, Long> {

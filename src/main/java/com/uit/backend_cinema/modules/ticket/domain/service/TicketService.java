@@ -1,5 +1,14 @@
 package com.uit.backend_cinema.modules.ticket.domain.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
@@ -8,14 +17,6 @@ import com.uit.backend_cinema.modules.ticket.domain.entity.PendingTicketItem;
 import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 import com.uit.backend_cinema.modules.ticket.domain.repository.PendingTicketItemRepository;
 import com.uit.backend_cinema.modules.ticket.domain.repository.TicketRepository;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 public class TicketService {

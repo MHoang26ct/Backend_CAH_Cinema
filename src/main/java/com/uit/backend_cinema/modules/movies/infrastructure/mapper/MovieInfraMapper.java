@@ -1,10 +1,10 @@
 package com.uit.backend_cinema.modules.movies.infrastructure.mapper;
 
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 import com.uit.backend_cinema.modules.movies.domain.entity.Movie;
 import com.uit.backend_cinema.modules.movies.infrastructure.entity.MovieJpaEntity;
-import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring", uses = {GenreInfraMapper.class})
 public interface  MovieInfraMapper {

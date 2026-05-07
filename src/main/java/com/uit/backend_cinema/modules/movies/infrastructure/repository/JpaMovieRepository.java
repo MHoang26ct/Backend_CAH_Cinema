@@ -1,15 +1,15 @@
 package com.uit.backend_cinema.modules.movies.infrastructure.repository;
 
+import java.time.LocalDate;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import com.uit.backend_cinema.modules.movies.infrastructure.entity.MovieJpaEntity;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
+import com.uit.backend_cinema.modules.movies.infrastructure.entity.MovieJpaEntity;
 
 @Repository
 public interface JpaMovieRepository extends JpaRepository<MovieJpaEntity, Long> {
