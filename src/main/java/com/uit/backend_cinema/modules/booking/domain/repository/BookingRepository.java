@@ -15,4 +15,6 @@ public interface BookingRepository {
     Optional<Booking> findByIdForUpdate(Long bookingId);
 
     List<Booking> findByStatusAndExpiresAtBefore(BookingStatus status, LocalDateTime threshold);
+
+    int markExpiredIfPendingAndExpired(Long bookingId, LocalDateTime now);
 }

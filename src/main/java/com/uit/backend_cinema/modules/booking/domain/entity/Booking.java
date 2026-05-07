@@ -20,5 +20,6 @@ public class Booking {
     private LocalDateTime expiresAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long version;
     private Boolean isDeleted;
 }
