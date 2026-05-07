@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -90,6 +92,34 @@ public class GlobalExceptionHandler {
                 ));
         return buildResponse(HttpStatus.BAD_REQUEST, "Validation Failed", ErrorCode.VALIDATION_FAILED,
                 "Dữ liệu đầu vào không hợp lệ", fieldErrors);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleHandlerMethodValidation(HandlerMethodValidationException ex) {
+        Map<String, String> validationErrors = ex.getAllValidationResults().stream()
+                .flatMap(result -> result.getResolvableErrors().stream()
+                        .map(error -> Map.entry(
+                                resolveValidationField(result.getMethodParameter().getParameterName(),
+                                        result.getContainerIndex(), error),
+                                error.getDefaultMessage() != null ? error.getDefaultMessage() : "Giá trị không hợp lệ")))
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (first, second) -> first
+                ));
+        return buildResponse(HttpStatus.BAD_REQUEST, "Validation Failed", ErrorCode.VALIDATION_FAILED,
+                "Dữ liệu đầu vào không hợp lệ", validationErrors);
+    }
+
+    private String resolveValidationField(String parameterName, Integer containerIndex, MessageSourceResolvable error) {
+        StringBuilder field = new StringBuilder(parameterName != null ? parameterName : "request");
+        if (containerIndex != null) {
+            field.append('[').append(containerIndex).append(']');
+        }
+        if (error instanceof FieldError fieldError) {
+            field.append('.').append(fieldError.getField());
+        }
+        return field.toString();
     }
 
     @ExceptionHandler(PropertyReferenceException.class)

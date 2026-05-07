@@ -3,6 +3,7 @@ package com.uit.backend_cinema.modules.seat.api.controller;
 import java.util.List;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,7 +32,8 @@ public class AdminSeatController {
 
     @PostMapping("/create")
     public ResponseEntity<?> createSeatMap(
-            @RequestBody List<@Valid CreateSeatDTO> createSeatDTOs) {
+            @NotEmpty(message = "Danh sách ghế không được trống") @Valid @RequestBody
+            List<@Valid CreateSeatDTO> createSeatDTOs) {
         List<Seat> seatMap = createSeatDTOs.stream().map(seatApiMapper::toDomain).toList();
         seatService.createSeatMap(seatMap);
         return ResponseEntity.ok(ApiResponse.success("Tạo sơ đồ ghế thành công"));
