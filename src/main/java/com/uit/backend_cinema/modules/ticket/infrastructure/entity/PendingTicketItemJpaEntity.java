@@ -1,4 +1,4 @@
-package com.uit.backend_cinema.modules.booking.infrastructure.entity;
+package com.uit.backend_cinema.modules.ticket.infrastructure.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
