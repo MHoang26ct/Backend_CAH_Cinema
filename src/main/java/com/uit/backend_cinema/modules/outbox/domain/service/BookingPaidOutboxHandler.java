@@ -68,7 +68,16 @@ public class BookingPaidOutboxHandler {
             ticket.setPrice(item.getUnitPrice());
             tickets.add(ticket);
         }
-        ticketService.createTicketIfAbsent(tickets);
+
+        if (tickets.isEmpty()) {
+            tickets = ticketService.findAllByBookingId(booking.getBookingId());
+            if (tickets.isEmpty()) {
+                throw new BusinessException("Booking không có vé nháp để tạo vé", ErrorCode.RESOURCE_NOT_FOUND);
+            }
+        } else {
+            ticketService.createTicketIfAbsent(tickets);
+        }
+
         SendTicketEmailPayload emailPayload = new SendTicketEmailPayload();
         emailPayload.setBookingId(booking.getBookingId());
         emailPayload.setUserId(booking.getUserId());

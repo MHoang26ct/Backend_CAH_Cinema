@@ -4,6 +4,7 @@ import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 import com.uit.backend_cinema.modules.ticket.domain.repository.TicketRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,11 +19,18 @@ public class TicketService {
     }
 
     @Transactional
-    public int createTicketIfAbsent(List<Ticket> tickets) {
-        if (validateTickets(tickets)) {
-            return ticketRepository.saveAll(tickets);
+    public void createTicketIfAbsent(List<Ticket> tickets) {
+        if (!validateTickets(tickets)) {
+            return;
         }
-        return 0;
+        try {
+            ticketRepository.saveAll(tickets);
+        } catch (DataIntegrityViolationException ex) {
+            if (hasSameExistingTickets(tickets)) {
+                return;
+            }
+            throw ex;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -31,9 +39,8 @@ public class TicketService {
     }
 
     private boolean validateTickets(List<Ticket> tickets) {
-        List<Ticket> existingTickets = ticketRepository.findAllByBookingId(tickets.get(0).getBookingId());
-        if (!existingTickets.isEmpty()) {
-            throw new BusinessException("Booking đã có vé, không thể tạo thêm", ErrorCode.VALIDATION_FAILED);
+        if (tickets == null || tickets.isEmpty()) {
+            return false;
         }
         tickets.forEach(ticket -> {
             if (ticket.getBookingId() == null || ticket.getSeatId() == null) {
@@ -45,8 +52,27 @@ public class TicketService {
             throw new BusinessException("Tất cả các vé phải có cùng một bookingId", ErrorCode.VALIDATION_FAILED);
         }
         if (tickets.stream().map(Ticket::getSeatId).distinct().count() != tickets.size()) {
-            throw new BusinessException("Tất cả các vé phải có cùng một seatId", ErrorCode.VALIDATION_FAILED);
+            throw new BusinessException("Danh sách vé có seatId trùng lặp", ErrorCode.VALIDATION_FAILED);
+        }
+        if (hasSameExistingTickets(tickets)) {
+            return false;
+        }
+        if (!ticketRepository.findAllByBookingId(bookingId).isEmpty()) {
+            throw new BusinessException("Booking đã có vé, không thể tạo thêm", ErrorCode.VALIDATION_FAILED);
         }
         return true;
+    }
+
+    private boolean hasSameExistingTickets(List<Ticket> tickets) {
+        if (tickets == null || tickets.isEmpty()) {
+            return false;
+        }
+        Long bookingId = tickets.get(0).getBookingId();
+        List<Ticket> existingTickets = ticketRepository.findAllByBookingId(bookingId);
+        if (existingTickets.size() != tickets.size()) {
+            return false;
+        }
+        return existingTickets.stream().map(Ticket::getSeatId).collect(java.util.stream.Collectors.toSet())
+                .equals(tickets.stream().map(Ticket::getSeatId).collect(java.util.stream.Collectors.toSet()));
     }
 }
