@@ -1,6 +1,6 @@
-package com.uit.backend_cinema.modules.booking.infrastructure.repository;
+package com.uit.backend_cinema.modules.food_order.infrastructure.repository;
 
-import com.uit.backend_cinema.modules.booking.infrastructure.entity.BookingFoodDraftItemJpaEntity;
+import com.uit.backend_cinema.modules.food_order.infrastructure.entity.BookingFoodDraftItemJpaEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

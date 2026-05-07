@@ -1,6 +1,6 @@
-package com.uit.backend_cinema.modules.booking.domain.repository;
+package com.uit.backend_cinema.modules.food_order.domain.repository;
 
-import com.uit.backend_cinema.modules.booking.domain.entity.BookingFoodDraftItem;
+import com.uit.backend_cinema.modules.food_order.domain.entity.BookingFoodDraftItem;
 
 import java.time.LocalDateTime;
 import java.util.List;
