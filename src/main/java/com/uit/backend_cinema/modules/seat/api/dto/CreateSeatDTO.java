@@ -1,16 +1,17 @@
 package com.uit.backend_cinema.modules.seat.api.dto;
 
-import lombok.Data;
-
 import java.math.BigDecimal;
-
-import com.uit.backend_cinema.modules.seat.domain.entity.SeatType;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 
+import lombok.Data;
+
 @Data
 public class CreateSeatDTO {
+    @NotNull(message = "ID phòng chiếu không được để trống")
+    private Long roomId;
+
     @NotNull(message = "Hàng không được để trống")
     @DecimalMin(value = "0.0", inclusive = false)
     private BigDecimal row;

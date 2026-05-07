@@ -1,5 +1,9 @@
 package com.uit.backend_cinema.modules.outbox.domain.service;
 
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uit.backend_cinema.common.exception.BusinessException;
@@ -14,8 +18,6 @@ import com.uit.backend_cinema.modules.outbox.domain.payload.BookingPaidPayload;
 import com.uit.backend_cinema.modules.outbox.domain.payload.SendTicketEmailPayload;
 import com.uit.backend_cinema.modules.ticket.domain.service.TicketService;
 import com.uit.backend_cinema.modules.voucher.domain.service.VoucherService;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class BookingPaidOutboxHandler {
@@ -50,7 +52,11 @@ public class BookingPaidOutboxHandler {
             throw new BusinessException("Booking chưa thanh toán, không thể tạo vé", ErrorCode.BOOKING_INVALID_STATUS);
         }
 
-        ticketService.finalizeTicketsForPaidBooking(booking.getBookingId());
+        try {
+            ticketService.finalizeTicketsForPaidBooking(booking.getBookingId(), booking.getShowtimeId());
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException("Ghế đã được bán cho suất chiếu này", ErrorCode.SEAT_ALREADY_BOOKED, ex);
+        }
 
         SendTicketEmailPayload emailPayload = new SendTicketEmailPayload();
         emailPayload.setBookingId(booking.getBookingId());

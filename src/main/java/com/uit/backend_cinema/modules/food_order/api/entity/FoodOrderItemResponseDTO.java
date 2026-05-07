@@ -1,8 +1,8 @@
 package com.uit.backend_cinema.modules.food_order.api.entity;
 
-import lombok.Data;
-
 import java.math.BigDecimal;
+
+import lombok.Data;
 
 @Data
 public class FoodOrderItemResponseDTO {

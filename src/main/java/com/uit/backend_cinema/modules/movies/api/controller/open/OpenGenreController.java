@@ -1,15 +1,16 @@
 package com.uit.backend_cinema.modules.movies.api.controller.open;
 
-import com.uit.backend_cinema.common.util.ApiResponse;
-import com.uit.backend_cinema.modules.movies.api.dto.GenreDTO;
-import com.uit.backend_cinema.modules.movies.api.mapper.GenreApiMapper;
-import com.uit.backend_cinema.modules.movies.domain.service.GenreService;
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import com.uit.backend_cinema.common.util.ApiResponse;
+import com.uit.backend_cinema.modules.movies.api.dto.GenreDTO;
+import com.uit.backend_cinema.modules.movies.api.mapper.GenreApiMapper;
+import com.uit.backend_cinema.modules.movies.domain.service.GenreService;
 
 @RestController
 @RequestMapping("/api/v1/public/genres")

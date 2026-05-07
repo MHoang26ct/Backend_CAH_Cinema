@@ -1,16 +1,18 @@
 package com.uit.backend_cinema.modules.auth.infrastructure.persistence;
 
+import java.util.Optional;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
+import org.springframework.stereotype.Repository;
+
 import com.uit.backend_cinema.modules.auth.domain.entity.RefreshToken;
 import com.uit.backend_cinema.modules.auth.domain.repository.RefreshTokenRepository;
 import com.uit.backend_cinema.modules.auth.infrastructure.entity.RefreshTokenJpaEntity;
 import com.uit.backend_cinema.modules.auth.infrastructure.entity.UserJpaEntity;
 import com.uit.backend_cinema.modules.auth.infrastructure.mapper.RefreshTokenInfraMapper;
 import com.uit.backend_cinema.modules.auth.infrastructure.repository.JpaRefreshTokenRepository;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import org.springframework.stereotype.Repository;
-
-import java.util.Optional;
 
 @Repository
 public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {

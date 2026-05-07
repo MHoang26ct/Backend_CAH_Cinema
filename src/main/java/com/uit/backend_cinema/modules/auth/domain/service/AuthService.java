@@ -1,16 +1,16 @@
 package com.uit.backend_cinema.modules.auth.domain.service;
 
-import com.uit.backend_cinema.common.exception.BusinessException;
-import com.uit.backend_cinema.common.exception.ErrorCode;
-import com.uit.backend_cinema.modules.auth.domain.entity.AuthProvider;
-import com.uit.backend_cinema.modules.auth.domain.entity.User;
-import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
+import java.util.Optional;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
+import com.uit.backend_cinema.common.exception.BusinessException;
+import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.modules.auth.domain.entity.AuthProvider;
+import com.uit.backend_cinema.modules.auth.domain.entity.User;
+import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 
 @Service
 @Transactional(readOnly = true) // Cấu hình mặc định cho các hàm là chỉ đọc (tối ưu hiệu suất DB)
@@ -88,7 +88,7 @@ public class AuthService {
 
     // Đổi mật khẩu (quên mật khẩu)
     @Transactional
-    public void changePassword(String email, String newPassword) {
+    public void resetPassword(String email, String newPassword) {
         Optional<User> user = userRepository.findByEmail(email);
         if (user.isEmpty()) {
             throw new BusinessException("Email không tồn tại", ErrorCode.INVALID_CREDENTIALS);
@@ -99,7 +99,7 @@ public class AuthService {
 
     // Đổi mật khẩu (khi đang đăng nhập)
     @Transactional
-    public void changePassword(String email, String oldPassword, String newPassword) {
+    public void changePasswordWithOldPassword(String email, String oldPassword, String newPassword) {
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
             throw new BusinessException("Email không tồn tại", ErrorCode.INVALID_CREDENTIALS);

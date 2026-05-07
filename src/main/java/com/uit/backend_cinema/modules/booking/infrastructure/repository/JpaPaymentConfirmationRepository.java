@@ -1,11 +1,12 @@
 package com.uit.backend_cinema.modules.booking.infrastructure.repository;
 
-import com.uit.backend_cinema.modules.booking.domain.entity.PaymentConfirmationStatus;
-import com.uit.backend_cinema.modules.booking.infrastructure.entity.PaymentConfirmationJpaEntity;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import com.uit.backend_cinema.modules.booking.domain.entity.PaymentConfirmationStatus;
+import com.uit.backend_cinema.modules.booking.infrastructure.entity.PaymentConfirmationJpaEntity;
 
 @Repository
 public interface JpaPaymentConfirmationRepository extends JpaRepository<PaymentConfirmationJpaEntity, Long> {

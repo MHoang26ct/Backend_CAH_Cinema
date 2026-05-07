@@ -1,10 +1,16 @@
 package com.uit.backend_cinema.modules.cinema.api.mapper;
 
-import com.uit.backend_cinema.modules.cinema.api.entity.*;
-import com.uit.backend_cinema.modules.cinema.domain.entity.Cinema;
-import com.uit.backend_cinema.modules.cinema.domain.entity.Room;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+
+import com.uit.backend_cinema.modules.cinema.api.entity.CinemaResponseDTO;
+import com.uit.backend_cinema.modules.cinema.api.entity.CreateCinemaRequestDTO;
+import com.uit.backend_cinema.modules.cinema.api.entity.CreateRoomRequestDTO;
+import com.uit.backend_cinema.modules.cinema.api.entity.RoomResponseDTO;
+import com.uit.backend_cinema.modules.cinema.api.entity.UpdateCinemaRequestDTO;
+import com.uit.backend_cinema.modules.cinema.api.entity.UpdateRoomRequestDTO;
+import com.uit.backend_cinema.modules.cinema.domain.entity.Cinema;
+import com.uit.backend_cinema.modules.cinema.domain.entity.Room;
 
 @Mapper(componentModel = "spring")
 public interface CinemaApiMapper {

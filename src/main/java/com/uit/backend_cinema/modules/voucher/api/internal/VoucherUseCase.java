@@ -1,10 +1,11 @@
 package com.uit.backend_cinema.modules.voucher.api.internal;
 
+import org.springframework.stereotype.Service;
+
 import com.uit.backend_cinema.modules.voucher.api.entity.BasicVoucherDTO;
 import com.uit.backend_cinema.modules.voucher.api.mapper.VoucherApiMapper;
 import com.uit.backend_cinema.modules.voucher.domain.entity.Voucher;
 import com.uit.backend_cinema.modules.voucher.domain.service.VoucherService;
-import org.springframework.stereotype.Service;
 
 @Service
 public class VoucherUseCase {

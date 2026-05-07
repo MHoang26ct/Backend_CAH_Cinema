@@ -1,9 +1,9 @@
 package com.uit.backend_cinema.common.sercurity;
 
+import java.util.Collection;
+
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-
-import java.util.Collection;
 
 /**
  * Mở rộng UserDetails mặc định của Spring để mang thêm userId.

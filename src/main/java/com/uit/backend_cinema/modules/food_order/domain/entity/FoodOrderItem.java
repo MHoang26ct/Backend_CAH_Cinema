@@ -8,7 +8,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class FoodOrderItem {
-    private long foodId;
+    private Long foodId;
     private String foodName;
     private int quantity;
     private BigDecimal price;

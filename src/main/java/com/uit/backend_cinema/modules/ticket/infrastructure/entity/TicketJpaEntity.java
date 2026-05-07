@@ -1,18 +1,31 @@
 package com.uit.backend_cinema.modules.ticket.infrastructure.entity;
 
-import jakarta.persistence.*;
+import java.math.BigDecimal;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+
 import lombok.Getter;
 import lombok.Setter;
-
-import java.math.BigDecimal;
 
 @Entity
 @Table(
         name = "tickets",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uq_tickets_booking_seat",
-                columnNames = {"booking_id", "seat_id"}
-        )
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uq_tickets_booking_seat",
+                        columnNames = {"booking_id", "seat_id"}
+                ),
+                @UniqueConstraint(
+                        name = "uq_tickets_showtime_seat",
+                        columnNames = {"showtime_id", "seat_id"}
+                )
+        }
 )
 @Getter
 @Setter
@@ -24,6 +37,9 @@ public class TicketJpaEntity {
 
     @Column(name = "seat_id", nullable = false)
     private Long seatId;
+
+    @Column(name = "showtime_id", nullable = false)
+    private Long showtimeId;
 
     @Column(name = "booking_id", nullable = false)
     private Long bookingId;

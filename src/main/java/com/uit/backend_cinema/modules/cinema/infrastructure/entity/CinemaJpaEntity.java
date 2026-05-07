@@ -1,8 +1,15 @@
 package com.uit.backend_cinema.modules.cinema.infrastructure.entity;
 
-import jakarta.persistence.*;
-import lombok.Data;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import org.hibernate.annotations.SQLRestriction;
+
+import lombok.Data;
 
 @Entity
 @Table(name = "cinemas")

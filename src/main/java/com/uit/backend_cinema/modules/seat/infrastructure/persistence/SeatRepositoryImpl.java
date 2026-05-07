@@ -1,13 +1,14 @@
 package com.uit.backend_cinema.modules.seat.infrastructure.persistence;
 
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.stereotype.Repository;
+
 import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
 import com.uit.backend_cinema.modules.seat.domain.repository.SeatRepository;
 import com.uit.backend_cinema.modules.seat.infrastructure.mapper.SeatInfraMapper;
 import com.uit.backend_cinema.modules.seat.infrastructure.repository.JpaSeatRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.List;
-import java.util.Optional;
 
 @Repository
 public class SeatRepositoryImpl implements SeatRepository {
@@ -52,6 +53,14 @@ public class SeatRepositoryImpl implements SeatRepository {
     @Override
     public void softDeleteByRoomId(Long roomId) {
         jpaSeatRepository.softDeleteByRoomId(roomId);
+    }
+
+    @Override
+    public void softDeleteByRoomIds(List<Long> roomIds) {
+        if (roomIds == null || roomIds.isEmpty()) {
+            return;
+        }
+        jpaSeatRepository.softDeleteByRoomIds(roomIds);
     }
 
     @Override

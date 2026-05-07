@@ -1,17 +1,5 @@
 package com.uit.backend_cinema.modules.food_order.domain.service;
 
-import com.uit.backend_cinema.common.exception.BusinessException;
-import com.uit.backend_cinema.common.exception.ErrorCode;
-import com.uit.backend_cinema.modules.food_order.api.entity.FoodOrderItemRequestDTO;
-import com.uit.backend_cinema.modules.food_order.domain.entity.BookingFoodDraftItem;
-import com.uit.backend_cinema.modules.food_order.domain.entity.Food;
-import com.uit.backend_cinema.modules.food_order.domain.entity.FoodOrder;
-import com.uit.backend_cinema.modules.food_order.domain.entity.FoodOrderItem;
-import com.uit.backend_cinema.modules.food_order.domain.repository.BookingFoodDraftItemRepository;
-import com.uit.backend_cinema.modules.food_order.domain.repository.FoodOrderRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -21,6 +9,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.uit.backend_cinema.common.exception.BusinessException;
+import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.modules.food_order.api.entity.FoodOrderItemRequestDTO;
+import com.uit.backend_cinema.modules.food_order.domain.entity.BookingFoodDraftItem;
+import com.uit.backend_cinema.modules.food_order.domain.entity.Food;
+import com.uit.backend_cinema.modules.food_order.domain.entity.FoodOrder;
+import com.uit.backend_cinema.modules.food_order.domain.entity.FoodOrderItem;
+import com.uit.backend_cinema.modules.food_order.domain.repository.BookingFoodDraftItemRepository;
+import com.uit.backend_cinema.modules.food_order.domain.repository.FoodOrderRepository;
 
 @Service
 public class FoodOrderService {
@@ -78,7 +79,8 @@ public class FoodOrderService {
                 })
                 .toList();
         order.setItems(items);
-        createFoodOrder(order);
+        order.setTotalPrice(calculateOrderTotalFromItems(items));
+        foodOrderRepository.save(order);
     }
 
     @Transactional
@@ -99,14 +101,15 @@ public class FoodOrderService {
     @Transactional
     public BigDecimal createFoodOrder(FoodOrder order) {
         List<FoodOrderItem> items = order.getItems();
+        validateOrderItems(items);
         List<Food> foods = foodService.findAllByListId(items.stream().map(FoodOrderItem::getFoodId).collect(Collectors.toSet()));
         Map<Long, Food> foodMap = foods.stream().collect(Collectors.toMap(Food::getFoodId, f -> f));
         for (FoodOrderItem item : items) {
             Food food = foodMap.get(item.getFoodId());
-            if (!food.isAvailable()) {
-                throw new BusinessException("Món ăn " + food.getName() + " không còn trong kho", ErrorCode.VALIDATION_FAILED);
+            if (food == null || !food.isAvailable()) {
+                throw new BusinessException("Món ăn không khả dụng", ErrorCode.VALIDATION_FAILED);
             }
-            item.setPrice(foodMap.get(item.getFoodId()).getPrice());
+            item.setPrice(food.getPrice());
         }
         order.setTotalPrice(items.stream().map(item -> item.getPrice()
                 .multiply(new BigDecimal(item.getQuantity()))).reduce(BigDecimal.ZERO, BigDecimal::add));
@@ -114,9 +117,32 @@ public class FoodOrderService {
         return order.getTotalPrice();
     }
 
+    private BigDecimal calculateOrderTotalFromItems(List<FoodOrderItem> items) {
+        if (items == null || items.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return items.stream()
+                .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     @Transactional(readOnly = true)
     public List<FoodOrder> getFoodOrdersByBookingIds(Set<Long> bookingIds) {
         return foodOrderRepository.getAllByListBookingId(bookingIds);
+    }
+
+    private void validateOrderItems(List<FoodOrderItem> items) {
+        if (items == null || items.isEmpty()) {
+            throw new BusinessException("Danh sách món ăn không được trống", ErrorCode.VALIDATION_FAILED);
+        }
+        for (FoodOrderItem item : items) {
+            if (item == null || item.getFoodId() == null) {
+                throw new BusinessException("Món ăn không hợp lệ", ErrorCode.VALIDATION_FAILED);
+            }
+            if (item.getQuantity() <= 0) {
+                throw new BusinessException("Số lượng món ăn phải lớn hơn 0", ErrorCode.VALIDATION_FAILED);
+            }
+        }
     }
 
     private Map<Long, Integer> normalizeFoodItems(List<FoodOrderItemRequestDTO> foodItems) {

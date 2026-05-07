@@ -2,7 +2,6 @@ package com.uit.backend_cinema.modules.food_order.domain.entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
 import java.util.List;
 
 import lombok.Getter;

@@ -1,9 +1,9 @@
 package com.uit.backend_cinema.modules.seat.domain.entity;
 
+import java.math.BigDecimal;
+
 import lombok.Getter;
 import lombok.Setter;
-
-import java.math.BigDecimal;
 
 @Getter @Setter
 public class Seat {
@@ -18,4 +18,10 @@ public class Seat {
 
     // Field này KHÔNG có trong DB, lấy từ Redis
     private Boolean isLocked;
+
+    // Field này KHÔNG có trong DB, lấy từ tickets theo showtime
+    private Boolean isSold;
+
+    // AVAILABLE, LOCKED, SOLD để FE phân biệt trạng thái giữ tạm và đã bán
+    private String occupancyStatus;
 }

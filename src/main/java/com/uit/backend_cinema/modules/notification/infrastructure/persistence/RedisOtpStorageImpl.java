@@ -1,11 +1,12 @@
 package com.uit.backend_cinema.modules.notification.infrastructure.persistence;
 
-import com.uit.backend_cinema.modules.notification.domain.repository.OtpStorage;
-import lombok.RequiredArgsConstructor;
+import java.time.Duration;
+
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.time.Duration;
+import com.uit.backend_cinema.modules.notification.domain.repository.OtpStorage;
+import lombok.RequiredArgsConstructor;
 
 @Repository
 @RequiredArgsConstructor

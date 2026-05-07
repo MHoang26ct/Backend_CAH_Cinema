@@ -1,10 +1,11 @@
 package com.uit.backend_cinema.modules.movies.domain.entity;
 
-import lombok.Getter;
-import lombok.Setter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import lombok.Getter;
+import lombok.Setter;
 
 @Getter @Setter
 public class Movie {

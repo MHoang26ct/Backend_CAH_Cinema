@@ -1,8 +1,8 @@
 package com.uit.backend_cinema.modules.auth.domain.repository;
 
-import com.uit.backend_cinema.modules.auth.domain.entity.User;
-
 import java.util.Optional;
+
+import com.uit.backend_cinema.modules.auth.domain.entity.User;
 
 public interface UserRepository {
     Optional<User> findById(Long userId);

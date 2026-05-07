@@ -1,18 +1,28 @@
 package com.uit.backend_cinema.modules.auth.api.controller;
 
+import java.util.Map;
+
+import jakarta.validation.Valid;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.uit.backend_cinema.common.util.ApiResponse;
-import com.uit.backend_cinema.modules.auth.api.dto.*;
-import com.uit.backend_cinema.modules.auth.api.dto.request.*;
+import com.uit.backend_cinema.modules.auth.api.dto.RefreshTokenDTO;
+import com.uit.backend_cinema.modules.auth.api.dto.request.ChangePasswordForgetRequestDTO;
+import com.uit.backend_cinema.modules.auth.api.dto.request.ChangePasswordRequestDTO;
+import com.uit.backend_cinema.modules.auth.api.dto.request.GoogleLoginRequestDTO;
+import com.uit.backend_cinema.modules.auth.api.dto.request.LoginRequestDTO;
+import com.uit.backend_cinema.modules.auth.api.dto.request.RegisterRequestDTO;
+import com.uit.backend_cinema.modules.auth.api.dto.request.SendOtpRequestDTO;
+import com.uit.backend_cinema.modules.auth.api.dto.request.VerifyOtpRequestDTO;
 import com.uit.backend_cinema.modules.auth.api.dto.response.AuthResponseDTO;
 import com.uit.backend_cinema.modules.auth.api.dto.response.FP_VerifyOtpResponseOTP;
 import com.uit.backend_cinema.modules.auth.application.AuthUseCase;
 import com.uit.backend_cinema.modules.notification.domain.service.NotificationService;
-import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")

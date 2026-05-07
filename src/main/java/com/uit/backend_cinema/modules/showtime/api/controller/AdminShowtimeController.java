@@ -1,13 +1,21 @@
 package com.uit.backend_cinema.modules.showtime.api.controller;
 
+import jakarta.validation.Valid;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.uit.backend_cinema.common.util.ApiResponse;
 import com.uit.backend_cinema.modules.showtime.api.dto.CreateShowtimeDTO;
 import com.uit.backend_cinema.modules.showtime.api.dto.UpdateShowtimeDTO;
 import com.uit.backend_cinema.modules.showtime.api.mapper.ShowtimeApiMapper;
-import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
 import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/admin/showtime")
@@ -21,13 +29,13 @@ public class AdminShowtimeController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createShowtime(@RequestBody CreateShowtimeDTO createShowtimeDTO) {
+    public ResponseEntity<?> createShowtime(@Valid @RequestBody CreateShowtimeDTO createShowtimeDTO) {
         showtimeService.createShowtime(mapper.toDomain(createShowtimeDTO));
         return ResponseEntity.ok(ApiResponse.success("Tạo suất chiếu thành công"));
     }
 
     @PutMapping
-    public ResponseEntity<?> updateShowtime(@RequestBody UpdateShowtimeDTO updateShowtimeDTO) {
+    public ResponseEntity<?> updateShowtime(@Valid @RequestBody UpdateShowtimeDTO updateShowtimeDTO) {
         showtimeService.updateShowtime(mapper.toDomain(updateShowtimeDTO));
         return ResponseEntity.ok(ApiResponse.success("Cập nhật suất chiếu thành công"));
     }

@@ -1,5 +1,15 @@
 package com.uit.backend_cinema.modules.booking.domain.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uit.backend_cinema.common.exception.BusinessException;
@@ -25,15 +35,6 @@ import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
 import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
 import com.uit.backend_cinema.modules.ticket.domain.service.TicketService;
 import com.uit.backend_cinema.modules.voucher.domain.service.VoucherService;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 
 @Service
 public class BookingService {
@@ -109,9 +110,12 @@ public class BookingService {
             return handleExistingPaymentConfirmation(userId, bookingId, existingConfirmation.get());
         }
 
+        LocalDateTime now = LocalDateTime.now();
         Booking booking = bookingRepository.findByIdForUpdate(bookingId)
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
-        validatePaymentRequest(userId, booking);
+        validatePaymentRequest(userId, booking, now);
+        List<Long> seatIds = ticketService.findActiveDraftSeatIds(bookingId);
+        seatService.validateSeatsNotSold(booking.getShowtimeId(), seatIds);
 
         if (booking.getVoucherId() != null) {
             voucherService.validateHoldForPayment(bookingId);
@@ -121,6 +125,11 @@ public class BookingService {
 
         booking.setStatus(BookingStatus.PAID);
         bookingRepository.save(booking);
+        try {
+            ticketService.finalizeTicketsForPaidBooking(bookingId, booking.getShowtimeId());
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException("Ghế đã được bán cho suất chiếu này", ErrorCode.SEAT_ALREADY_BOOKED, ex);
+        }
 
         PaymentConfirmation confirmation = new PaymentConfirmation();
         confirmation.setBookingId(bookingId);
@@ -143,7 +152,7 @@ public class BookingService {
         LocalDateTime now = LocalDateTime.now();
         List<Booking> expiredBookings = bookingRepository.findByStatusAndExpiresAtBefore(BookingStatus.PENDING, now);
         for (Booking booking : expiredBookings) {
-            expireSingleBooking(booking);
+            expireSingleBooking(booking, now);
         }
     }
 
@@ -172,7 +181,7 @@ public class BookingService {
         return buildPaymentResponse(existingBooking, confirmation.getPaymentRef(), confirmation.getGateway());
     }
 
-    private void validatePaymentRequest(Long userId, Booking booking) {
+    private void validatePaymentRequest(Long userId, Booking booking, LocalDateTime now) {
         if (!booking.getUserId().equals(userId)) {
             throw new BusinessException("Bạn không có quyền thanh toán cho booking này", ErrorCode.FORBIDDEN);
         }
@@ -182,7 +191,7 @@ public class BookingService {
         if (booking.getStatus() != BookingStatus.PENDING) {
             throw new BusinessException("Booking không ở trạng thái chờ thanh toán", ErrorCode.BOOKING_INVALID_STATUS);
         }
-        if (!booking.getExpiresAt().isAfter(LocalDateTime.now())) {
+        if (!booking.getExpiresAt().isAfter(now)) {
             throw new BusinessException("Booking đã hết hạn thanh toán", ErrorCode.BOOKING_EXPIRED);
         }
     }
@@ -256,12 +265,14 @@ public class BookingService {
                 .build();
     }
 
-    private void expireSingleBooking(Booking booking) {
+    private void expireSingleBooking(Booking booking, LocalDateTime now) {
+        int expired = bookingRepository.markExpiredIfPendingAndExpired(booking.getBookingId(), now);
+        if (expired == 0) {
+            return;
+        }
+
         List<Long> seatIds = ticketService.findActiveDraftSeatIds(booking.getBookingId());
         seatService.releaseSeatLocksByOwner(booking.getShowtimeId(), seatIds, booking.getUserId());
-
-        booking.setStatus(BookingStatus.EXPIRED);
-        bookingRepository.save(booking);
 
         voucherService.expireHold(booking.getBookingId());
         ticketService.expireDraftItems(booking.getBookingId());

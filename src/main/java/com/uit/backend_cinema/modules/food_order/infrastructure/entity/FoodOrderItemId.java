@@ -1,7 +1,8 @@
 package com.uit.backend_cinema.modules.food_order.infrastructure.entity;
 
-import jakarta.persistence.Embeddable;
 import java.io.Serializable;
+
+import jakarta.persistence.Embeddable;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

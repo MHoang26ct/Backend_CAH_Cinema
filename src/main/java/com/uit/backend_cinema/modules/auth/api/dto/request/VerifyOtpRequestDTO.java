@@ -2,8 +2,10 @@ package com.uit.backend_cinema.modules.auth.api.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
+
 import org.checkerframework.common.value.qual.MinLen;
+
+import lombok.Data;
 
 @Data
 public class VerifyOtpRequestDTO {

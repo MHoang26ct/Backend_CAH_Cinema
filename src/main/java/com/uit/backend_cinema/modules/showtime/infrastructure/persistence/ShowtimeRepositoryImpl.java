@@ -1,5 +1,14 @@
 package com.uit.backend_cinema.modules.showtime.infrastructure.persistence;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Repository;
+
 import com.uit.backend_cinema.modules.showtime.domain.entity.CinemaShowtimes;
 import com.uit.backend_cinema.modules.showtime.domain.entity.MovieShowtimes;
 import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
@@ -9,14 +18,6 @@ import com.uit.backend_cinema.modules.showtime.infrastructure.repository.JpaShow
 import com.uit.backend_cinema.modules.showtime.infrastructure.repository.ShowtimeReadRepository;
 import com.uit.backend_cinema.modules.showtime.infrastructure.repository.dto.CinemaShowtimeRowDto;
 import com.uit.backend_cinema.modules.showtime.infrastructure.repository.dto.MovieShowtimeRowDto;
-import org.springframework.stereotype.Repository;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Repository
 public class ShowtimeRepositoryImpl implements ShowtimeRepository {
@@ -47,10 +48,28 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepository {
     }
 
     @Override
-    public List<Showtime> findAllByMovieIdAndRoomIdAndDate(Long movieId, Long roomId, LocalDate date) {
+    public void softDeleteByRoomId(Long roomId) {
+        jpaShowtimeRepository.softDeleteByRoomId(roomId);
+    }
+
+    @Override
+    public void softDeleteByRoomIds(List<Long> roomIds) {
+        if (roomIds == null || roomIds.isEmpty()) {
+            return;
+        }
+        jpaShowtimeRepository.softDeleteByRoomIds(roomIds);
+    }
+
+    @Override
+    public void softDeleteByMovieId(Long movieId) {
+        jpaShowtimeRepository.softDeleteByMovieId(movieId);
+    }
+
+    @Override
+    public List<Showtime> findAllByRoomIdAndDate(Long roomId, LocalDate date) {
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
-        return jpaShowtimeRepository.findAllByMovieIdAndDate(movieId, roomId, startOfDay, endOfDay).stream()
+        return jpaShowtimeRepository.findAllByRoomIdAndDate(roomId, startOfDay, endOfDay).stream()
                 .map(mapper::toDomain)
                 .toList();
     }

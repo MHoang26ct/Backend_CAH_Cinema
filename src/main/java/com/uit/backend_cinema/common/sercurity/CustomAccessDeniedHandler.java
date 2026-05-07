@@ -1,19 +1,21 @@
 package com.uit.backend_cinema.common.sercurity;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.uit.backend_cinema.common.exception.ErrorResponse;
+import java.io.IOException;
+import java.time.LocalDateTime;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.time.LocalDateTime;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.uit.backend_cinema.common.exception.ErrorResponse;
 
 @Component
 public class CustomAccessDeniedHandler implements AccessDeniedHandler {

@@ -1,16 +1,5 @@
 package com.uit.backend_cinema.modules.seat.domain.service;
 
-import com.uit.backend_cinema.common.exception.BusinessException;
-import com.uit.backend_cinema.common.exception.ErrorCode;
-import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
-import com.uit.backend_cinema.modules.seat.domain.entity.SeatType;
-import com.uit.backend_cinema.modules.seat.domain.repository.SeatLockRepository;
-import com.uit.backend_cinema.modules.seat.domain.repository.SeatRepository;
-import com.uit.backend_cinema.modules.seat.domain.repository.SeatTypeRepository;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -18,6 +7,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.uit.backend_cinema.common.exception.BusinessException;
+import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
+import com.uit.backend_cinema.modules.seat.domain.entity.SeatType;
+import com.uit.backend_cinema.modules.seat.domain.repository.SeatLockRepository;
+import com.uit.backend_cinema.modules.seat.domain.repository.SeatRepository;
+import com.uit.backend_cinema.modules.seat.domain.repository.SeatTypeRepository;
+import com.uit.backend_cinema.modules.ticket.domain.service.TicketService;
 
 @Service
 @Transactional(readOnly = true)
@@ -28,18 +29,27 @@ public class SeatService {
     private final SeatRepository seatRepository;
     private final SeatLockRepository seatLockRepository;
     private final SeatTypeRepository seatTypeRepository;
+    private final TicketService ticketService;
 
     public SeatService(SeatRepository seatRepository, SeatLockRepository seatLockRepository,
-            SeatTypeRepository seatTypeRepository) {
+            SeatTypeRepository seatTypeRepository, TicketService ticketService) {
         this.seatRepository = seatRepository;
         this.seatLockRepository = seatLockRepository;
         this.seatTypeRepository = seatTypeRepository;
+        this.ticketService = ticketService;
     }
 
     // Lấy danh sách ghế theo phòng, kèm trạng thái lock từ Redis
     public List<Seat> getSeatsByRoomId(Long roomId, Long showtimeId) {
         List<Seat> seats = seatRepository.findByRoomId(roomId);
-        seats.forEach(seat -> seat.setIsLocked(seatLockRepository.isLocked(showtimeId, seat.getSeatId())));
+        Set<Long> soldSeatIds = new java.util.HashSet<>(ticketService.findSoldSeatIdsByShowtimeId(showtimeId));
+        seats.forEach(seat -> {
+            boolean sold = soldSeatIds.contains(seat.getSeatId());
+            boolean locked = seatLockRepository.isLocked(showtimeId, seat.getSeatId());
+            seat.setIsSold(sold);
+            seat.setIsLocked(locked);
+            seat.setOccupancyStatus(resolveOccupancyStatus(sold, locked));
+        });
         return seats;
     }
 
@@ -57,6 +67,7 @@ public class SeatService {
     @Transactional
     public boolean preLockSeats(Long showtimeId, List<Long> seatIds, Long roomId, Long userId) {
         List<Seat> seats = getValidatedSeatsForBooking(seatIds, roomId);
+        ticketService.validateSeatsNotSold(showtimeId, seats.stream().map(Seat::getSeatId).toList());
         List<Long> lockedSeatIds = new ArrayList<>();
         for (Seat seat : seats) {
             boolean success = seatLockRepository.lockSeat(showtimeId, seat.getSeatId(), userId, PRE_LOCK_TTL_SECONDS);
@@ -72,6 +83,7 @@ public class SeatService {
     @Transactional
     public List<Seat> promoteLocksForCheckout(Long showtimeId, List<Long> seatIds, Long roomId, Long userId) {
         List<Seat> seats = getValidatedSeatsForBooking(seatIds, roomId);
+        ticketService.validateSeatsNotSold(showtimeId, seats.stream().map(Seat::getSeatId).toList());
         List<Long> promotedSeatIds = new ArrayList<>();
         for (Seat seat : seats) {
             boolean promoted = seatLockRepository.promoteLockIfOwner(
@@ -87,6 +99,21 @@ public class SeatService {
             promotedSeatIds.add(seat.getSeatId());
         }
         return seats;
+    }
+
+    private String resolveOccupancyStatus(Boolean isSold, Boolean isLocked) {
+        if (Boolean.TRUE.equals(isSold)) {
+            return "SOLD";
+        }
+        if (Boolean.TRUE.equals(isLocked)) {
+            return "LOCKED";
+        }
+        return "AVAILABLE";
+    }
+
+    @Transactional(readOnly = true)
+    public void validateSeatsNotSold(Long showtimeId, List<Long> seatIds) {
+        ticketService.validateSeatsNotSold(showtimeId, normalizeSeatIds(seatIds));
     }
 
     @Transactional
@@ -135,36 +162,51 @@ public class SeatService {
     }
 
     private boolean isValidSeatMap(List<Seat> seatMap) {
-        for (int i = 1; i < seatMap.size(); i++) {
-            if (seatMap.get(i).getRoomId().equals(seatMap.get(0).getRoomId())) {
+        if (seatMap == null || seatMap.isEmpty()) {
+            throw new BusinessException("Danh sách ghế không được trống", ErrorCode.VALIDATION_FAILED);
+        }
+
+        Long roomId = seatMap.get(0).getRoomId();
+        if (roomId == null) {
+            throw new BusinessException("ID phòng chiếu không được trống", ErrorCode.VALIDATION_FAILED);
+        }
+        for (Seat seat : seatMap) {
+            if (!roomId.equals(seat.getRoomId())) {
                 throw new BusinessException("Có 1 hoặc nhiều ghế không thuộc cùng 1 phòng",
                         ErrorCode.VALIDATION_FAILED);
             }
         }
-        if (seatRepository.existsByRoomId(seatMap.get(0).getRoomId())) {
+        if (seatRepository.existsByRoomId(roomId)) {
             throw new BusinessException("Đã tồn tại sơ đồ ghế cho phòng này", ErrorCode.VALIDATION_FAILED);
         }
-        Set<Long> uniqueSeatTypeIds = seatMap.stream().map(seat -> seat.getSeatType().getSeatTypeId()).collect(Collectors.toSet());
+        Set<Long> uniqueSeatTypeIds = seatMap.stream()
+                .map(seat -> seat.getSeatType().getSeatTypeId())
+                .collect(Collectors.toSet());
         List<SeatType> seatTypes = seatTypeRepository.getSeatTypesByIds(uniqueSeatTypeIds.stream().toList());
         if (seatTypes.size() != uniqueSeatTypeIds.size()) {
             throw new BusinessException("Có 1 hoặc nhiều loại ghế không tồn tại", ErrorCode.VALIDATION_FAILED);
         }
-        Map<Long, String> seatTypeMap = seatTypes.stream().collect(Collectors.toMap(SeatType::getSeatTypeId, SeatType::getTypeName));
-        for (int i = 0; i < seatMap.size() - 1; i++) {
+        Map<Long, String> seatTypeMap = seatTypes.stream()
+                .collect(Collectors.toMap(SeatType::getSeatTypeId, SeatType::getTypeName));
+        for (int i = 0; i < seatMap.size(); i++) {
             Seat curr = seatMap.get(i);
-            Seat next = seatMap.get(i + 1);
-            if (seatTypeMap.get(curr.getSeatType().getSeatTypeId()).equals("COUPLE")) {
-                if (curr.getSeatType().getSeatTypeId().equals(next.getSeatType().getSeatTypeId())) {
-                    throw new BusinessException("Ghế đôi phải đi thành cặp", ErrorCode.VALIDATION_FAILED);
-                }
-                else if (curr.getSeatRow() != next.getSeatRow()) {
-                    throw new BusinessException("Ghế đôi phải cùng hàng", ErrorCode.VALIDATION_FAILED);
-                }
-                else {
-                    // Nếu cùng loại ghế, thì tăng i thêm 1 để skip qua
-                    i++;
-                }
+            if (!"COUPLE".equals(seatTypeMap.get(curr.getSeatType().getSeatTypeId()))) {
+                continue;
             }
+            if (i + 1 >= seatMap.size()) {
+                throw new BusinessException("Ghế đôi phải đi thành cặp", ErrorCode.VALIDATION_FAILED);
+            }
+            Seat next = seatMap.get(i + 1);
+            if (!"COUPLE".equals(seatTypeMap.get(next.getSeatType().getSeatTypeId()))) {
+                throw new BusinessException("Ghế đôi phải đi thành cặp", ErrorCode.VALIDATION_FAILED);
+            }
+            if (curr.getSeatRow().compareTo(next.getSeatRow()) != 0) {
+                throw new BusinessException("Ghế đôi phải cùng hàng", ErrorCode.VALIDATION_FAILED);
+            }
+            if (curr.getSeatCol().add(BigDecimal.ONE).compareTo(next.getSeatCol()) != 0) {
+                throw new BusinessException("Ghế đôi phải nằm ở 2 cột liên tiếp", ErrorCode.VALIDATION_FAILED);
+            }
+            i++;
         }
         return true;
     }

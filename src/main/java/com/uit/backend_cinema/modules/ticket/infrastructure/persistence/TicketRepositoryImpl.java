@@ -1,12 +1,14 @@
 package com.uit.backend_cinema.modules.ticket.infrastructure.persistence;
 
+import java.util.List;
+
+import org.springframework.stereotype.Repository;
+
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
 import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 import com.uit.backend_cinema.modules.ticket.domain.repository.TicketRepository;
 import com.uit.backend_cinema.modules.ticket.infrastructure.mapper.TicketInfraMapper;
 import com.uit.backend_cinema.modules.ticket.infrastructure.repository.JpaTicketRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.List;
 
 @Repository
 public class TicketRepositoryImpl implements TicketRepository {
@@ -34,5 +36,20 @@ public class TicketRepositoryImpl implements TicketRepository {
         return jpaTicketRepository.findByBookingId(bookingId).stream()
                 .map(mapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public boolean existsSoldSeatByShowtimeIdAndSeatIds(Long showtimeId, List<Long> seatIds) {
+        return seatIds != null
+                && !seatIds.isEmpty()
+                && jpaTicketRepository.existsByShowtimeIdAndSeatIdIn(showtimeId, seatIds);
+    }
+
+    @Override
+    public List<Long> findSoldSeatIdsByShowtimeId(Long showtimeId) {
+        return jpaTicketRepository.findSoldSeatIdsByShowtimeId(
+                showtimeId,
+                List.of(BookingStatus.PAID, BookingStatus.CHECKED_IN)
+        );
     }
 }

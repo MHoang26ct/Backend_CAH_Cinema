@@ -1,18 +1,21 @@
 package com.uit.backend_cinema.modules.showtime.api.controller;
 
-import com.uit.backend_cinema.common.util.ApiResponse;
-import com.uit.backend_cinema.modules.showtime.api.dto.CinemaShowtimesResponseDTO;
-import com.uit.backend_cinema.modules.showtime.api.dto.MovieShowtimesResponseDTO;
-import com.uit.backend_cinema.modules.showtime.api.dto.ShowtimeDetailDTO;
-import com.uit.backend_cinema.modules.showtime.api.mapper.ShowtimeApiMapper;
-import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
+import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.util.List;
+import com.uit.backend_cinema.common.util.ApiResponse;
+import com.uit.backend_cinema.modules.showtime.api.dto.CinemaShowtimesResponseDTO;
+import com.uit.backend_cinema.modules.showtime.api.dto.MovieShowtimesResponseDTO;
+import com.uit.backend_cinema.modules.showtime.api.mapper.ShowtimeApiMapper;
+import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
 
 @RestController
 @RequestMapping("/api/v1/public/showtimes")

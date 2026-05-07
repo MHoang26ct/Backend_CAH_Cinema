@@ -1,10 +1,11 @@
 package com.uit.backend_cinema.modules.price_config.api.dto.request;
 
+import java.time.LocalDate;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
 
-import java.time.LocalDate;
+import lombok.Data;
 
 @Data
 public class UpdateHolidayRequest {

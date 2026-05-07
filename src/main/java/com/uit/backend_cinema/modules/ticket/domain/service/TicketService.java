@@ -1,5 +1,14 @@
 package com.uit.backend_cinema.modules.ticket.domain.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
@@ -8,14 +17,6 @@ import com.uit.backend_cinema.modules.ticket.domain.entity.PendingTicketItem;
 import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 import com.uit.backend_cinema.modules.ticket.domain.repository.PendingTicketItemRepository;
 import com.uit.backend_cinema.modules.ticket.domain.repository.TicketRepository;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 public class TicketService {
@@ -45,12 +46,13 @@ public class TicketService {
     }
 
     @Transactional
-    public List<Ticket> finalizeTicketsForPaidBooking(Long bookingId) {
+    public List<Ticket> finalizeTicketsForPaidBooking(Long bookingId, Long showtimeId) {
         List<PendingTicketItem> pendingItems = pendingTicketItemRepository.findAllActiveByBookingId(bookingId);
         List<Ticket> tickets = new ArrayList<>();
         for (PendingTicketItem item : pendingItems) {
             Ticket ticket = new Ticket();
             ticket.setBookingId(item.getBookingId());
+            ticket.setShowtimeId(showtimeId);
             ticket.setSeatId(item.getSeatId());
             ticket.setPrice(item.getUnitPrice());
             tickets.add(ticket);
@@ -117,13 +119,17 @@ public class TicketService {
             return false;
         }
         tickets.forEach(ticket -> {
-            if (ticket.getBookingId() == null || ticket.getSeatId() == null) {
-                throw new BusinessException("BookingId và SeatId không được null", ErrorCode.VALIDATION_FAILED);
+            if (ticket.getBookingId() == null || ticket.getShowtimeId() == null || ticket.getSeatId() == null) {
+                throw new BusinessException("BookingId, ShowtimeId và SeatId không được null", ErrorCode.VALIDATION_FAILED);
             }
         });
         Long bookingId = tickets.get(0).getBookingId();
         if (!tickets.stream().allMatch(ticket -> ticket.getBookingId().equals(bookingId))) {
             throw new BusinessException("Tất cả các vé phải có cùng một bookingId", ErrorCode.VALIDATION_FAILED);
+        }
+        Long showtimeId = tickets.get(0).getShowtimeId();
+        if (!tickets.stream().allMatch(ticket -> ticket.getShowtimeId().equals(showtimeId))) {
+            throw new BusinessException("Tất cả các vé phải có cùng một showtimeId", ErrorCode.VALIDATION_FAILED);
         }
         if (tickets.stream().map(Ticket::getSeatId).distinct().count() != tickets.size()) {
             throw new BusinessException("Danh sách vé có seatId trùng lặp", ErrorCode.VALIDATION_FAILED);
@@ -148,5 +154,17 @@ public class TicketService {
         }
         return existingTickets.stream().map(Ticket::getSeatId).collect(java.util.stream.Collectors.toSet())
                 .equals(tickets.stream().map(Ticket::getSeatId).collect(java.util.stream.Collectors.toSet()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Long> findSoldSeatIdsByShowtimeId(Long showtimeId) {
+        return ticketRepository.findSoldSeatIdsByShowtimeId(showtimeId);
+    }
+
+    @Transactional(readOnly = true)
+    public void validateSeatsNotSold(Long showtimeId, List<Long> seatIds) {
+        if (ticketRepository.existsSoldSeatByShowtimeIdAndSeatIds(showtimeId, seatIds)) {
+            throw new BusinessException("Ghế đã được bán cho suất chiếu này", ErrorCode.SEAT_ALREADY_BOOKED);
+        }
     }
 }

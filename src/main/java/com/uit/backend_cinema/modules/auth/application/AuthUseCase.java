@@ -1,5 +1,13 @@
 package com.uit.backend_cinema.modules.auth.application;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
+
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -7,8 +15,8 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.common.util.JwtUtil;
-import com.uit.backend_cinema.modules.auth.api.dto.response.AuthResponseDTO;
 import com.uit.backend_cinema.modules.auth.api.dto.UserDTO;
+import com.uit.backend_cinema.modules.auth.api.dto.response.AuthResponseDTO;
 import com.uit.backend_cinema.modules.auth.api.dto.response.FP_VerifyOtpResponseOTP;
 import com.uit.backend_cinema.modules.auth.api.mapper.UserApiMapper;
 import com.uit.backend_cinema.modules.auth.domain.entity.RefreshToken;
@@ -16,13 +24,6 @@ import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.service.AuthService;
 import com.uit.backend_cinema.modules.auth.domain.service.RefreshTokenService;
 import com.uit.backend_cinema.modules.auth.infrastructure.security.CustomUserDetailsService;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Service;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Application Use Case — điều phối các domain service, JWT util, mapper.
@@ -97,9 +98,13 @@ public class AuthUseCase {
     // Đổi mật khẩu (quên mật khẩu)
     public void changePassword_Forget(String email, String newPassword, String token) {
         try {
-            if (jwtUtil.verifyResetToken(token, email)) {
-                authService.changePassword(email, newPassword, token);
+            if (!jwtUtil.verifyResetToken(token, email)) {
+                throw new BusinessException("Token không hợp lệ", ErrorCode.TOKEN_INVALID);
             }
+            authService.resetPassword(email, newPassword);
+        }
+        catch (BusinessException ex) {
+            throw ex;
         }
         catch (Exception ex) {
             throw new BusinessException("Token không hợp lệ", ErrorCode.TOKEN_INVALID);
@@ -108,7 +113,7 @@ public class AuthUseCase {
 
     // Đổi mật khẩu
     public void changePassword(String email, String oldPassword, String newPassword) {
-        authService.changePassword(email, oldPassword, newPassword);
+        authService.changePasswordWithOldPassword(email, oldPassword, newPassword);
     }
 
     // REFRESH TOKEN

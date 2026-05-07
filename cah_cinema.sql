@@ -193,6 +193,7 @@ CREATE TABLE bookings (
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0,
     is_deleted BOOLEAN DEFAULT FALSE
 );
 
@@ -223,9 +224,11 @@ CREATE TABLE booking_food_draft_items (
 CREATE TABLE tickets (
     ticket_id SERIAL PRIMARY KEY,
     seat_id INT NOT NULL REFERENCES seats(seat_id),
+    showtime_id INT NOT NULL REFERENCES showtimes(showtime_id),
     booking_id INT NOT NULL REFERENCES bookings(booking_id),
     price DECIMAL(18,2) NOT NULL CHECK (price >= 0),
-    CONSTRAINT uq_tickets_booking_seat UNIQUE (booking_id, seat_id)
+    CONSTRAINT uq_tickets_booking_seat UNIQUE (booking_id, seat_id),
+    CONSTRAINT uq_tickets_showtime_seat UNIQUE (showtime_id, seat_id)
 );
 
 CREATE TABLE food_orders (

@@ -1,13 +1,22 @@
 package com.uit.backend_cinema.modules.voucher.infrastructure.entity;
 
-import com.uit.backend_cinema.modules.voucher.domain.entity.VoucherType;
-import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-import org.hibernate.annotations.SQLRestriction;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+import org.hibernate.annotations.SQLRestriction;
+
+import com.uit.backend_cinema.modules.voucher.domain.entity.VoucherType;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "vouchers")

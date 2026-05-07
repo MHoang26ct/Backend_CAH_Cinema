@@ -1,9 +1,10 @@
 package com.uit.backend_cinema.modules.auth.infrastructure.mapper;
 
-import com.uit.backend_cinema.modules.auth.domain.entity.RefreshToken;
-import com.uit.backend_cinema.modules.auth.infrastructure.entity.RefreshTokenJpaEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+
+import com.uit.backend_cinema.modules.auth.domain.entity.RefreshToken;
+import com.uit.backend_cinema.modules.auth.infrastructure.entity.RefreshTokenJpaEntity;
 
 @Mapper(componentModel = "spring")
 public interface RefreshTokenInfraMapper {

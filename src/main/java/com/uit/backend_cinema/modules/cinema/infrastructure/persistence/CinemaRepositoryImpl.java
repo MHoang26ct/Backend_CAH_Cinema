@@ -1,13 +1,14 @@
 package com.uit.backend_cinema.modules.cinema.infrastructure.persistence;
 
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.stereotype.Repository;
+
 import com.uit.backend_cinema.modules.cinema.domain.entity.Cinema;
 import com.uit.backend_cinema.modules.cinema.domain.repository.CinemaRepository;
 import com.uit.backend_cinema.modules.cinema.infrastructure.mapper.CinemaInfraMapper;
 import com.uit.backend_cinema.modules.cinema.infrastructure.repository.JpaCinemaRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.List;
-import java.util.Optional;
 
 @Repository
 public class CinemaRepositoryImpl implements CinemaRepository {

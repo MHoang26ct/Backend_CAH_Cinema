@@ -1,10 +1,11 @@
 package com.uit.backend_cinema.modules.showtime.domain.entity;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import com.uit.backend_cinema.modules.price_config.domain.helper.MovieFormat;
 import lombok.Getter;
 import lombok.Setter;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Getter
 @Setter

@@ -1,10 +1,10 @@
 package com.uit.backend_cinema.modules.voucher.api.entity;
 
-import com.uit.backend_cinema.modules.voucher.domain.entity.VoucherType;
-import lombok.Data;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+
+import com.uit.backend_cinema.modules.voucher.domain.entity.VoucherType;
+import lombok.Data;
 
 @Data
 public class BasicVoucherDTO {

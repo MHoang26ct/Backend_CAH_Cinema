@@ -1,8 +1,9 @@
 package com.uit.backend_cinema.modules.cinema.infrastructure.mapper;
 
+import org.mapstruct.Mapper;
+
 import com.uit.backend_cinema.modules.cinema.domain.entity.Room;
 import com.uit.backend_cinema.modules.cinema.infrastructure.entity.RoomJpaEntity;
-import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")
 public interface RoomInfraMapper {

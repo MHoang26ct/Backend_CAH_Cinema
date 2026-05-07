@@ -1,14 +1,15 @@
 package com.uit.backend_cinema.modules.notification.domain.service;
 
+import java.util.List;
+import java.util.Random;
+
+import org.springframework.stereotype.Service;
+
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.notification.domain.repository.EmailSender;
 import com.uit.backend_cinema.modules.notification.domain.repository.OtpStorage;
 import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Random;
 
 @Service
 public class NotificationService {
