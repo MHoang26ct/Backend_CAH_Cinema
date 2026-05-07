@@ -10,4 +10,5 @@ public interface RoomRepository {
     List<Room> findAllByCinemaId(long cinemaId);
     Room save(Room room);
     void delete(Room room);
+    void softDeleteByCinemaId(long cinemaId);
 }

@@ -41,4 +41,9 @@ public class RoomRepositoryImpl implements RoomRepository {
     public void delete(Room room) {
         jpaRepository.save(mapper.toEntity(room));
     }
+
+    @Override
+    public void softDeleteByCinemaId(long cinemaId) {
+        jpaRepository.softDeleteByCinemaId(cinemaId);
+    }
 }

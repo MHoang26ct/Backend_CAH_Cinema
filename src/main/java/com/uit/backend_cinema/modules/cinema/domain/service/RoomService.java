@@ -5,6 +5,8 @@ import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.cinema.domain.entity.Room;
 import com.uit.backend_cinema.modules.cinema.domain.repository.CinemaRepository;
 import com.uit.backend_cinema.modules.cinema.domain.repository.RoomRepository;
+import com.uit.backend_cinema.modules.seat.domain.repository.SeatRepository;
+import com.uit.backend_cinema.modules.showtime.domain.repository.ShowtimeRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,10 +18,15 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final CinemaRepository cinemaRepository;
+    private final SeatRepository seatRepository;
+    private final ShowtimeRepository showtimeRepository;
 
-    public RoomService(RoomRepository roomRepository, CinemaRepository cinemaRepository) {
+    public RoomService(RoomRepository roomRepository, CinemaRepository cinemaRepository,
+            SeatRepository seatRepository, ShowtimeRepository showtimeRepository) {
         this.roomRepository = roomRepository;
         this.cinemaRepository = cinemaRepository;
+        this.seatRepository = seatRepository;
+        this.showtimeRepository = showtimeRepository;
     }
 
     public Room findById(long roomId) {
@@ -54,6 +61,8 @@ public class RoomService {
     public void delete(long roomId) {
         Room existing = roomRepository.findById(roomId)
                 .orElseThrow(() -> new BusinessException("Phòng chiếu không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+        showtimeRepository.softDeleteByRoomId(roomId);
+        seatRepository.softDeleteByRoomId(roomId);
         existing.setDeleted(true);
         roomRepository.save(existing);
     }
