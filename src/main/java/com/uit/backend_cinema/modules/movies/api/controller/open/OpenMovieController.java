@@ -28,14 +28,14 @@ public class OpenMovieController {
     }
 
     // Danh sách + tìm kiếm
-    // GET /api/v1/user/movies/public?title=avenger&genreId=1&ageRating=T13&page=0&size=10
+    // GET
+    // /api/v1/user/movies/public?title=avenger&genreId=1&ageRating=T13&page=0&size=10
     @GetMapping
     public ResponseEntity<?> search(
             @RequestParam(required = false) String title,
             @RequestParam(required = false) Long genreId,
             @RequestParam(required = false) String ageRating,
-            @PageableDefault(size = 10) Pageable pageable
-    ) {
+            @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         Page<MovieSummaryDTO> result = movieService.search(title, genreId, ageRating, pageable)
                 .map(movieApiMapper::toSummaryDto);
         return ResponseEntity.ok(ApiResponse.success(result));
