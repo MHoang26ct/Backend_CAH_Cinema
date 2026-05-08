@@ -6,117 +6,94 @@ import com.uit.backend_cinema.modules.report.api.dto.BusinessOverviewReportDTO;
 import com.uit.backend_cinema.modules.report.api.dto.CinemaRevenueReportDTO;
 import com.uit.backend_cinema.modules.report.api.dto.DailyRevenueReportDTO;
 import com.uit.backend_cinema.modules.report.api.dto.MovieRevenueReportDTO;
-import com.uit.backend_cinema.modules.report.infrastructure.repository.ReportReadRepository;
-import com.uit.backend_cinema.modules.report.infrastructure.repository.dto.CinemaRevenueProjection;
-import com.uit.backend_cinema.modules.report.infrastructure.repository.dto.DailyRevenueProjection;
-import com.uit.backend_cinema.modules.report.infrastructure.repository.dto.MovieRevenueProjection;
-import com.uit.backend_cinema.modules.report.infrastructure.repository.dto.OverviewProjection;
+import com.uit.backend_cinema.modules.report.api.mapper.ReportApiMapper;
+import com.uit.backend_cinema.modules.report.domain.model.BusinessOverview;
+import com.uit.backend_cinema.modules.report.domain.repository.ReportRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class ReportService {
 
     static final int MAX_DAYS = 366;
 
-    private final ReportReadRepository reportReadRepository;
-
-    public ReportService(ReportReadRepository reportReadRepository) {
-        this.reportReadRepository = reportReadRepository;
-    }
+    private final ReportRepository reportRepository;
+    private final ReportApiMapper reportApiMapper;
 
     public BusinessOverviewReportDTO getOverview(LocalDate from, LocalDate to) {
         validateDateRange(from, to);
         LocalDateTime dtFrom = from.atStartOfDay();
-        LocalDateTime dtTo   = to.plusDays(1).atStartOfDay();
+        LocalDateTime dtTo = to.plusDays(1).atStartOfDay();
 
-        OverviewProjection proj = reportReadRepository.findOverview(dtFrom, dtTo)
-                .orElse(null);
+        BusinessOverview model = reportRepository.findOverview(dtFrom, dtTo)
+                .orElse(new BusinessOverview());
 
-        BigDecimal totalRevenue       = getOrZero(proj == null ? null : proj.getTotalRevenue());
-        BigDecimal ticketRevenue      = getOrZero(proj == null ? null : proj.getTicketRevenue());
-        BigDecimal foodRevenue        = getOrZero(proj == null ? null : proj.getFoodRevenue());
-        Long       totalTicketsSold   = proj == null ? 0L : nullToZeroLong(proj.getTotalTicketsSold());
-        Long       totalBookingsPaid  = proj == null ? 0L : nullToZeroLong(proj.getTotalBookingsPaid());
-        BigDecimal totalDiscount      = getOrZero(proj == null ? null : proj.getTotalDiscount());
-        BigDecimal aov                = calcAov(totalRevenue, totalBookingsPaid);
+        // Fill calculated and default fields
+        model.setFrom(from);
+        model.setTo(to);
+        model.setTotalRevenue(getOrZero(model.getTotalRevenue()));
+        model.setTicketRevenue(getOrZero(model.getTicketRevenue()));
+        model.setFoodRevenue(getOrZero(model.getFoodRevenue()));
+        model.setTotalTicketsSold(nullToZeroLong(model.getTotalTicketsSold()));
+        model.setTotalBookingsPaid(nullToZeroLong(model.getTotalBookingsPaid()));
+        model.setTotalDiscount(getOrZero(model.getTotalDiscount()));
+        model.setAverageOrderValue(calcAov(model.getTotalRevenue(), model.getTotalBookingsPaid()));
 
-        return BusinessOverviewReportDTO.builder()
-                .from(from)
-                .to(to)
-                .totalRevenue(totalRevenue)
-                .ticketRevenue(ticketRevenue)
-                .foodRevenue(foodRevenue)
-                .totalTicketsSold(totalTicketsSold)
-                .totalBookingsPaid(totalBookingsPaid)
-                .totalDiscount(totalDiscount)
-                .averageOrderValue(aov)
-                .build();
+        return reportApiMapper.toDTO(model);
     }
 
     public List<DailyRevenueReportDTO> getDailyRevenue(LocalDate from, LocalDate to) {
         validateDateRange(from, to);
         LocalDateTime dtFrom = from.atStartOfDay();
-        LocalDateTime dtTo   = to.plusDays(1).atStartOfDay();
+        LocalDateTime dtTo = to.plusDays(1).atStartOfDay();
 
-        List<DailyRevenueProjection> rows = reportReadRepository.findDailyRevenue(dtFrom, dtTo);
-
-        return rows.stream()
-                .map(r -> DailyRevenueReportDTO.builder()
-                        .date(r.getReportDate())
-                        .revenue(getOrZero(r.getRevenue()))
-                        .bookingCount(nullToZeroLong(r.getBookingCount()))
-                        .ticketCount(nullToZeroLong(r.getTicketCount()))
-                        .build())
+        return reportRepository.findDailyRevenue(dtFrom, dtTo).stream()
+                .peek(r -> {
+                    r.setRevenue(getOrZero(r.getRevenue()));
+                    r.setBookingCount(nullToZeroLong(r.getBookingCount()));
+                    r.setTicketCount(nullToZeroLong(r.getTicketCount()));
+                })
+                .map(reportApiMapper::toDTO)
                 .toList();
     }
 
     public List<MovieRevenueReportDTO> getRevenueByMovie(LocalDate from, LocalDate to) {
         validateDateRange(from, to);
         LocalDateTime dtFrom = from.atStartOfDay();
-        LocalDateTime dtTo   = to.plusDays(1).atStartOfDay();
+        LocalDateTime dtTo = to.plusDays(1).atStartOfDay();
 
-        List<MovieRevenueProjection> rows = reportReadRepository.findRevenueByMovie(dtFrom, dtTo);
-
-        return rows.stream()
-                .map(r -> MovieRevenueReportDTO.builder()
-                        .movieId(r.getMovieId())
-                        .movieTitle(r.getMovieTitle())
-                        .ticketRevenue(getOrZero(r.getTicketRevenue()))
-                        .ticketsSold(nullToZeroLong(r.getTicketsSold()))
-                        .bookingCount(nullToZeroLong(r.getBookingCount()))
-                        .build())
+        return reportRepository.findRevenueByMovie(dtFrom, dtTo).stream()
+                .peek(r -> {
+                    r.setTicketRevenue(getOrZero(r.getTicketRevenue()));
+                    r.setTicketsSold(nullToZeroLong(r.getTicketsSold()));
+                    r.setBookingCount(nullToZeroLong(r.getBookingCount()));
+                })
+                .map(reportApiMapper::toDTO)
                 .toList();
     }
 
     public List<CinemaRevenueReportDTO> getRevenueByCinema(LocalDate from, LocalDate to) {
         validateDateRange(from, to);
         LocalDateTime dtFrom = from.atStartOfDay();
-        LocalDateTime dtTo   = to.plusDays(1).atStartOfDay();
+        LocalDateTime dtTo = to.plusDays(1).atStartOfDay();
 
-        List<CinemaRevenueProjection> rows = reportReadRepository.findRevenueByCinema(dtFrom, dtTo);
-
-        return rows.stream()
-                .map(r -> CinemaRevenueReportDTO.builder()
-                        .cinemaId(r.getCinemaId())
-                        .cinemaName(r.getCinemaName())
-                        .ticketRevenue(getOrZero(r.getTicketRevenue()))
-                        .ticketsSold(nullToZeroLong(r.getTicketsSold()))
-                        .bookingCount(nullToZeroLong(r.getBookingCount()))
-                        .build())
+        return reportRepository.findRevenueByCinema(dtFrom, dtTo).stream()
+                .peek(r -> {
+                    r.setTicketRevenue(getOrZero(r.getTicketRevenue()));
+                    r.setTicketsSold(nullToZeroLong(r.getTicketsSold()));
+                    r.setBookingCount(nullToZeroLong(r.getBookingCount()));
+                })
+                .map(reportApiMapper::toDTO)
                 .toList();
     }
 
-
-    /**
-     * Validate: from không null, to không null, from <= to, span <= MAX_DAYS.
-     */
     void validateDateRange(LocalDate from, LocalDate to) {
         if (from == null || to == null) {
             throw new BusinessException(
@@ -144,10 +121,6 @@ public class ReportService {
         return value == null ? 0L : value;
     }
 
-    /**
-     * AOV = totalRevenue / totalBookingsPaid.
-     * Trả về 0 nếu không có booking nào.
-     */
     private BigDecimal calcAov(BigDecimal totalRevenue, Long totalBookingsPaid) {
         if (totalBookingsPaid == null || totalBookingsPaid == 0L) {
             return BigDecimal.ZERO;

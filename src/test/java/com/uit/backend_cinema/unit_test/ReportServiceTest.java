@@ -1,9 +1,9 @@
 package com.uit.backend_cinema.unit_test;
 
 import com.uit.backend_cinema.common.exception.BusinessException;
+import com.uit.backend_cinema.modules.report.api.mapper.ReportApiMapper;
+import com.uit.backend_cinema.modules.report.domain.repository.ReportRepository;
 import com.uit.backend_cinema.modules.report.domain.service.ReportService;
-import com.uit.backend_cinema.modules.report.infrastructure.repository.ReportReadRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,7 +19,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class ReportServiceTest {
 
     @Mock
-    private ReportReadRepository reportReadRepository;
+    private ReportRepository reportRepository;
+
+    @Mock
+    private ReportApiMapper reportApiMapper;
 
     @InjectMocks
     private ReportService reportService;

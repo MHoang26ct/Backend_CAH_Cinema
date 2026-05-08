@@ -18,6 +18,6 @@ public interface JpaPendingTicketItemRepository extends JpaRepository<PendingTic
     void softDeleteByBookingId(@Param("bookingId") Long bookingId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("delete from PendingTicketItemJpaEntity p where p.isDeleted = true and p.createdAt < :threshold")
+    @Query(value = "delete from pending_ticket_items where is_deleted = true and created_at < :threshold", nativeQuery = true)
     void hardDeleteSoftDeletedBefore(@Param("threshold") LocalDateTime threshold);
 }

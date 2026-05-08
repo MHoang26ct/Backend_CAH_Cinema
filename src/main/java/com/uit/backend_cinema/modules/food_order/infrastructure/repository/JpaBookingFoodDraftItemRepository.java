@@ -16,7 +16,7 @@ public interface JpaBookingFoodDraftItemRepository extends JpaRepository<Booking
     void softDeleteByBookingId(@Param("bookingId") Long bookingId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("delete from BookingFoodDraftItemJpaEntity f where f.isDeleted = true and f.createdAt < :threshold")
+    @Query(value = "delete from booking_food_draft_items where is_deleted = true and created_at < :threshold", nativeQuery = true)
     void hardDeleteSoftDeletedBefore(@Param("threshold") LocalDateTime threshold);
 
     List<BookingFoodDraftItemJpaEntity> findByBookingId(Long bookingId);

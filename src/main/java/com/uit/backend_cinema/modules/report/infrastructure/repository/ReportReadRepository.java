@@ -1,9 +1,10 @@
 package com.uit.backend_cinema.modules.report.infrastructure.repository;
 
-import com.uit.backend_cinema.modules.report.infrastructure.repository.dto.CinemaRevenueProjection;
-import com.uit.backend_cinema.modules.report.infrastructure.repository.dto.DailyRevenueProjection;
-import com.uit.backend_cinema.modules.report.infrastructure.repository.dto.MovieRevenueProjection;
-import com.uit.backend_cinema.modules.report.infrastructure.repository.dto.OverviewProjection;
+import com.uit.backend_cinema.modules.booking.infrastructure.entity.BookingJpaEntity;
+import com.uit.backend_cinema.modules.report.infrastructure.dto.CinemaRevenueProjection;
+import com.uit.backend_cinema.modules.report.infrastructure.dto.DailyRevenueProjection;
+import com.uit.backend_cinema.modules.report.infrastructure.dto.MovieRevenueProjection;
+import com.uit.backend_cinema.modules.report.infrastructure.dto.OverviewProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ReportReadRepository extends JpaRepository<Object, Long> {
+public interface ReportReadRepository extends JpaRepository<BookingJpaEntity, Long> {
 
     @Query(value = """
             SELECT
