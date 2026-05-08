@@ -1,5 +1,6 @@
 package com.uit.backend_cinema.modules.outbox.domain.service;
 
+import com.uit.backend_cinema.modules.invoice.domain.service.InvoiceService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ public class BookingPaidOutboxHandler {
     private final ObjectMapper objectMapper;
     private final BookingRepository bookingRepository;
     private final TicketService ticketService;
+    private final InvoiceService invoiceService;
     private final FoodOrderService foodOrderService;
     private final VoucherService voucherService;
     private final OutboxEventService outboxEventService;
@@ -31,12 +33,14 @@ public class BookingPaidOutboxHandler {
     public BookingPaidOutboxHandler(ObjectMapper objectMapper,
                                     BookingRepository bookingRepository,
                                     TicketService ticketService,
+                                    InvoiceService invoiceService,
                                     FoodOrderService foodOrderService,
                                     VoucherService voucherService,
                                     OutboxEventService outboxEventService) {
         this.objectMapper = objectMapper;
         this.bookingRepository = bookingRepository;
         this.ticketService = ticketService;
+        this.invoiceService = invoiceService;
         this.foodOrderService = foodOrderService;
         this.voucherService = voucherService;
         this.outboxEventService = outboxEventService;
@@ -68,6 +72,7 @@ public class BookingPaidOutboxHandler {
                 writePayload(emailPayload)
         );
 
+        invoiceService.createInvoice(booking.getBookingId(), booking.getPaymentMethod().name(), booking.getTotalAmount());
         ticketService.expireDraftItems(booking.getBookingId());
         foodOrderService.expireDraftItems(booking.getBookingId());
         voucherService.softDeleteHold(booking.getBookingId());
