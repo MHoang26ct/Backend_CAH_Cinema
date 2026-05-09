@@ -12,7 +12,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
 import org.hibernate.annotations.SQLRestriction;
@@ -28,8 +27,7 @@ import lombok.Setter;
 @Setter
 public class SeatJpaEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seat_seq")
-    @SequenceGenerator(name = "seat_seq", sequenceName = "seats_seq", allocationSize = 200)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "seat_id")
     private Long seatId;
 
