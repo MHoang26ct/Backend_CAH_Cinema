@@ -1,5 +1,6 @@
 package com.uit.backend_cinema.modules.movies.api.controller.open;
 
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -35,7 +36,7 @@ public class OpenMovieController {
             @RequestParam(required = false) String title,
             @RequestParam(required = false) Long genreId,
             @RequestParam(required = false) String ageRating,
-            @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         Page<MovieSummaryDTO> result = movieService.search(title, genreId, ageRating, pageable)
                 .map(movieApiMapper::toSummaryDto);
         return ResponseEntity.ok(ApiResponse.success(result));
