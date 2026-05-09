@@ -45,7 +45,7 @@ public class RefreshTokenRepositoryImpl implements RefreshTokenRepository {
             jpaEntity.setUser(entityManager.getReference(UserJpaEntity.class, refreshToken.getUserId()));
         }
 
-        RefreshTokenJpaEntity saved = jpaRefreshTokenRepository.save(jpaEntity);
+        jpaRefreshTokenRepository.save(jpaEntity);
     }
 
     @Override
