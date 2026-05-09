@@ -18,7 +18,7 @@ import lombok.Data;
 
 @Entity
 @Table(name = "foods")
-@SQLRestriction("deleted = false")
+@SQLRestriction("is_deleted = false")
 @Data
 public class FoodJpaEntity {
     @Id
@@ -41,9 +41,9 @@ public class FoodJpaEntity {
     @Enumerated(EnumType.STRING)
     private Category category;
 
-    @Column(name = "available", nullable = false)
+    @Column(name = "is_available", nullable = false)
     private boolean available = true;
 
-    @Column(name = "deleted", nullable = false)
+    @Column(name = "is_deleted", nullable = false)
     private boolean deleted = false;
 }
