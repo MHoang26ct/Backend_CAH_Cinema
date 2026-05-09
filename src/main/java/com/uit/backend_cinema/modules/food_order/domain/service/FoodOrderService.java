@@ -151,10 +151,18 @@ public class FoodOrderService {
         }
         Map<Long, Integer> foodQuantityMap = new LinkedHashMap<>();
         for (FoodOrderItemRequestDTO item : foodItems) {
+            if (item == null || item.getFoodId() == null) {
+                throw new BusinessException("Món ăn không hợp lệ", ErrorCode.VALIDATION_FAILED);
+            }
             if (item.getQuantity() <= 0) {
                 throw new BusinessException("Số lượng món ăn phải lớn hơn 0", ErrorCode.VALIDATION_FAILED);
             }
-            foodQuantityMap.merge(item.getFoodId(), item.getQuantity(), Integer::sum);
+            Integer currentQuantity = foodQuantityMap.get(item.getFoodId());
+            if (currentQuantity == null) {
+                foodQuantityMap.put(item.getFoodId(), item.getQuantity());
+            } else {
+                foodQuantityMap.put(item.getFoodId(), currentQuantity + item.getQuantity());
+            }
         }
         return foodQuantityMap;
     }
