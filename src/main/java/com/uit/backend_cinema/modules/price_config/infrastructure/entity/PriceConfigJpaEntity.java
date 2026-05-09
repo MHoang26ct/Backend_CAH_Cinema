@@ -28,7 +28,6 @@ public class PriceConfigJpaEntity {
     private DayType dayType;
     @Enumerated(EnumType.STRING)
     private TimeSlot timeSlot;
-    @Enumerated(EnumType.STRING)
     private MovieFormat movieFormat;
     private BigDecimal multiplier;
 }
