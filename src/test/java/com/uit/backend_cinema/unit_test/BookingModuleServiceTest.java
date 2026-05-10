@@ -28,7 +28,7 @@ import static org.mockito.Mockito.when;
 class BookingModuleServiceTest {
 
     @Test
-    @DisplayName("Booking module: hết hạn booking pending sẽ dọn lock, draft ticket, draft food và voucher hold")
+    @DisplayName("Booking module: hết hạn booking pending sẽ dọn lock, draft ticket, draft food và hoàn voucher usage")
     void expirePendingBookingsReleasesDraftResources() {
         BookingRepository bookingRepository = mock(BookingRepository.class);
         SeatService seatService = mock(SeatService.class);
@@ -55,6 +55,7 @@ class BookingModuleServiceTest {
         booking.setBookingId(10L);
         booking.setShowtimeId(20L);
         booking.setUserId(30L);
+        booking.setVoucherId(99L);
         booking.setStatus(BookingStatus.PENDING);
         booking.setExpiresAt(LocalDateTime.now().minusMinutes(1));
 
@@ -66,9 +67,8 @@ class BookingModuleServiceTest {
         bookingService.expirePendingBookings();
 
         verify(seatService).releaseSeatLocksByOwner(20L, List.of(1L, 2L), 30L);
-        verify(voucherService).expireHold(10L);
+        verify(voucherService).releaseVoucherForExpiredBooking(99L);
         verify(ticketService).expireDraftItems(10L);
         verify(foodOrderService).expireDraftItems(10L);
-        verify(voucherService).softDeleteHold(10L);
     }
 }

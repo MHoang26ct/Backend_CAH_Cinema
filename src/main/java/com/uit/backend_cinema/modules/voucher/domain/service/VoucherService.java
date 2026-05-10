@@ -12,23 +12,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
-import com.uit.backend_cinema.modules.voucher.domain.entity.BookingVoucherHold;
-import com.uit.backend_cinema.modules.voucher.domain.entity.BookingVoucherHoldStatus;
 import com.uit.backend_cinema.modules.voucher.domain.entity.Voucher;
 import com.uit.backend_cinema.modules.voucher.domain.entity.VoucherType;
-import com.uit.backend_cinema.modules.voucher.domain.repository.BookingVoucherHoldRepository;
 import com.uit.backend_cinema.modules.voucher.domain.repository.VoucherRepository;
 
 @Service
 @Transactional(readOnly = true)
 public class VoucherService {
     private final VoucherRepository voucherRepository;
-    private final BookingVoucherHoldRepository bookingVoucherHoldRepository;
 
-    public VoucherService(VoucherRepository voucherRepository,
-                          BookingVoucherHoldRepository bookingVoucherHoldRepository) {
+    public VoucherService(VoucherRepository voucherRepository) {
         this.voucherRepository = voucherRepository;
-        this.bookingVoucherHoldRepository = bookingVoucherHoldRepository;
     }
 
     public Voucher findById(Long voucherId) {
@@ -37,53 +31,26 @@ public class VoucherService {
     }
 
     @Transactional
-    public BigDecimal createHold(Long bookingId, Long voucherId, BigDecimal subtotal, LocalDateTime expiresAt) {
+    public BigDecimal applyVoucherForBooking(Long voucherId, BigDecimal subtotal) {
         if (voucherId == null) {
             return BigDecimal.ZERO;
         }
-        Voucher voucher = validateVoucherForHold(voucherId, subtotal);
-        BigDecimal discountAmount = calculateDiscount(voucher, subtotal);
 
-        BookingVoucherHold hold = new BookingVoucherHold();
-        hold.setBookingId(bookingId);
-        hold.setVoucherId(voucher.getVoucherId());
-        hold.setDiscountAmount(discountAmount);
-        hold.setStatus(BookingVoucherHoldStatus.HELD);
-        hold.setExpiresAt(expiresAt);
-        hold.setIsDeleted(false);
-        bookingVoucherHoldRepository.save(hold);
-        return discountAmount;
-    }
-
-    public void validateHoldForPayment(Long bookingId) {
-        BookingVoucherHold hold = bookingVoucherHoldRepository.findByBookingId(bookingId)
-                .orElseThrow(() -> new BusinessException("Voucher hold đã hết hạn", ErrorCode.VOUCHER_HOLD_EXPIRED));
-        if (hold.getStatus() != BookingVoucherHoldStatus.HELD || !hold.getExpiresAt().isAfter(LocalDateTime.now())) {
-            throw new BusinessException("Voucher hold đã hết hạn", ErrorCode.VOUCHER_HOLD_EXPIRED);
+        Voucher voucher = validateVoucherForApply(voucherId, subtotal);
+        int updated = voucherRepository.consumeVoucherAtomically(voucherId, LocalDateTime.now());
+        if (updated == 0) {
+            throw new BusinessException("Voucher không còn hiệu lực hoặc đã hết lượt sử dụng", ErrorCode.VALIDATION_FAILED);
         }
+
+        return calculateDiscount(voucher, subtotal);
     }
 
     @Transactional
-    public void consumeHeldVoucher(Long bookingId) {
-        BookingVoucherHold hold = bookingVoucherHoldRepository.findByBookingId(bookingId)
-                .orElseThrow(() -> new BusinessException("Voucher hold đã hết hạn", ErrorCode.VOUCHER_HOLD_EXPIRED));
-        validateHoldForPayment(bookingId);
-        useVoucher(hold.getVoucherId());
-        hold.setStatus(BookingVoucherHoldStatus.CONSUMED);
-        bookingVoucherHoldRepository.save(hold);
-    }
-
-    @Transactional
-    public void expireHold(Long bookingId) {
-        bookingVoucherHoldRepository.findByBookingId(bookingId).ifPresent(hold -> {
-            hold.setStatus(BookingVoucherHoldStatus.EXPIRED);
-            bookingVoucherHoldRepository.save(hold);
-        });
-    }
-
-    @Transactional
-    public void softDeleteHold(Long bookingId) {
-        bookingVoucherHoldRepository.softDeleteByBookingId(bookingId);
+    public void releaseVoucherForExpiredBooking(Long voucherId) {
+        if (voucherId == null) {
+            return;
+        }
+        voucherRepository.releaseVoucherAtomically(voucherId);
     }
 
     public Slice<Voucher> getAllForAdmin(Pageable pageable) {
@@ -136,10 +103,10 @@ public class VoucherService {
         voucherRepository.save(toDelete);
     }
 
-
-    private Voucher validateVoucherForHold(Long voucherId, BigDecimal subtotal) {
+    private Voucher validateVoucherForApply(Long voucherId, BigDecimal subtotal) {
         Voucher voucher = findById(voucherId);
         LocalDateTime now = LocalDateTime.now();
+
         if (!Boolean.TRUE.equals(voucher.getIsActive())
                 || now.isBefore(voucher.getStartAt())
                 || now.isAfter(voucher.getExpiredAt())) {
@@ -149,15 +116,6 @@ public class VoucherService {
             throw new BusinessException("Đơn hàng chưa đạt giá trị tối thiểu để dùng voucher", ErrorCode.VALIDATION_FAILED);
         }
 
-        long activeHoldCount = bookingVoucherHoldRepository.countByVoucherIdAndStatusAndExpiresAtAfter(
-                voucherId,
-                BookingVoucherHoldStatus.HELD,
-                now
-        );
-        long available = voucher.getQuantity() - voucher.getUsedCount() - activeHoldCount;
-        if (available <= 0) {
-            throw new BusinessException("Voucher đã hết lượt sử dụng", ErrorCode.VALIDATION_FAILED);
-        }
         return voucher;
     }
 
@@ -193,7 +151,6 @@ public class VoucherService {
                 throw new BusinessException("Mã voucher đã tồn tại", ErrorCode.DUPLICATE_RESOURCE);
             }
         } else {
-            // Khi update: chỉ check nếu code thay đổi so với code hiện tại
             if (!voucher.getCode().equals(existingCode) && voucherRepository.existsByCode(voucher.getCode())) {
                 throw new BusinessException("Mã voucher đã tồn tại", ErrorCode.DUPLICATE_RESOURCE);
             }

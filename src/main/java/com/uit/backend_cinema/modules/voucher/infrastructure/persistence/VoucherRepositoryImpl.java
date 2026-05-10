@@ -45,6 +45,11 @@ public class VoucherRepositoryImpl implements VoucherRepository {
     }
 
     @Override
+    public int releaseVoucherAtomically(Long voucherId) {
+        return jpaVoucherRepository.releaseVoucherAtomically(voucherId);
+    }
+
+    @Override
     public List<Voucher> findAllForUser(LocalDateTime now) {
         return jpaVoucherRepository.findAllForUser(now).stream()
                 .map(voucherInfraMapper::toDomain)

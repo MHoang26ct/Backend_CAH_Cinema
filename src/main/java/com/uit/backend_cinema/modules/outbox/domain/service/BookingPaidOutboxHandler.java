@@ -18,7 +18,6 @@ import com.uit.backend_cinema.modules.outbox.domain.entity.OutboxEventType;
 import com.uit.backend_cinema.modules.outbox.domain.payload.BookingPaidPayload;
 import com.uit.backend_cinema.modules.outbox.domain.payload.SendTicketEmailPayload;
 import com.uit.backend_cinema.modules.ticket.domain.service.TicketService;
-import com.uit.backend_cinema.modules.voucher.domain.service.VoucherService;
 
 @Service
 public class BookingPaidOutboxHandler {
@@ -27,7 +26,6 @@ public class BookingPaidOutboxHandler {
     private final TicketService ticketService;
     private final InvoiceService invoiceService;
     private final FoodOrderService foodOrderService;
-    private final VoucherService voucherService;
     private final OutboxEventService outboxEventService;
 
     public BookingPaidOutboxHandler(ObjectMapper objectMapper,
@@ -35,14 +33,12 @@ public class BookingPaidOutboxHandler {
                                     TicketService ticketService,
                                     InvoiceService invoiceService,
                                     FoodOrderService foodOrderService,
-                                    VoucherService voucherService,
                                     OutboxEventService outboxEventService) {
         this.objectMapper = objectMapper;
         this.bookingRepository = bookingRepository;
         this.ticketService = ticketService;
         this.invoiceService = invoiceService;
         this.foodOrderService = foodOrderService;
-        this.voucherService = voucherService;
         this.outboxEventService = outboxEventService;
     }
 
@@ -75,7 +71,6 @@ public class BookingPaidOutboxHandler {
         invoiceService.createInvoice(booking.getBookingId(), booking.getPaymentMethod().name(), booking.getTotalAmount());
         ticketService.expireDraftItems(booking.getBookingId());
         foodOrderService.expireDraftItems(booking.getBookingId());
-        voucherService.softDeleteHold(booking.getBookingId());
         outboxEventService.markDone(event.getOutboxEventId());
     }
 
