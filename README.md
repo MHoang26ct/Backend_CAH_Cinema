@@ -196,7 +196,3 @@ Mọi đóng góp cải tiến đều được hoan nghênh. Khi gửi PR, vui l
 
 - [MHoang26ct](https://github.com/MHoang26ct)
 - [LeVanAnUITK19](https://github.com/LeVanAnUITK19)
-
----
-
-Nếu bạn muốn, mình có thể viết tiếp bản `README` theo hướng “product-facing” hơn (nhiều hình minh họa luồng nghiệp vụ, sequence booking, ERD, và checklist release) để dùng luôn cho onboarding team mới.
