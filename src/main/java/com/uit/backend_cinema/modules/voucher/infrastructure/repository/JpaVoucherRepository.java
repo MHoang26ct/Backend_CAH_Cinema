@@ -35,9 +35,19 @@ public interface JpaVoucherRepository extends JpaRepository<VoucherJpaEntity, Lo
     set v.usedCount = v.usedCount + 1
     where v.voucherId = :voucherId
       and v.isActive = true
+      and v.isDeleted = false
       and v.startAt <= :now
       and v.expiredAt >= :now
       and v.usedCount < v.quantity
 """)
     int consumeVoucherAtomically(@Param("voucherId") Long voucherId, @Param("now") LocalDateTime now);
+
+    @Modifying
+    @Query("""
+    update VoucherJpaEntity v
+    set v.usedCount = v.usedCount - 1
+    where v.voucherId = :voucherId
+      and v.usedCount > 0
+""")
+    int releaseVoucherAtomically(@Param("voucherId") Long voucherId);
 }

@@ -94,7 +94,7 @@ public class BookingService {
             booking.setTotalAmount(subtotal);
             booking = bookingRepository.save(booking);
 
-            BigDecimal discountAmount = voucherService.createHold(booking.getBookingId(), requestDTO.getVoucherId(), subtotal, expiresAt);
+            BigDecimal discountAmount = voucherService.applyVoucherForBooking(requestDTO.getVoucherId(), subtotal);
             Booking finalizedBooking = finalizeBookingAmount(booking, subtotal, discountAmount);
             return buildQuote(finalizedBooking, seatSubtotal, foodSubtotal, discountAmount);
         } catch (RuntimeException ex) {
@@ -117,10 +117,6 @@ public class BookingService {
         List<Long> seatIds = ticketService.findActiveDraftSeatIds(bookingId);
         seatService.validateSeatsNotSold(booking.getShowtimeId(), seatIds);
 
-        if (booking.getVoucherId() != null) {
-            voucherService.validateHoldForPayment(bookingId);
-            voucherService.consumeHeldVoucher(bookingId);
-        }
         foodOrderService.finalizeDraftForBookingIfAbsent(bookingId);
 
         booking.setStatus(BookingStatus.PAID);
@@ -274,9 +270,8 @@ public class BookingService {
         List<Long> seatIds = ticketService.findActiveDraftSeatIds(booking.getBookingId());
         seatService.releaseSeatLocksByOwner(booking.getShowtimeId(), seatIds, booking.getUserId());
 
-        voucherService.expireHold(booking.getBookingId());
+        voucherService.releaseVoucherForExpiredBooking(booking.getVoucherId());
         ticketService.expireDraftItems(booking.getBookingId());
         foodOrderService.expireDraftItems(booking.getBookingId());
-        voucherService.softDeleteHold(booking.getBookingId());
     }
 }
