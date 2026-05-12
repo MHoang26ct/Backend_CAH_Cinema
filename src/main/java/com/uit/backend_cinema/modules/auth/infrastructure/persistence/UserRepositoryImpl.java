@@ -1,5 +1,6 @@
 package com.uit.backend_cinema.modules.auth.infrastructure.persistence;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.Set;
 
@@ -66,4 +67,21 @@ public class UserRepositoryImpl implements UserRepository {
             jpaUserRepository.save(user);
         });
     }
+
+    @Override
+    public void accumulatePaidAndRecalcRank(Long userId, BigDecimal amount) {
+        jpaUserRepository.accumulatePaidAndRecalcRank(userId, amount);
+    }
+
+    @Override
+    public User updateProfile(Long userId, String name, String email, String phone) {
+        UserJpaEntity entity = jpaUserRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User không tồn tại: " + userId));
+        if (name  != null) entity.setName(name);
+        if (email != null) entity.setEmail(email);
+        if (phone != null) entity.setPhone(phone);
+        return mapper.toDomain(jpaUserRepository.save(entity));
+    }
 }
+
+

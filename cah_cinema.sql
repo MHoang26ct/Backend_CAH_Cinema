@@ -11,6 +11,9 @@ CREATE TABLE users (
     phone VARCHAR(20),
     avatar_url TEXT,
     auth_provider VARCHAR(20) NOT NULL CHECK (auth_provider IN ('EMAIL', 'GOOGLE')),
+    total_paid  DECIMAL(18,2) NOT NULL DEFAULT 0 CHECK (total_paid  >= 0),
+    total_point INT           NOT NULL DEFAULT 0 CHECK (total_point >= 0),
+    rank_level  VARCHAR(20)   NOT NULL DEFAULT 'SILVER' CHECK (rank_level IN ('SILVER', 'GOLD', 'DIAMOND')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN DEFAULT FALSE
