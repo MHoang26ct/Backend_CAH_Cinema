@@ -1,5 +1,6 @@
 package com.uit.backend_cinema.modules.auth.infrastructure.entity;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -59,6 +60,15 @@ public class UserJpaEntity {
     // Phương thức đăng nhập: EMAIL, GOOGLE
     @Column(name = "auth_provider", nullable = false)
     private String authProvider;
+
+    @Column(name = "total_paid", nullable = false)
+    private BigDecimal totalPaid = BigDecimal.ZERO;
+
+    @Column(name = "total_point", nullable = false)
+    private Integer totalPoint = 0;
+
+    @Column(name = "rank_level", nullable = false)
+    private String rankLevel = "SILVER";
 
     // Quan hệ nhiều-nhiều với bảng roles thông qua bảng user_roles
     @ManyToMany(fetch = FetchType.EAGER)
