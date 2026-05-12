@@ -1,6 +1,7 @@
 package com.uit.backend_cinema.modules.outbox.domain.service;
 
 import com.uit.backend_cinema.modules.invoice.domain.service.InvoiceService;
+import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,19 +28,22 @@ public class BookingPaidOutboxHandler {
     private final InvoiceService invoiceService;
     private final FoodOrderService foodOrderService;
     private final OutboxEventService outboxEventService;
+    private final UserRepository userRepository;
 
     public BookingPaidOutboxHandler(ObjectMapper objectMapper,
                                     BookingRepository bookingRepository,
                                     TicketService ticketService,
                                     InvoiceService invoiceService,
                                     FoodOrderService foodOrderService,
-                                    OutboxEventService outboxEventService) {
+                                    OutboxEventService outboxEventService,
+                                    UserRepository userRepository) {
         this.objectMapper = objectMapper;
         this.bookingRepository = bookingRepository;
         this.ticketService = ticketService;
         this.invoiceService = invoiceService;
         this.foodOrderService = foodOrderService;
         this.outboxEventService = outboxEventService;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -69,6 +73,8 @@ public class BookingPaidOutboxHandler {
         );
 
         invoiceService.createInvoice(booking.getBookingId(), booking.getPaymentMethod().name(), booking.getTotalAmount());
+        // Cộng tiền vào total_paid, tính lại điểm và cập nhật rank
+        userRepository.accumulatePaidAndRecalcRank(booking.getUserId(), booking.getTotalAmount());
         ticketService.expireDraftItems(booking.getBookingId());
         foodOrderService.expireDraftItems(booking.getBookingId());
         outboxEventService.markDone(event.getOutboxEventId());
