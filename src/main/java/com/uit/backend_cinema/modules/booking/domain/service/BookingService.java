@@ -53,15 +53,15 @@ public class BookingService {
     private final ObjectMapper objectMapper;
 
     public BookingService(BookingRepository bookingRepository,
-                          SeatService seatService,
-                          ShowtimeService showtimeService,
-                          PriceConfigService priceConfigService,
-                          TicketService ticketService,
-                          FoodOrderService foodOrderService,
-                          VoucherService voucherService,
-                          PaymentConfirmationRepository paymentConfirmationRepository,
-                          OutboxEventService outboxEventService,
-                          ObjectMapper objectMapper) {
+            SeatService seatService,
+            ShowtimeService showtimeService,
+            PriceConfigService priceConfigService,
+            TicketService ticketService,
+            FoodOrderService foodOrderService,
+            VoucherService voucherService,
+            PaymentConfirmationRepository paymentConfirmationRepository,
+            OutboxEventService outboxEventService,
+            ObjectMapper objectMapper) {
         this.bookingRepository = bookingRepository;
         this.seatService = seatService;
         this.showtimeService = showtimeService;
@@ -78,11 +78,13 @@ public class BookingService {
     public PrePaymentBookingQuote createPrePaymentBooking(Long userId, CreateBookingRequestDTO requestDTO) {
         Showtime showtime = showtimeService.getById(requestDTO.getShowtimeId());
         List<Long> seatIds = requestDTO.getSeatIds();
-        List<Seat> selectedSeats = seatService.promoteLocksForCheckout(requestDTO.getShowtimeId(), seatIds, showtime.getRoomId(), userId);
+        List<Seat> selectedSeats = seatService.promoteLocksForCheckout(requestDTO.getShowtimeId(), seatIds,
+                showtime.getRoomId(), userId);
 
         try {
             LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(CHECKOUT_TTL_MINUTES);
-            BigDecimal showtimeMultiplier = priceConfigService.getPriceMultiplier(showtime.getStartTime(), showtime.getFormat());
+            BigDecimal showtimeMultiplier = priceConfigService.getPriceMultiplier(showtime.getStartTime(),
+                    showtime.getFormat());
             BigDecimal seatSubtotal = calculateSeatSubtotal(selectedSeats, showtime, showtimeMultiplier);
             BigDecimal subtotal = seatSubtotal;
             Booking booking = createInitialBooking(userId, requestDTO, subtotal, expiresAt);
@@ -105,7 +107,8 @@ public class BookingService {
 
     @Transactional
     public ConfirmPaymentResponseDTO confirmPayment(Long userId, Long bookingId, ConfirmPaymentRequestDTO requestDTO) {
-        Optional<PaymentConfirmation> existingConfirmation = paymentConfirmationRepository.findByPaymentRef(requestDTO.getPaymentRef());
+        Optional<PaymentConfirmation> existingConfirmation = paymentConfirmationRepository
+                .findByPaymentRef(requestDTO.getPaymentRef());
         if (existingConfirmation.isPresent()) {
             return handleExistingPaymentConfirmation(userId, bookingId, existingConfirmation.get());
         }
@@ -161,10 +164,11 @@ public class BookingService {
     }
 
     private ConfirmPaymentResponseDTO handleExistingPaymentConfirmation(Long userId,
-                                                                        Long bookingId,
-                                                                        PaymentConfirmation confirmation) {
+            Long bookingId,
+            PaymentConfirmation confirmation) {
         if (!confirmation.getBookingId().equals(bookingId)) {
-            throw new BusinessException("Mã tham chiếu thanh toán đã được dùng cho booking khác", ErrorCode.PAYMENT_REF_DUPLICATE);
+            throw new BusinessException("Mã tham chiếu thanh toán đã được dùng cho booking khác",
+                    ErrorCode.PAYMENT_REF_DUPLICATE);
         }
         Booking existingBooking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
@@ -203,14 +207,15 @@ public class BookingService {
             outboxEventService.createIfAbsent(
                     OutboxEventType.BOOKING_PAID,
                     booking.getBookingId().toString(),
-                    objectMapper.writeValueAsString(payload)
-            );
+                    objectMapper.writeValueAsString(payload));
         } catch (JsonProcessingException ex) {
-            throw new BusinessException("Không thể tạo payload BOOKING_PAID", ErrorCode.OUTBOX_PAYLOAD_SERIALIZATION_FAILED, ex);
+            throw new BusinessException("Không thể tạo payload BOOKING_PAID",
+                    ErrorCode.OUTBOX_PAYLOAD_SERIALIZATION_FAILED, ex);
         }
     }
 
-    private BigDecimal calculateSeatSubtotal(List<Seat> selectedSeats, Showtime showtime, BigDecimal showtimeMultiplier) {
+    private BigDecimal calculateSeatSubtotal(List<Seat> selectedSeats, Showtime showtime,
+            BigDecimal showtimeMultiplier) {
         return selectedSeats.stream()
                 .map(seat -> seat.getSeatType().getPriceMultiplier()
                         .multiply(showtime.getBasePrice())
@@ -218,7 +223,8 @@ public class BookingService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private Booking createInitialBooking(Long userId, CreateBookingRequestDTO requestDTO, BigDecimal subtotal, LocalDateTime expiresAt) {
+    private Booking createInitialBooking(Long userId, CreateBookingRequestDTO requestDTO, BigDecimal subtotal,
+            LocalDateTime expiresAt) {
         Booking booking = new Booking();
         booking.setUserId(userId);
         booking.setShowtimeId(requestDTO.getShowtimeId());
@@ -239,7 +245,8 @@ public class BookingService {
         return bookingRepository.save(booking);
     }
 
-    private PrePaymentBookingQuote buildQuote(Booking booking, BigDecimal seatSubtotal, BigDecimal foodSubtotal, BigDecimal discountAmount) {
+    private PrePaymentBookingQuote buildQuote(Booking booking, BigDecimal seatSubtotal, BigDecimal foodSubtotal,
+            BigDecimal discountAmount) {
         return PrePaymentBookingQuote.builder()
                 .bookingId(booking.getBookingId())
                 .status(booking.getStatus())
