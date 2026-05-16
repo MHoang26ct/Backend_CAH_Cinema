@@ -119,8 +119,22 @@
 
 - **Tìm kiếm/Danh sách phim:** `GET /api/v1/public/movies`
     
-    - Query: `title` (string), `genreId` (int64), `ageRating` (string), `pageable` (Pageable object, **required**)
+    - Query: `title` (string), `genreId` (int64), `ageRating` (string), `pageable` (Pageable object)
+    - Mặc định: `size=10, sort="releaseDate,desc"`
         
+- **Phim nổi bật (Now showing & Upcoming):** `GET /api/v1/public/movies/featured`
+    
+    - Trả về 5 phim đang chiếu (releaseDate <= today) và 5 phim sắp chiếu (releaseDate > today).
+    - Response structure:
+      ```json
+      {
+        "data": {
+          "nowShowing": [ ...List<MovieSummaryDTO> ],
+          "upcoming": [ ...List<MovieSummaryDTO> ]
+        }
+      }
+      ```
+
 - **Chi tiết phim:** `GET /api/v1/public/movies/{id}`
     
 - **Danh sách thể loại:** `GET /api/v1/public/genres/all`

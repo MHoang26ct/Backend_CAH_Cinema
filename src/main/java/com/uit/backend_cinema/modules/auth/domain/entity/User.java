@@ -18,10 +18,10 @@ public class User {
     private String avatarUrl;
     private AuthProvider authProvider;
     private String role; // Tên role (VD: "ROLE_USER", "ROLE_ADMIN")
-    private BigDecimal totalPaid;
-    private Integer totalPoint;
-    private UserRank rankLevel;
+    private BigDecimal totalPaid = BigDecimal.ZERO;
+    private Integer totalPoint = 0;
+    private UserRank rankLevel = UserRank.SILVER;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private Boolean isDeleted;
+    private Boolean isDeleted = false;
 }
