@@ -1,6 +1,7 @@
 package com.uit.backend_cinema.modules.movies.infrastructure.persistence;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -61,5 +62,19 @@ public class MovieRepositoryImpl implements MovieRepository{
             );
         }
         return mapper.toDomain(jpaMovieRepository.save(jpaEntity));
+    }
+
+    @Override
+    public List<Movie> findNowShowing() {
+        return jpaMovieRepository.findNowShowing().stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Movie> findUpcoming() {
+        return jpaMovieRepository.findUpcoming().stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
     }
 }

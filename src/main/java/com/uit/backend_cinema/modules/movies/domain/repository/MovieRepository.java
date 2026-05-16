@@ -1,6 +1,7 @@
 package com.uit.backend_cinema.modules.movies.domain.repository;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -13,4 +14,6 @@ public interface MovieRepository {
     boolean isDuplicate(String title, LocalDate releaseDate);
     Page<Movie> search(String title, Long genreId, String ageRating, Pageable pageable);
     Movie save(Movie movie);
+    List<Movie> findNowShowing();
+    List<Movie> findUpcoming();
 }
