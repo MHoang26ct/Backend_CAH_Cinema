@@ -1,9 +1,12 @@
 package com.uit.backend_cinema.modules.movies.domain.service;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,8 +28,28 @@ public class MovieService {
     }
 
     public Page<Movie> search(String title, Long genreId, String ageRating, Pageable pageable) {
-        return movieRepository.search(title, genreId, ageRating, pageable);
+        Sort sort = pageable.getSort();
+        List<Sort.Order> orders = new java.util.ArrayList<>();
+        for (Sort.Order order : sort) {
+            if ("releaseDate".equals(order.getProperty())) {
+                orders.add(new Sort.Order(order.getDirection(), "release_date"));
+            } else if ("createdAt".equals(order.getProperty())) {
+                orders.add(new Sort.Order(order.getDirection(), "created_at"));
+            } else {
+                orders.add(order);
+            }
+        }
+        Pageable nativePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(orders));
+        return movieRepository.search(title, genreId, ageRating, nativePageable);
     }
+
+    public FeaturedMoviesResult getFeaturedMovies() {
+        List<Movie> nowShowing = movieRepository.findNowShowing();
+        List<Movie> upcoming = movieRepository.findUpcoming();
+        return new FeaturedMoviesResult(nowShowing, upcoming);
+    }
+
+    public record FeaturedMoviesResult(List<Movie> nowShowing, List<Movie> upcoming) {}
 
     public Movie getById(Long movieId) {
         return movieRepository.findById(movieId)
