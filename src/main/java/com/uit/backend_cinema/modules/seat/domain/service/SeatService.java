@@ -90,11 +90,11 @@ public class SeatService {
                     showtimeId,
                     seat.getSeatId(),
                     userId,
-                    CHECKOUT_LOCK_TTL_SECONDS
-            );
+                    CHECKOUT_LOCK_TTL_SECONDS);
             if (!promoted) {
                 promotedSeatIds.forEach(seatId -> seatLockRepository.unlock(showtimeId, seatId));
-                throw new BusinessException("Một hoặc nhiều ghế không còn được giữ bởi bạn", ErrorCode.SEAT_ALREADY_BOOKED);
+                throw new BusinessException("Một hoặc nhiều ghế không còn được giữ bởi bạn",
+                        ErrorCode.SEAT_ALREADY_BOOKED);
             }
             promotedSeatIds.add(seat.getSeatId());
         }
@@ -227,22 +227,19 @@ public class SeatService {
                 .filter(seat -> "COUPLE".equals(seat.getSeatType().getTypeName()))
                 .collect(Collectors.groupingBy(
                         Seat::getSeatRow,
-                        Collectors.mapping(Seat::getSeatCol, Collectors.toSet())
-                ));
+                        Collectors.mapping(Seat::getSeatCol, Collectors.toSet())));
 
         for (Map.Entry<BigDecimal, Set<BigDecimal>> entry : selectedCoupleSeatsByRow.entrySet()) {
             BigDecimal row = entry.getKey();
             Set<BigDecimal> cols = entry.getValue();
             for (BigDecimal col : cols) {
-                boolean hasPairOnLeft = cols.stream().anyMatch(other ->
-                        other.compareTo(col.subtract(BigDecimal.ONE)) == 0);
-                boolean hasPairOnRight = cols.stream().anyMatch(other ->
-                        other.compareTo(col.add(BigDecimal.ONE)) == 0);
+                boolean hasPairOnLeft = cols.stream()
+                        .anyMatch(other -> other.compareTo(col.subtract(BigDecimal.ONE)) == 0);
+                boolean hasPairOnRight = cols.stream().anyMatch(other -> other.compareTo(col.add(BigDecimal.ONE)) == 0);
                 if (!hasPairOnLeft && !hasPairOnRight) {
                     throw new BusinessException(
                             "Ghế đôi ở hàng " + row + " cột " + col + " chưa đủ cặp",
-                            ErrorCode.VALIDATION_FAILED
-                    );
+                            ErrorCode.VALIDATION_FAILED);
                 }
             }
         }
