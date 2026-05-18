@@ -7,5 +7,6 @@ public class CinemaResponseDTO {
     private long cinemaId;
     private String name;
     private String address;
+    private String imageUrl;
     private String hotline;
 }

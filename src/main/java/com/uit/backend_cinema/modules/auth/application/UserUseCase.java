@@ -49,8 +49,8 @@ public class UserUseCase {
 
     // Cập nhật name / email / phone (chỉ field nào được gửi lên).
     @Transactional
-    public UserDTO updateProfile(Long userId, String name, String email, String phone) {
-        User updated = userRepository.updateProfile(userId, name, email, phone);
+    public UserDTO updateProfile(Long userId, String name, String email, String phone, String avatarUrl) {
+        User updated = userRepository.updateProfile(userId, name, email, phone, avatarUrl);
         return userApiMapper.toDto(updated);
     }
 

@@ -5,6 +5,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.uit.backend_cinema.modules.auth.domain.entity.User;
+import com.uit.backend_cinema.modules.auth.domain.entity.UserRank;
+import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -51,6 +54,7 @@ public class BookingService {
     private final PaymentConfirmationRepository paymentConfirmationRepository;
     private final OutboxEventService outboxEventService;
     private final ObjectMapper objectMapper;
+    private final UserRepository userRepository;
 
     public BookingService(BookingRepository bookingRepository,
             SeatService seatService,
@@ -61,7 +65,8 @@ public class BookingService {
             VoucherService voucherService,
             PaymentConfirmationRepository paymentConfirmationRepository,
             OutboxEventService outboxEventService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            UserRepository userRepository) {
         this.bookingRepository = bookingRepository;
         this.seatService = seatService;
         this.showtimeService = showtimeService;
@@ -72,6 +77,7 @@ public class BookingService {
         this.paymentConfirmationRepository = paymentConfirmationRepository;
         this.outboxEventService = outboxEventService;
         this.objectMapper = objectMapper;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -80,6 +86,7 @@ public class BookingService {
         List<Long> seatIds = requestDTO.getSeatIds();
         List<Seat> selectedSeats = seatService.promoteLocksForCheckout(requestDTO.getShowtimeId(), seatIds,
                 showtime.getRoomId(), userId);
+        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.UNAUTHORIZED));
 
         try {
             LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(CHECKOUT_TTL_MINUTES);
@@ -92,13 +99,16 @@ public class BookingService {
             ticketService.createDraftItems(booking.getBookingId(), selectedSeats, showtime, showtimeMultiplier);
             var foodDraftItems = foodOrderService.createDraftItems(booking.getBookingId(), requestDTO.getFoodItems());
             BigDecimal foodSubtotal = foodOrderService.calculateDraftSubtotal(foodDraftItems);
-            subtotal = seatSubtotal.add(foodSubtotal);
+            BigDecimal factor = BigDecimal.ONE.subtract(user.getRankLevel().getDiscountRate());
+            BigDecimal seatSubtotalAfterRank = seatSubtotal.multiply(factor);
+            BigDecimal foodSubtotalAfterRank = foodSubtotal.multiply(factor);
+            subtotal = seatSubtotalAfterRank.add(foodSubtotalAfterRank);
             booking.setTotalAmount(subtotal);
             booking = bookingRepository.save(booking);
 
             BigDecimal discountAmount = voucherService.applyVoucherForBooking(requestDTO.getVoucherId(), subtotal);
             Booking finalizedBooking = finalizeBookingAmount(booking, subtotal, discountAmount);
-            return buildQuote(finalizedBooking, seatSubtotal, foodSubtotal, discountAmount);
+            return buildQuote(finalizedBooking, seatSubtotalAfterRank, foodSubtotalAfterRank, discountAmount);
         } catch (RuntimeException ex) {
             seatService.releaseSeatLocksByOwner(requestDTO.getShowtimeId(), seatIds, userId);
             throw ex;

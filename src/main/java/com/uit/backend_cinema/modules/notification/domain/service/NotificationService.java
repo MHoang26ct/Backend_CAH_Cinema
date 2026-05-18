@@ -5,13 +5,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import java.time.format.DateTimeFormatter;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Service;
 
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.common.util.QRCodeUtil;
+import com.uit.backend_cinema.modules.movies.domain.entity.Movie;
 import com.uit.backend_cinema.modules.notification.domain.repository.EmailSender;
 import com.uit.backend_cinema.modules.notification.domain.repository.OtpStorage;
+import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
+import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
 import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 
 @Service
@@ -45,9 +51,9 @@ public class NotificationService {
         }
     }
 
-    public void sendTicketEmail(String email, Long bookingId, List<Ticket> tickets) {
+    public void sendTicketEmail(String email, Long bookingId, Movie movie, Showtime showtime, List<Ticket> tickets, List<Seat> seats) {
         String subject = "Vé xem phim của bạn - Booking #" + bookingId;
-        String content = buildTicketEmailContent(bookingId, tickets);
+        String content = buildTicketEmailContent(bookingId, movie, showtime, tickets, seats);
 
         // Tạo QR Code cho từng vé và gom vào Map<tênFile, byte[]>
         Map<String, byte[]> attachments = new LinkedHashMap<>();
@@ -61,17 +67,25 @@ public class NotificationService {
         emailSender.sendEmailWithAttachments(email, subject, content, attachments);
     }
 
-    private String buildTicketEmailContent(Long bookingId, List<Ticket> tickets) {
+    private String buildTicketEmailContent(Long bookingId, Movie movie, Showtime showtime, List<Ticket> tickets, List<Seat> seats) {
         StringBuilder content = new StringBuilder();
         content.append("Cảm ơn bạn đã thanh toán thành công.\n\n");
         content.append("Booking ID: ").append(bookingId).append("\n");
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        content.append("Phim: ").append(movie.getTitle()).append("\n");
+        content.append("Suất chiếu: ").append(showtime.getStartTime().format(formatter)).append("\n");
         content.append("Danh sách vé:\n");
 
+        Map<Long, Seat> seatMap = seats.stream().collect(Collectors.toMap(Seat::getSeatId, seat -> seat));
+
         for (Ticket ticket : tickets) {
+            Seat seat = seatMap.get(ticket.getSeatId());
+            String seatName = getSeatName(seat);
             content.append("- Ticket #")
                     .append(ticket.getTicketId())
-                    .append(", Seat #")
-                    .append(ticket.getSeatId())
+                    .append(", Ghế: ")
+                    .append(seatName)
                     .append("\n");
         }
 
@@ -79,6 +93,12 @@ public class NotificationService {
         content.append("Mã QR của từng vé đã được đính kèm trong email này (ticket-<id>.png).\n");
         content.append("Vui lòng xuất trình mã QR khi vào rạp.\n");
         return content.toString();
+    }
+
+    private String getSeatName(Seat seat) {
+        if (seat == null) return "N/A";
+        char rowLetter = (char) ('A' + seat.getSeatRow().intValue() - 1);
+        return rowLetter + String.valueOf(seat.getSeatCol().intValue());
     }
 
     /**

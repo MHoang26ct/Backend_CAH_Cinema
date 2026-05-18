@@ -27,6 +27,9 @@ public class CinemaJpaEntity {
     @Column(name = "address", nullable = false)
     private String address;
 
+    @Column(name = "image_url", columnDefinition = "TEXT")
+    private String imageUrl;
+
     @Column(name = "hotline")
     private String hotline;
 

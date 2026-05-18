@@ -18,6 +18,12 @@ import com.uit.backend_cinema.modules.outbox.domain.entity.OutboxEvent;
 import com.uit.backend_cinema.modules.outbox.domain.payload.SendTicketEmailPayload;
 import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 import com.uit.backend_cinema.modules.ticket.domain.service.TicketService;
+import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
+import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
+import com.uit.backend_cinema.modules.movies.domain.service.MovieService;
+import com.uit.backend_cinema.modules.movies.domain.entity.Movie;
+import com.uit.backend_cinema.modules.seat.domain.service.SeatService;
+import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
 
 @Service
 public class SendTicketEmailOutboxHandler {
@@ -27,19 +33,28 @@ public class SendTicketEmailOutboxHandler {
     private final TicketService ticketService;
     private final NotificationService notificationService;
     private final OutboxEventService outboxEventService;
+    private final ShowtimeService showtimeService;
+    private final MovieService movieService;
+    private final SeatService seatService;
 
     public SendTicketEmailOutboxHandler(ObjectMapper objectMapper,
                                         BookingRepository bookingRepository,
                                         UserRepository userRepository,
                                         TicketService ticketService,
                                         NotificationService notificationService,
-                                        OutboxEventService outboxEventService) {
+                                        OutboxEventService outboxEventService,
+                                        ShowtimeService showtimeService,
+                                        MovieService movieService,
+                                        SeatService seatService) {
         this.objectMapper = objectMapper;
         this.bookingRepository = bookingRepository;
         this.userRepository = userRepository;
         this.ticketService = ticketService;
         this.notificationService = notificationService;
         this.outboxEventService = outboxEventService;
+        this.showtimeService = showtimeService;
+        this.movieService = movieService;
+        this.seatService = seatService;
     }
 
     @Transactional
@@ -55,7 +70,11 @@ public class SendTicketEmailOutboxHandler {
             throw new BusinessException("Booking chưa có vé để gửi email", ErrorCode.RESOURCE_NOT_FOUND);
         }
 
-        notificationService.sendTicketEmail(user.getEmail(), booking.getBookingId(), tickets);
+        Showtime showtime = showtimeService.getById(tickets.get(0).getShowtimeId());
+        Movie movie = movieService.getById(showtime.getMovieId());
+        List<Seat> seats = seatService.findByIds(tickets.stream().map(Ticket::getSeatId).toList());
+
+        notificationService.sendTicketEmail(user.getEmail(), booking.getBookingId(), movie, showtime, tickets, seats);
         outboxEventService.markDone(event.getOutboxEventId());
     }
 

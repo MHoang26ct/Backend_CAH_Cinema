@@ -39,6 +39,10 @@ public class SeatService {
         this.ticketService = ticketService;
     }
 
+    public List<Seat> findByIds(List<Long> seatIds) {
+        return seatRepository.findByIds(seatIds);
+    }
+
     // Lấy danh sách ghế theo phòng, kèm trạng thái lock từ Redis
     public List<Seat> getSeatsByRoomId(Long roomId, Long showtimeId) {
         List<Seat> seats = seatRepository.findByRoomId(roomId);

@@ -57,7 +57,8 @@ public class UserController {
                 userId,
                 requestDTO.getName(),
                 requestDTO.getEmail(),
-                requestDTO.getPhone());
+                requestDTO.getPhone(),
+                requestDTO.getAvatarUrl());
         return ResponseEntity.ok(ApiResponse.success(updated, "Cập nhật profile thành công"));
     }
 
