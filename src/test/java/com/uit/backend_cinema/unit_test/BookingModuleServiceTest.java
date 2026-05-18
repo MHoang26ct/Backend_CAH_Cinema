@@ -1,6 +1,7 @@
 package com.uit.backend_cinema.unit_test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 import com.uit.backend_cinema.modules.booking.domain.entity.Booking;
 import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
 import com.uit.backend_cinema.modules.booking.domain.repository.BookingRepository;
@@ -37,6 +38,7 @@ class BookingModuleServiceTest {
         TicketService ticketService = mock(TicketService.class);
         FoodOrderService foodOrderService = mock(FoodOrderService.class);
         VoucherService voucherService = mock(VoucherService.class);
+        UserRepository userRepository = mock(UserRepository.class);
         PaymentConfirmationRepository paymentConfirmationRepository = mock(PaymentConfirmationRepository.class);
         OutboxEventService outboxEventService = mock(OutboxEventService.class);
         BookingService bookingService = new BookingService(
@@ -49,7 +51,8 @@ class BookingModuleServiceTest {
                 voucherService,
                 paymentConfirmationRepository,
                 outboxEventService,
-                new ObjectMapper()
+                new ObjectMapper(),
+                userRepository
         );
         Booking booking = new Booking();
         booking.setBookingId(10L);
