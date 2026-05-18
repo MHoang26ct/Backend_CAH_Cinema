@@ -34,7 +34,30 @@
         
     - `password` (string, **required**)
         
-- **Response:** `200 OK` (object)
+- **Response:** `200 OK`
+
+```json
+{
+  "code": 200,
+  "message": "Đăng nhập thành công",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "user": {
+      "userId": 1,
+      "name": "Nguyễn Văn A",
+      "email": "a@example.com",
+      "phone": "0901234567",
+      "avatarUrl": "https://...",
+      "authProvider": "EMAIL",
+      "role": "ROLE_USER",
+      "totalPaid": 1200000.00,
+      "totalPoint": 30,
+      "rankLevel": "SILVER"
+    }
+  }
+}
+```
     
 
 ### Đăng nhập Google
@@ -125,17 +148,58 @@
 - **Phim nổi bật (Now showing & Upcoming):** `GET /api/v1/public/movies/featured`
     
     - Trả về 5 phim đang chiếu (releaseDate <= today) và 5 phim sắp chiếu (releaseDate > today).
-    - Response structure:
-      ```json
+
+```json
+{
+  "code": 200,
+  "data": {
+    "nowShowing": [
       {
-        "data": {
-          "nowShowing": [ ...List<MovieSummaryDTO> ],
-          "upcoming": [ ...List<MovieSummaryDTO> ]
-        }
+        "movieId": 1,
+        "title": "Michael",
+        "duration": 130,
+        "releaseDate": "2026-04-24",
+        "ageRating": "T13",
+        "posterUrl": "https://..."
       }
-      ```
+    ],
+    "upcoming": [
+      {
+        "movieId": 3,
+        "title": "The Mandalorian and Grogu",
+        "duration": 120,
+        "releaseDate": "2026-05-22",
+        "ageRating": "T13",
+        "posterUrl": "https://..."
+      }
+    ]
+  }
+}
+```
 
 - **Chi tiết phim:** `GET /api/v1/public/movies/{id}`
+
+```json
+{
+  "code": 200,
+  "data": {
+    "movieId": 1,
+    "title": "Michael",
+    "description": "Chân dung điện ảnh về Michael Jackson...",
+    "duration": 130,
+    "releaseDate": "2026-04-24",
+    "ageRating": "T13",
+    "posterUrl": "https://...",
+    "trailerUrl": "https://www.youtube.com/watch?v=...",
+    "directorName": "Antoine Fuqua",
+    "actorList": "Jaafar Jackson, Colman Domingo, Nia Long, Miles Teller",
+    "genres": [
+      { "genreId": 6, "name": "Drama" },
+      { "genreId": 10, "name": "Musical" }
+    ]
+  }
+}
+```
     
 - **Danh sách thể loại:** `GET /api/v1/public/genres/all`
     
@@ -146,15 +210,31 @@
 
 - **Tạo rạp:** `POST /api/v1/admin/cinemas`
     
-    - Body: `name` (string, **required**), `address` (string, **required**), `hotline` (string)
+    - Body: `name` (string, **required**), `address` (string, **required**), `imageUrl` (string), `hotline` (string)
         
 - **Cập nhật rạp:** `PUT /api/v1/admin/cinemas/{cinemaId}`
     
-    - Body: `cinemaId` (int64, **required**), `name`, `address`, `hotline`
+    - Body: `cinemaId` (int64, **required**), `name`, `address`, `imageUrl`, `hotline`
         
 - **Xóa rạp:** `DELETE /api/v1/admin/cinemas/{cinemaId}`
     
 - **Danh sách rạp (Public):** `GET /api/v1/public/cinemas`
+
+```json
+{
+  "code": 200,
+  "message": "Lấy danh sách rạp thành công",
+  "data": [
+    {
+      "cinemaId": 1,
+      "name": "CGV Vincom Bà Triệu",
+      "address": "191 Bà Triệu, Hai Bà Trưng, Hà Nội",
+      "imageUrl": "https://...",
+      "hotline": "1900 6017"
+    }
+  ]
+}
+```
     
 
 ### Quản lý Phòng (Admin)
@@ -190,8 +270,64 @@
 ### Xem lịch chiếu (Public)
 
 - **Theo phim:** `GET /api/v1/public/showtimes/movies/{movieId}` (Query: `date` format: date, **required**)
-    
+
+```json
+{
+  "code": 200,
+  "data": {
+    "movie": {
+      "movieId": 3,
+      "title": "Avengers: Endgame",
+      "description": "..."
+    },
+    "cinemas": [
+      {
+        "cinemaId": 1,
+        "cinemaName": "CGV Vincom Bà Triệu",
+        "address": "191 Bà Triệu, HN",
+        "showtimes": [
+          {
+            "showtimeId": 7,
+            "startTime": "2026-05-18T18:00:00",
+            "endTime": "2026-05-18T20:10:00",
+            "format": "2D",
+            "basePrice": 75000.00,
+            "status": "AVAILABLE",
+            "roomName": "Hall 1"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
 - **Theo rạp:** `GET /api/v1/public/showtimes/cinemas/{cinemaId}` (Query: `date` format: date, **required**)
+
+```json
+{
+  "code": 200,
+  "data": {
+    "movie": {
+      "movieId": 3,
+      "title": "Avengers: Endgame",
+      "posterUrl": "https://...",
+      "ageRating": "T13"
+    },
+    "showtimes": [
+      {
+        "showtimeId": 7,
+        "startTime": "2026-05-18T18:00:00",
+        "endTime": "2026-05-18T20:10:00",
+        "format": "2D",
+        "basePrice": 75000.00,
+        "status": "AVAILABLE",
+        "roomName": "Hall 1"
+      }
+    ]
+  }
+}
+```
     
 
 ## 5. Ghế & Đặt vé (Seats & Bookings)
@@ -205,6 +341,26 @@
 - **Xóa ghế theo phòng:** `DELETE /api/v1/admin/seats/delete/{roomId}`
     
 - **Lấy ghế theo lịch chiếu (Public):** `GET /api/v1/public/seats` (Query: `showtimeId`, **required**)
+
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "seatId": 101,
+      "row": 3.0,
+      "col": 5.0,
+      "rowLabel": "C",
+      "colLabel": "5",
+      "seatType": { "seatTypeId": 1, "name": "VIP", "priceMultiplier": 1.5 },
+      "status": "ACTIVE",
+      "isLocked": false,
+      "isSold": false,
+      "occupancyStatus": "AVAILABLE"
+    }
+  ]
+}
+```
     
 
 ### Giữ ghế (Locking)
@@ -223,10 +379,38 @@
 - **Tạo Booking:** `POST /api/v1/bookings`
     
     - Body: `showtimeId` (**req**), `seatIds` (array, **req**), `paymentMethod` (enum: CASH, VNPAY, MOMO, **req**), `voucherId` (int64), `foodItems` (mảng object: `foodId`, `quantity` min 1)
-        
+
+```json
+{
+  "code": 200,
+  "data": {
+    "bookingId": 42,
+    "status": "PENDING",
+    "expiresAt": "2026-05-18T18:15:00",
+    "seatSubtotal": 196000.00,
+    "foodSubtotal": 73500.00,
+    "discountAmount": 26950.00,
+    "totalAmount": 242550.00
+  }
+}
+```
+
 - **Xác nhận thanh toán:** `POST /api/v1/bookings/{bookingId}/confirm-payment`
     
     - Body: `paymentRef` (string, **req**), `gateway` (string, **req**)
+
+```json
+{
+  "code": 200,
+  "data": {
+    "bookingId": 42,
+    "status": "PAID",
+    "paymentRef": "VNP20260518001234",
+    "gateway": "VNPAY",
+    "ticketStatus": "PENDING"
+  }
+}
+```
         
 
 ## 6. Voucher & Khuyến mãi
@@ -249,6 +433,24 @@
 ### Dành cho User
 
 - **Lấy voucher của tôi:** `GET /api/v1/user/vouchers`
+
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "type": "PERCENT",
+      "value": 10.00,
+      "maxDiscount": 50000.00,
+      "minOrderValue": 200000.00,
+      "quantity": 100,
+      "usedCount": 23,
+      "startAt": "2026-05-01T00:00:00",
+      "expiredAt": "2026-05-31T23:59:59"
+    }
+  ]
+}
+```
     
 
 ## 7. Cấu hình hệ thống (Admin)
@@ -256,7 +458,22 @@
 ### Cấu hình giá (Price Config)
 
 - **Lấy tất cả:** `GET /api/v1/admin/price-config/all`
-    
+
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "configId": 1,
+      "dayType": "WEEKEND",
+      "timeSlot": "EVENING",
+      "movieFormat": "3D",
+      "multiplier": 1.5
+    }
+  ]
+}
+```
+
 - **Cập nhật:** `POST /api/v1/admin/price-config/update`
     
     - Body: `configId` (**req**), `multiplier` (number, **req**), `dayType` (WEEKDAY, WEEKEND, HOLIDAY), `timeSlot` (MORNING, AFTERNOON, EVENING), `movieFormat` (2D, 3D, IMAX)
@@ -265,6 +482,20 @@
 ### Quản lý ngày lễ (Holiday)
 
 - **Lấy tất cả:** `GET /api/v1/admin/holiday/all`
+
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "holidayId": 1,
+      "date": "2026-09-02",
+      "name": "Quốc khánh",
+      "isRecurring": true
+    }
+  ]
+}
+```
     
 - **Tạo:** `POST /api/v1/admin/holiday/create`
     
@@ -275,9 +506,49 @@
 - **Xóa:** `DELETE /api/v1/admin/holiday/delete` (Body: `holidayId`)
     
 
-### Khác
+### Đồ ăn (Food)
 
-- **Đồ ăn:** `GET /api/v1/user/food` (Lấy danh sách đồ ăn)
+#### Dành cho User
+
+- **Danh sách đồ ăn (available):** `GET /api/v1/user/food`
+    - Chỉ trả về các món đang available.
+
+```json
+{
+  "code": 200,
+  "message": "Lấy danh sách thức ăn thành công",
+  "data": [
+    {
+      "foodId": 1,
+      "name": "Combo Bắp + Nước",
+      "description": "Bắp rang bơ lớn + Pepsi lớn",
+      "price": 75000.00,
+      "category": "COMBO",
+      "imageUrl": "https://...",
+      "available": true
+    }
+  ]
+}
+```
+
+#### Dành cho Admin
+
+- **Danh sách tất cả đồ ăn:** `GET /api/v1/admin/food`
+    - Trả về tất cả (bao gồm cả unavailable/deleted).
+
+- **Tạo đồ ăn:** `POST /api/v1/admin/food`
+    - Body:
+        - `name` (string, **required**)
+        - `description` (string)
+        - `price` (number, **required**, > 0)
+        - `category` (enum, **required**)
+        - `imageUrl` (string)
+        - `available` (boolean, default: true)
+
+- **Cập nhật đồ ăn:** `PUT /api/v1/admin/food/{id}`
+    - Body: giống tạo mới.
+
+- **Xóa đồ ăn (soft delete):** `DELETE /api/v1/admin/food/{id}`
 
 ## 8. Báo cáo & Thống kê (Reports - Admin Only)
 
@@ -289,12 +560,43 @@
 - **Mô tả:** Trả về tổng doanh thu, doanh thu vé, doanh thu đồ ăn, số vé bán, AOV... trong khoảng thời gian.
 - **Giới hạn:** Tối đa 366 ngày.
 
+```json
+{
+  "code": 200,
+  "data": {
+    "from": "2026-05-01",
+    "to": "2026-05-18",
+    "totalRevenue": 12500000.00,
+    "ticketRevenue": 10000000.00,
+    "foodRevenue": 2500000.00,
+    "totalTicketsSold": 450,
+    "totalBookingsPaid": 120,
+    "totalDiscount": 500000.00,
+    "averageOrderValue": 104166.67
+  }
+}
+```
+
 ### Chuỗi doanh thu theo ngày
 - **Endpoint:** `GET /api/v1/admin/reports/revenue/daily`
 - **Query Params:**
     - `from` (string, format: date, **required**)
     - `to` (string, format: date, **required**)
 - **Mô tả:** Trả về doanh thu và số lượng bán hàng của từng ngày để vẽ biểu đồ.
+
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "date": "2026-05-15",
+      "revenue": 3500000.00,
+      "bookingCount": 18,
+      "ticketCount": 45
+    }
+  ]
+}
+```
 
 ### Doanh thu theo phim
 - **Endpoint:** `GET /api/v1/admin/reports/revenue/by-movie`
@@ -303,12 +605,42 @@
     - `to` (string, format: date, **required**)
 - **Mô tả:** Trả về danh sách phim bán chạy kèm doanh thu, sắp xếp giảm dần.
 
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "movieId": 3,
+      "movieTitle": "Avengers: Endgame",
+      "ticketRevenue": 5600000.00,
+      "ticketsSold": 210,
+      "bookingCount": 72
+    }
+  ]
+}
+```
+
 ### Doanh thu theo rạp
 - **Endpoint:** `GET /api/v1/admin/reports/revenue/by-cinema`
 - **Query Params:**
     - `from` (string, format: date, **required**)
     - `to` (string, format: date, **required**)
 - **Mô tả:** Trả về danh sách rạp kèm doanh thu, sắp xếp giảm dần.
+
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "cinemaId": 1,
+      "cinemaName": "CGV Vincom Center",
+      "ticketRevenue": 8200000.00,
+      "ticketsSold": 310,
+      "bookingCount": 98
+    }
+  ]
+}
+```
 
 ## 9. Hồ sơ người dùng (User Profile)
 
@@ -383,13 +715,13 @@
 
 **Hệ thống hạng thành viên (Loyalty):**
 
-| Hạng | Điểm tích lũy | Quy đổi |
+| Hạng | Điểm tích lũy | Giảm giá |
 |---|---|---|
-| SILVER | 0 – 500 điểm | — |
-| GOLD | 501 – 1500 điểm | — |
-| DIAMOND | > 1500 điểm | — |
+| SILVER | 0 – 500 điểm | 2% |
+| GOLD | 501 – 1500 điểm | 3% |
+| DIAMOND | > 1500 điểm | 5% |
 
-> 1 điểm = 40,000 VNĐ trong `totalPaid`. Điểm và hạng được cập nhật tự động sau khi booking được xác nhận thanh toán.
+> 1 điểm = 40,000 VNĐ trong `totalPaid`. Điểm và hạng được cập nhật tự động sau khi booking được xác nhận thanh toán. Giảm giá theo hạng được áp dụng tự động vào subtotal (ghế + đồ ăn) trước khi áp voucher.
 
 ---
 
@@ -404,6 +736,7 @@
 | `name` | string | Không | 2 – 100 ký tự |
 | `email` | string | Không | Định dạng email hợp lệ |
 | `phone` | string | Không | 9 – 11 ký tự |
+| `avatarUrl` | string | Không | URL ảnh đại diện |
 
 - **Response:** `200 OK` — trả về `UserDTO` đã cập nhật.
 
