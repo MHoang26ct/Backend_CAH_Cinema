@@ -34,6 +34,13 @@ public class FoodRepositoryImpl implements FoodRepository {
     }
 
     @Override
+    public List<Food> getAllAvailableFoods() {
+        return jpaFoodRepository.findByAvailableTrue().stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public List<Food> getAllFoods() {
         return jpaFoodRepository.findAll().stream()
                 .map(mapper::toDomain)

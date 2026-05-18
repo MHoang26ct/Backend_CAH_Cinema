@@ -24,15 +24,13 @@ class FoodOrderModuleServiceTest {
     void deleteMarksExistingFoodDeleted() {
         FoodRepository foodRepository = mock(FoodRepository.class);
         FoodService foodService = new FoodService(foodRepository);
-        Food request = new Food();
-        request.setFoodId(5L);
         Food existing = new Food();
         existing.setFoodId(5L);
         existing.setDeleted(false);
 
         when(foodRepository.findById(5L)).thenReturn(Optional.of(existing));
 
-        foodService.delete(request);
+        foodService.delete(5L);
 
         assertTrue(existing.isDeleted());
         verify(foodRepository).save(existing);

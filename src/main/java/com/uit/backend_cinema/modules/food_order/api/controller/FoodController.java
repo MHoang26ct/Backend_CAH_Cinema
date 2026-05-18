@@ -26,7 +26,7 @@ public class FoodController {
 
     @GetMapping
     public ResponseEntity<?> getAllFoodOrder() {
-        List<FoodDTO> response = foodService.getAll().stream()
+        List<FoodDTO> response = foodService.getAvailableFoods().stream()
                 .map(mapper::toDTO)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(response, "Lấy danh sách thức ăn thành công"));
