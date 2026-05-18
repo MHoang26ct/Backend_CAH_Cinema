@@ -10,6 +10,7 @@ public interface FoodRepository {
     Optional<Food> findById(long id);
 
     List<Food> findAllByListId(Set<Long> ids);
+    List<Food> getAllAvailableFoods();
     List<Food> getAllFoods();
     Food save(Food food);
 

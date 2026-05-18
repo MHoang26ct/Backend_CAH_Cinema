@@ -27,6 +27,10 @@ public class FoodService {
         return foodList;
     }
 
+    public List<Food> getAvailableFoods() {
+        return foodRepository.getAllAvailableFoods();
+    }
+
     public List<Food> getAll() {
         return foodRepository.getAllFoods();
     }
@@ -36,12 +40,28 @@ public class FoodService {
         return foodRepository.save(food);
     }
 
+    @Transactional
+    public Food update(long id, Food updateData) {
+        Food existingFood = foodRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(
+                        "Thức ăn/Thức uống với Id " + id + " không tồn tại",
+                        ErrorCode.RESOURCE_NOT_FOUND));
+
+        existingFood.setName(updateData.getName());
+        existingFood.setDescription(updateData.getDescription());
+        existingFood.setPrice(updateData.getPrice());
+        existingFood.setCategory(updateData.getCategory());
+        existingFood.setImageUrl(updateData.getImageUrl());
+        existingFood.setAvailable(updateData.isAvailable());
+
+        return foodRepository.save(existingFood);
+    }
 
     @Transactional
-    public void delete(Food food) {
-        Food existingFood = foodRepository.findById(food.getFoodId())
+    public void delete(long id) {
+        Food existingFood = foodRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(
-                        "Thức ăn/Thức uống với Id " + food.getFoodId() + " không tồn tại",
+                        "Thức ăn/Thức uống với Id " + id + " không tồn tại",
                         ErrorCode.RESOURCE_NOT_FOUND));
         existingFood.setDeleted(true);
         foodRepository.save(existingFood);
