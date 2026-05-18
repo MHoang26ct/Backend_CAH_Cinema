@@ -20,7 +20,7 @@ public interface UserRepository {
      * Cập nhật một phần thông tin profile (name, email, phone).
      * Chỉ cập nhật field nào khác null.
      */
-    User updateProfile(Long userId, String name, String email, String phone);
+    User updateProfile(Long userId, String name, String email, String phone, String avatarUrl);
 
     /**
      * Cộng {@code amount} vào total_paid và tính lại total_point + rank_level.

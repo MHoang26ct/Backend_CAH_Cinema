@@ -74,12 +74,13 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public User updateProfile(Long userId, String name, String email, String phone) {
+    public User updateProfile(Long userId, String name, String email, String phone, String avatarUrl) {
         UserJpaEntity entity = jpaUserRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User không tồn tại: " + userId));
         if (name  != null) entity.setName(name);
         if (email != null) entity.setEmail(email);
         if (phone != null) entity.setPhone(phone);
+        if (avatarUrl != null) entity.setAvatarUrl(avatarUrl);
         return mapper.toDomain(jpaUserRepository.save(entity));
     }
 }
