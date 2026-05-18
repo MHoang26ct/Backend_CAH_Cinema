@@ -13,11 +13,11 @@ public class CreateSeatDTO {
     private Long roomId;
 
     @NotNull(message = "Hàng không được để trống")
-    @DecimalMin(value = "0.0", inclusive = false)
+    @DecimalMin(value = "1.0", inclusive = false)
     private BigDecimal row;
 
     @NotNull(message = "Cột không được để trống")
-    @DecimalMin(value = "0.0", inclusive = false)
+    @DecimalMin(value = "1.0", inclusive = false)
     private BigDecimal col;
 
     @NotNull(message = "ID loại ghế không được để trống")

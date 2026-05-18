@@ -47,6 +47,7 @@ CREATE TABLE cinemas (
     cinema_id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     address VARCHAR(500) NOT NULL,
+    image_url TEXT,
     hotline VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN DEFAULT FALSE
@@ -164,7 +165,8 @@ CREATE TABLE seats (
     seat_col NUMERIC(5,1) NOT NULL,
     seat_type_id INT NOT NULL REFERENCES seat_types(seat_type_id),
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'PREPARE')),
-    is_deleted BOOLEAN DEFAULT FALSE
+    is_deleted BOOLEAN DEFAULT false,
+    CONSTRAINT chk_row_col_min_val CHECK (seat_row >= 1 AND seat_col >= 1)
 );
 
 CREATE TABLE showtimes (

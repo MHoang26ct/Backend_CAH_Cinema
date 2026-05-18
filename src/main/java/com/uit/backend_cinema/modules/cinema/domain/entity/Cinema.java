@@ -9,6 +9,7 @@ public class Cinema {
     private long cinemaId;
     private String name;
     private String address;
+    private String imageUrl;
     private String hotline;
     private boolean deleted = false;
 }
