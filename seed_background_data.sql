@@ -14,6 +14,9 @@ BEGIN;
 -- 1. Lookup data
 -- =============================================================
 
+INSERT INTO roles (role_name) VALUES ('ROLE_USER'), ('ROLE_ADMIN')
+ON CONFLICT (role_name) DO NOTHING;
+
 INSERT INTO genres (name, created_at, is_deleted)
 SELECT v.name, CURRENT_TIMESTAMP, FALSE
 FROM (VALUES
@@ -90,16 +93,16 @@ WHERE NOT EXISTS (
 -- 2. Cinemas, rooms, and seats
 -- =============================================================
 
-INSERT INTO cinemas (name, address, hotline, created_at, is_deleted)
-SELECT v.name, v.address, v.hotline, CURRENT_TIMESTAMP, FALSE
+INSERT INTO cinemas (name, address, image_url, hotline, created_at, is_deleted)
+SELECT v.name, v.address, v.image_url, v.hotline, CURRENT_TIMESTAMP, FALSE
 FROM (VALUES
-    ('CAH Cinema Landmark 81', 'Tầng B1, Vincom Center Landmark 81, 720A Điện Biên Phủ, Bình Thạnh, TP.HCM', '028 7300 8181'),
-    ('CAH Cinema Sư Vạn Hạnh', 'Tầng 6, Vạn Hạnh Mall, 11 Sư Vạn Hạnh, Quận 10, TP.HCM', '028 7300 1010'),
-    ('CAH Cinema Crescent Mall', 'Tầng 5, Crescent Mall, 101 Tôn Dật Tiên, Quận 7, TP.HCM', '028 7300 0707'),
-    ('CAH Cinema Vincom Bà Triệu', 'Tầng 6, Vincom Center, 191 Bà Triệu, Hai Bà Trưng, Hà Nội', '024 7300 1919'),
-    ('CAH Cinema Royal City', 'Tầng B2, Royal City, 72A Nguyễn Trãi, Thanh Xuân, Hà Nội', '024 7300 7272'),
-    ('CAH Cinema Đà Nẵng Riverside', 'Tầng 4, Indochina Riverside Mall, 74 Bạch Đằng, Hải Châu, Đà Nẵng', '0236 7300 7474')
-) AS v(name, address, hotline)
+    ('CAH Cinema Landmark 81', 'Tầng B1, Vincom Center Landmark 81, 720A Điện Biên Phủ, Bình Thạnh, TP.HCM', 'https://cdn.cah.local/cinemas/landmark81.jpg', '028 7300 8181'),
+    ('CAH Cinema Sư Vạn Hạnh', 'Tầng 6, Vạn Hạnh Mall, 11 Sư Vạn Hạnh, Quận 10, TP.HCM', 'https://cdn.cah.local/cinemas/su-van-hanh.jpg', '028 7300 1010'),
+    ('CAH Cinema Crescent Mall', 'Tầng 5, Crescent Mall, 101 Tôn Dật Tiên, Quận 7, TP.HCM', 'https://cdn.cah.local/cinemas/crescent-mall.jpg', '028 7300 0707'),
+    ('CAH Cinema Vincom Bà Triệu', 'Tầng 6, Vincom Center, 191 Bà Triệu, Hai Bà Trưng, Hà Nội', 'https://cdn.cah.local/cinemas/vincom-ba-trieu.jpg', '024 7300 1919'),
+    ('CAH Cinema Royal City', 'Tầng B2, Royal City, 72A Nguyễn Trãi, Thanh Xuân, Hà Nội', 'https://cdn.cah.local/cinemas/royal-city.jpg', '024 7300 7272'),
+    ('CAH Cinema Đà Nẵng Riverside', 'Tầng 4, Indochina Riverside Mall, 74 Bạch Đằng, Hải Châu, Đà Nẵng', 'https://cdn.cah.local/cinemas/da-nang-riverside.jpg', '0236 7300 7474')
+) AS v(name, address, image_url, hotline)
 WHERE NOT EXISTS (
     SELECT 1 FROM cinemas c WHERE c.name = v.name AND c.is_deleted = FALSE
 );
