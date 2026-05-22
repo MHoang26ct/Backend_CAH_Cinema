@@ -758,3 +758,243 @@
   }
 }
 ```
+
+---
+
+## 10. Bình luận phim (Movie Comments)
+
+### Quy tắc & Điều kiện:
+- Chỉ cho phép người dùng đã xem phim (tức là trạng thái booking của phim đó là `CHECKED_IN`) và số lần comment không được lớn hơn số lần xem phim.
+- Chỉ người tạo bình luận mới được quyền xóa bình luận của mình.
+
+### Dành cho Public (Không yêu cầu đăng nhập)
+
+- **Lấy danh sách bình luận của phim:** `GET /api/v1/public/comments/movies/{movieId}`
+    - Query params:
+        - `page` (integer, mặc định `0`)
+        - `size` (integer, mặc định `3`)
+    - Sắp xếp mặc định: `createdAt,desc` (mới nhất lên đầu)
+    - Response: Trả về một `Slice<CommentResponse>` bọc trong `ApiResponse`.
+    
+```json
+{
+  "code": 200,
+  "message": "Success",
+  "data": {
+    "content": [
+      {
+        "commentId": 1,
+        "userId": 10,
+        "userName": "Nguyễn Văn A",
+        "userAvatar": "https://...",
+        "content": "Phim rất hay và xúc động!",
+        "createdAt": "2026-05-22T10:00:00"
+      }
+    ],
+    "pageable": {
+      "sort": {
+        "empty": false,
+        "sorted": true,
+        "unsorted": false
+      },
+      "offset": 0,
+      "pageNumber": 0,
+      "pageSize": 3,
+      "paged": true,
+      "unpaged": false
+    },
+    "size": 3,
+    "number": 0,
+    "sort": {
+      "empty": false,
+      "sorted": true,
+      "unsorted": false
+    },
+    "first": true,
+    "last": false,
+    "numberOfElements": 1,
+    "empty": false
+  }
+}
+```
+
+### Dành cho User (Yêu cầu đăng nhập)
+
+- **Thêm bình luận cho phim:** `POST /api/v1/user/comments/movies/{movieId}`
+    - Body:
+        - `content` (string, **required**, không trống)
+    - Response: `200 OK` (bọc trong `ApiResponse`)
+    
+```json
+{
+  "code": 200,
+  "message": "Thêm bình luận thành công",
+  "data": {
+    "commentId": 1,
+    "userId": 10,
+    "userName": "Nguyễn Văn A",
+    "userAvatar": "https://...",
+    "content": "Phim rất hay và xúc động!",
+    "createdAt": "2026-05-22T10:00:00"
+  }
+}
+```
+
+- **Xóa bình luận:** `DELETE /api/v1/user/comments/{commentId}`
+    - Response: `200 OK` (bọc trong `ApiResponse`)
+    
+```json
+{
+  "code": 200,
+  "message": "Xóa bình luận thành công",
+  "data": null
+}
+```
+
+---
+
+## 11. Bài viết khuyến mãi (Promotion Articles)
+
+### Quy tắc hiển thị:
+- **Xem danh sách/Preview:** Chỉ trả về thông tin cơ bản: `promotionId`, `title`, `shortDescription`, `imageUrl`, `createdAt`, `isActive`. Tránh tải các trường chi tiết dài như `startDate`, `endDate`, `conditions`, `note` để tối ưu tải trang.
+- **Xem chi tiết:** Trả về đầy đủ tất cả các trường thông tin bài viết khuyến mãi.
+- Các trường `startDate` và `endDate` (dạng `LocalDate`) chỉ lưu để hiển thị, không mang ý nghĩa logic nghiệp vụ.
+
+### Dành cho Public (Không yêu cầu đăng nhập)
+
+- **Lấy danh sách khuyến mãi (Active):** `GET /api/v1/public/promotions`
+    - Phân trang mặc định: `size=9, sort="createdAt,desc"`
+    - Chỉ hiển thị các bài viết có `isActive = true`.
+    - Response: Trả về một `Page<PromotionArticlePreviewResponse>` bọc trong `ApiResponse`.
+    
+```json
+{
+  "code": 200,
+  "message": "Lấy danh sách khuyến mãi thành công",
+  "data": {
+    "content": [
+      {
+        "promotionId": 1,
+        "title": "Khuyến mãi hè cực khủng",
+        "shortDescription": "Nhận ngay combo nước bắp miễn phí khi mua 2 vé xem phim...",
+        "imageUrl": "https://...",
+        "createdAt": "2026-05-22T08:00:00",
+        "isActive": true
+      }
+    ],
+    "pageable": {
+      "sort": {
+        "empty": false,
+        "sorted": true,
+        "unsorted": false
+      },
+      "offset": 0,
+      "pageNumber": 0,
+      "pageSize": 9,
+      "paged": true,
+      "unpaged": false
+    },
+    "totalPages": 1,
+    "totalElements": 1,
+    "size": 9,
+    "number": 0,
+    "sort": {
+      "empty": false,
+      "sorted": true,
+      "unsorted": false
+    },
+    "first": true,
+    "last": true,
+    "numberOfElements": 1,
+    "empty": false
+  }
+}
+```
+
+- **Chi tiết khuyến mãi:** `GET /api/v1/public/promotions/{id}`
+    - Yêu cầu bài viết đó có `isActive = true`.
+    - Response: Trả về `PromotionArticleResponse` bọc trong `ApiResponse`.
+    
+```json
+{
+  "code": 200,
+  "message": "Lấy chi tiết khuyến mãi thành công",
+  "data": {
+    "promotionId": 1,
+    "title": "Khuyến mãi hè cực khủng",
+    "shortDescription": "Nhận ngay combo nước bắp miễn phí khi mua 2 vé xem phim...",
+    "startDate": "2026-06-01",
+    "endDate": "2026-08-31",
+    "conditions": "Áp dụng cho mọi khách hàng đặt vé qua app/website từ ngày 1/6/2026.",
+    "imageUrl": "https://...",
+    "note": "Mỗi tài khoản chỉ được áp dụng 1 lần.",
+    "createdAt": "2026-05-22T08:00:00",
+    "updatedAt": "2026-05-22T08:00:00",
+    "isActive": true
+  }
+}
+```
+
+### Dành cho Admin
+
+- **Lấy danh sách tất cả khuyến mãi:** `GET /api/v1/admin/promotions`
+    - Query params: `page` (mặc định `0`), `size` (mặc định `10`)
+    - Trả về cả bài viết Active lẫn Inactive.
+    - Response: Trả về trực tiếp `Page<PromotionArticlePreviewResponse>` (không bọc trong `ApiResponse`).
+    
+```json
+{
+  "content": [
+    {
+      "promotionId": 1,
+      "title": "Khuyến mãi hè cực khủng",
+      "shortDescription": "Nhận ngay combo nước bắp miễn phí...",
+      "imageUrl": "https://...",
+      "createdAt": "2026-05-22T08:00:00",
+      "isActive": true
+    }
+  ],
+  "pageable": {
+    "sort": {
+      "empty": false,
+      "sorted": true,
+      "unsorted": false
+    },
+    "offset": 0,
+    "pageNumber": 0,
+    "pageSize": 10,
+    "paged": true,
+    "unpaged": false
+  },
+  "totalPages": 1,
+  "totalElements": 1,
+  "size": 10,
+  "number": 0,
+  "numberOfElements": 1,
+  "first": true,
+  "last": true,
+  "empty": false
+}
+```
+
+- **Chi tiết khuyến mãi (Admin):** `GET /api/v1/admin/promotions/{id}`
+    - Response: Trả về trực tiếp `PromotionArticleResponse`.
+    
+- **Tạo khuyến mãi mới:** `POST /api/v1/admin/promotions`
+    - Request Body (PromotionArticleRequest):
+        - `title` (string, **required**, không trống)
+        - `shortDescription` (string, **required**, không trống)
+        - `startDate` (string, format: `yyyy-MM-dd`, có thể null)
+        - `endDate` (string, format: `yyyy-MM-dd`, có thể null)
+        - `conditions` (string, có thể null)
+        - `imageUrl` (string, có thể null)
+        - `note` (string, có thể null)
+        - `isActive` (boolean, mặc định `true`)
+    - Response: `201 Created` chứa `PromotionArticleResponse` vừa tạo.
+    
+- **Cập nhật khuyến mãi:** `PUT /api/v1/admin/promotions/{id}`
+    - Body: giống tạo mới.
+    - Response: `200 OK` chứa `PromotionArticleResponse` sau khi cập nhật.
+    
+- **Xóa khuyến mãi:** `DELETE /api/v1/admin/promotions/{id}`
+    - Response: `204 No Content`

@@ -43,6 +43,10 @@ public enum ErrorCode {
     // Validation
     VALIDATION_FAILED,          // Dữ liệu đầu vào không hợp lệ (@Valid)
 
+    // Comment
+    USER_NOT_CHECKED_IN,
+    COMMENT_LIMIT_EXCEEDED,
+
     // Server
     INTERNAL_ERROR,             // Lỗi server không xác định
 
