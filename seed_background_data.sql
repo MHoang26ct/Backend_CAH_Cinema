@@ -377,18 +377,13 @@ ON CONFLICT (code) DO NOTHING;
 -- 5. Promotion articles
 -- =============================================================
 
-INSERT INTO promotion_articles (title, image_url, content, created_at, updated_at, is_active, is_deleted)
-SELECT v.title, v.image_url, v.content, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, TRUE, FALSE
+INSERT INTO promotion_articles (title, short_description, start_date, end_date, conditions, image_url, note, created_at, updated_at, is_active, is_deleted)
+SELECT v.title, v.short_description, v.start_date::DATE, v.end_date::DATE, v.conditions, NULL, v.note, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, TRUE, FALSE
 FROM (VALUES
-    ('Tuần lễ bom tấn tháng 5 tại CAH Cinema', 'https://cdn.cah.local/promotions/may-blockbuster.jpg', 'Đặt vé các suất chiếu Michael, Mortal Kombat II và Thẩm Mỹ Viện Âm Phủ để nhận ưu đãi bắp nước trong tuần lễ bom tấn.'),
-    ('Combo Doraemon Kids cho cả gia đình', 'https://cdn.cah.local/promotions/doraemon-kids.jpg', 'Combo trẻ em phiên bản giới hạn dành cho các suất chiếu phim hoạt hình và gia đình.'),
-    ('Đêm IMAX: Trải nghiệm màn hình lớn', 'https://cdn.cah.local/promotions/imax-night.jpg', 'Ưu đãi đặc biệt cho phòng IMAX vào các suất tối thứ Sáu, thứ Bảy và Chủ nhật.'),
-    ('Movie Night 15% cho hội bạn thân', 'https://cdn.cah.local/promotions/movie-night.jpg', 'Nhập mã MOVIENIGHT15 khi đặt vé từ 200.000đ để nhận ưu đãi tối đa 60.000đ.'),
-    ('Ưu đãi sinh viên giữa tuần', 'https://cdn.cah.local/promotions/student-weekday.jpg', 'Các suất chiếu từ thứ Hai đến thứ Năm có thêm voucher STUDENT45K cho đơn đủ điều kiện.'),
-    ('Mùa hè phiêu lưu cùng CAH', 'https://cdn.cah.local/promotions/summer-adventure.jpg', 'Chuỗi phim hoạt hình, gia đình và phiêu lưu được lên lịch dày đặc trong mùa hè 2026.'),
-    ('Horror Midnight: suất khuya rùng rợn', 'https://cdn.cah.local/promotions/horror-midnight.jpg', 'Các phim kinh dị và thriller có suất chiếu khuya cùng combo Midnight Horror.'),
-    ('Đặt sớm phim sắp chiếu', 'https://cdn.cah.local/promotions/coming-soon.jpg', 'Theo dõi lịch chiếu các phim sắp ra mắt để chọn ghế đẹp ngay khi mở bán.')
-) AS v(title, image_url, content)
+    ('Tuần lễ bom tấn tháng 5', 'Đặt vé để nhận ngay bắp nước miễn phí.', '2026-05-01', '2026-05-31', 'Áp dụng cho các giao dịch trên 300k.', 'Số lượng quà tặng có hạn trong ngày.'),
+    ('Combo Doraemon Kids', 'Combo trẻ em phiên bản giới hạn.', '2026-06-01', '2026-08-30', 'Chỉ áp dụng khi mua kèm vé phim hoạt hình.', 'Quà tặng kèm theo có thể hết sớm.'),
+    ('Đêm IMAX bùng nổ', 'Ưu đãi đặc biệt cho phòng chiếu IMAX.', '2026-05-15', '2026-07-15', 'Áp dụng cho các suất chiếu sau 20:00.', 'Không áp dụng cùng các chương trình khuyến mãi khác.')
+) AS v(title, short_description, start_date, end_date, conditions, note)
 WHERE NOT EXISTS (
     SELECT 1 FROM promotion_articles pa WHERE LOWER(pa.title) = LOWER(v.title) AND pa.is_deleted = FALSE
 );
@@ -480,3 +475,4 @@ WHERE NOT EXISTS (
 );
 
 COMMIT;
+
