@@ -294,3 +294,15 @@ CREATE TABLE outbox_events (
 
 CREATE INDEX idx_outbox_events_status_next_retry_at
 ON outbox_events (status, next_retry_at);
+
+CREATE TABLE movie_comments (
+    comment_id SERIAL PRIMARY KEY,
+    movie_id INT NOT NULL REFERENCES movies(movie_id),
+    user_id INT NOT NULL REFERENCES users(user_id),
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX idx_movie_comments_movie_id ON movie_comments(movie_id);

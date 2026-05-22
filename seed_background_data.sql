@@ -474,5 +474,28 @@ WHERE NOT EXISTS (
       AND st.is_deleted = FALSE
 );
 
-COMMIT;
+-- =============================================================
+-- 7. Seed sample movie comments
+-- =============================================================
 
+INSERT INTO users (user_id, name, email, password, auth_provider, rank_level, avatar_url)
+VALUES (9999, 'Nguyễn Văn A', 'user@cah.com', '$2a$10$eD2FpewLsn7k1/09eWw04kFh8sA4Z7T/G3R9D1u372tT7eW2', 'EMAIL', 'SILVER', 'https://avatar.iran.liara.run/public/1')
+ON CONFLICT (user_id) DO NOTHING;
+
+INSERT INTO user_roles (user_id, role_id)
+SELECT 9999, role_id FROM roles WHERE role_name = 'ROLE_USER'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO movie_comments (movie_id, user_id, content)
+SELECT 1, 9999, 'Phim này hay quá, rất đáng xem!'
+WHERE NOT EXISTS (
+    SELECT 1 FROM movie_comments WHERE movie_id = 1 AND user_id = 9999 AND content = 'Phim này hay quá, rất đáng xem!'
+);
+
+INSERT INTO movie_comments (movie_id, user_id, content)
+SELECT 1, 9999, 'Kỹ xảo tuyệt vời, diễn viên đóng rất đạt.'
+WHERE NOT EXISTS (
+    SELECT 1 FROM movie_comments WHERE movie_id = 1 AND user_id = 9999 AND content = 'Kỹ xảo tuyệt vời, diễn viên đóng rất đạt.'
+);
+
+COMMIT;

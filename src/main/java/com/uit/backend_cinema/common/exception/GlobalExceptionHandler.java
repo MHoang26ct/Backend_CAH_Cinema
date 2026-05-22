@@ -63,6 +63,8 @@ public class GlobalExceptionHandler {
                  ACCESS_TOKEN_INVALID,
                  DUPLICATE_RESOURCE,
                  SEAT_ALREADY_BOOKED,
+                 USER_NOT_CHECKED_IN,
+                 COMMENT_LIMIT_EXCEEDED,
                  VALIDATION_FAILED ->
                     HttpStatus.BAD_REQUEST;
 
