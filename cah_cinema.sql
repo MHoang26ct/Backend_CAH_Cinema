@@ -185,6 +185,21 @@ CREATE TABLE showtimes (
     CONSTRAINT CHK_showtime_duration CHECK (start_time < end_time)
 );
 
+-- Tạo bảng pending_room_cleanups (dùng cho Room Cloning + Cleanup Scheduler)
+CREATE TABLE IF NOT EXISTS pending_room_cleanups (
+    cleanup_id   SERIAL PRIMARY KEY,
+    old_room_id  INT       NOT NULL REFERENCES rooms(room_id),
+    new_room_id  INT       NOT NULL REFERENCES rooms(room_id),
+    replaced_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    cleaned_up   BOOLEAN   NOT NULL DEFAULT FALSE,
+    cleaned_up_at TIMESTAMP
+);
+
+-- Index để scheduler query nhanh
+CREATE INDEX IF NOT EXISTS idx_pending_room_cleanups_not_done
+    ON pending_room_cleanups(cleaned_up)
+    WHERE cleaned_up = FALSE;
+
 -- ==========================================
 -- 4. NHÓM BẢNG ĐẶT VÉ VÀ THANH TOÁN
 -- ==========================================
