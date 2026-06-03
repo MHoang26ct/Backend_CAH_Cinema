@@ -50,4 +50,11 @@ public class BookingRepositoryImpl implements BookingRepository {
     public int markExpiredIfPendingAndExpired(Long bookingId, LocalDateTime now) {
         return jpaBookingRepository.markExpiredIfPendingAndExpired(bookingId, now);
     }
+
+    @Override
+    public List<Booking> findActiveByShowtimeId(Long showtimeId) {
+        return jpaBookingRepository.findActiveByShowtimeId(showtimeId).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
 }

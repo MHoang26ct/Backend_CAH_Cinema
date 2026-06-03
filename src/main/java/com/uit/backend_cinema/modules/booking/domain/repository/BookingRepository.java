@@ -17,4 +17,7 @@ public interface BookingRepository {
     List<Booking> findByStatusAndExpiresAtBefore(BookingStatus status, LocalDateTime threshold);
 
     int markExpiredIfPendingAndExpired(Long bookingId, LocalDateTime now);
+
+    /** Tìm tất cả booking PAID hoặc PENDING của 1 showtime (dùng khi hủy showtime) */
+    List<Booking> findActiveByShowtimeId(Long showtimeId);
 }

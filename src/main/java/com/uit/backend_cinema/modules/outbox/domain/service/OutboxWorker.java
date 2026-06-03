@@ -15,17 +15,20 @@ public class OutboxWorker {
     private final OutboxEventService outboxEventService;
     private final BookingPaidOutboxHandler bookingPaidOutboxHandler;
     private final SendTicketEmailOutboxHandler sendTicketEmailOutboxHandler;
+    private final ShowtimeCancelledOutboxHandler showtimeCancelledOutboxHandler;
     private final long processingTimeoutSeconds;
     private final boolean outboxWorkerEnabled;
 
     public OutboxWorker(OutboxEventService outboxEventService,
                         BookingPaidOutboxHandler bookingPaidOutboxHandler,
                         SendTicketEmailOutboxHandler sendTicketEmailOutboxHandler,
+                        ShowtimeCancelledOutboxHandler showtimeCancelledOutboxHandler,
                         @Value("${outbox.worker.processing-timeout-seconds:120}") long processingTimeoutSeconds,
                         @Value("${outbox.worker.enabled:true}") boolean outboxWorkerEnabled) {
         this.outboxEventService = outboxEventService;
         this.bookingPaidOutboxHandler = bookingPaidOutboxHandler;
         this.sendTicketEmailOutboxHandler = sendTicketEmailOutboxHandler;
+        this.showtimeCancelledOutboxHandler = showtimeCancelledOutboxHandler;
         this.processingTimeoutSeconds = processingTimeoutSeconds;
         this.outboxWorkerEnabled = outboxWorkerEnabled;
     }
@@ -47,6 +50,7 @@ public class OutboxWorker {
             switch (event.getEventType()) {
                 case BOOKING_PAID -> bookingPaidOutboxHandler.handle(event);
                 case SEND_TICKET_EMAIL -> sendTicketEmailOutboxHandler.handle(event);
+                case SHOWTIME_CANCELLED -> showtimeCancelledOutboxHandler.handle(event);
             }
         } catch (Exception ex) {
             outboxEventService.markRetryOrFailed(event.getOutboxEventId(), ex);

@@ -128,6 +128,7 @@ public class OutboxEventService {
         return switch (eventType) {
             case BOOKING_PAID -> bookingPaidBackoffSeconds(retryCount);
             case SEND_TICKET_EMAIL -> sendTicketEmailBackoffSeconds(retryCount);
+            case SHOWTIME_CANCELLED -> showtimeCancelledBackoffSeconds(retryCount);
         };
     }
 
@@ -137,6 +138,11 @@ public class OutboxEventService {
     }
 
     private long sendTicketEmailBackoffSeconds(int retryCount) {
+        long[] delays = {60, 120, 240, 480, 960};
+        return delays[Math.min(retryCount, delays.length - 1)];
+    }
+
+    private long showtimeCancelledBackoffSeconds(int retryCount) {
         long[] delays = {60, 120, 240, 480, 960};
         return delays[Math.min(retryCount, delays.length - 1)];
     }

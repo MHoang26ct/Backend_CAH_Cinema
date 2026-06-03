@@ -33,7 +33,7 @@ public class AuthSeatController {
         this.showtimeService = showtimeService;
     }
 
-    // User chọn ghế → lock Redis 10 phút
+    // User chọn ghế → lock Redis 5 phút
     // POST /api/v1/seats/{seatId}/lock?showtimeId=5
     @PostMapping("/{seatId}/lock")
     public ResponseEntity<?> lockSeat(
@@ -42,6 +42,7 @@ public class AuthSeatController {
             @AuthenticationPrincipal CustomUserDetails user
     ) {
         Showtime showtime = showtimeService.getById(showtimeId);
+        showtimeService.validateShowtimeBookable(showtime);
         boolean success = seatService.preLockSeats(showtimeId, java.util.List.of(seatId), showtime.getRoomId(), user.getUserId());
         if (!success) {
             throw new BusinessException("Ghế đang được người khác chọn", ErrorCode.SEAT_ALREADY_BOOKED);
@@ -55,6 +56,7 @@ public class AuthSeatController {
             @AuthenticationPrincipal CustomUserDetails user
     ) {
         Showtime showtime = showtimeService.getById(requestDTO.getShowtimeId());
+        showtimeService.validateShowtimeBookable(showtime);
         boolean success = seatService.preLockSeats(
                 requestDTO.getShowtimeId(),
                 requestDTO.getSeatIds(),

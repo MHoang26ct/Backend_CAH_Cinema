@@ -44,6 +44,11 @@ public class SeatService {
     }
 
     // Lấy danh sách ghế theo phòng, kèm trạng thái lock từ Redis
+    public List<Seat> getOriginalSeatsByRoomId(Long roomId) {
+        return seatRepository.findByRoomId(roomId);
+    }
+
+    // Lấy danh sách ghế theo phòng, kèm trạng thái lock từ Redis
     public List<Seat> getSeatsByRoomId(Long roomId, Long showtimeId) {
         List<Seat> seats = seatRepository.findByRoomId(roomId);
         Set<Long> soldSeatIds = new java.util.HashSet<>(ticketService.findSoldSeatIdsByShowtimeId(showtimeId));

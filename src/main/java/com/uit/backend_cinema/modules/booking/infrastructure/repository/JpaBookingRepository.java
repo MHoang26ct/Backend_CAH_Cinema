@@ -35,6 +35,10 @@ public interface JpaBookingRepository extends JpaRepository<BookingJpaEntity, Lo
             """, nativeQuery = true)
     int markExpiredIfPendingAndExpired(@Param("bookingId") Long bookingId, @Param("now") LocalDateTime now);
 
+    /** Tìm booking PAID hoặc PENDING của 1 showtime (dùng khi hủy showtime để refund) */
+    @Query("SELECT b FROM BookingJpaEntity b WHERE b.showtimeId = :showtimeId AND b.status IN ('PAID', 'PENDING') AND b.isDeleted = false")
+    List<BookingJpaEntity> findActiveByShowtimeId(@Param("showtimeId") Long showtimeId);
+
     /**
      * Lấy 5 booking gần nhất (PAID / CHECKED_IN) của user, kèm đầy đủ thông tin
      * showtime, movie, cinema, room, ghế, thức ăn.
@@ -82,7 +86,7 @@ public interface JpaBookingRepository extends JpaRepository<BookingJpaEntity, Lo
             FROM (
                 SELECT * FROM bookings
                 WHERE user_id    = :userId
-                  AND status     IN ('PAID', 'CHECKED_IN')
+                  AND status     IN ('PAID', 'CHECKED_IN', 'REFUNDED')
                   AND is_deleted = FALSE
                 ORDER BY created_at DESC
                 LIMIT 5

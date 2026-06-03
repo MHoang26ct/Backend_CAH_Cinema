@@ -21,6 +21,8 @@ import com.uit.backend_cinema.modules.showtime.domain.repository.ShowtimeReposit
 @Service
 @Transactional(readOnly = true)
 public class ShowtimeService {
+    private static final int ADVANCE_BOOKING_LIMIT_DAYS = 7;
+
     private final ShowtimeRepository showtimeRepository;
     private final MovieService movieService;
 
@@ -35,12 +37,37 @@ public class ShowtimeService {
                         "Không tìm thấy suất chiếu", ErrorCode.RESOURCE_NOT_FOUND));
     }
 
+    /**
+     * Validate suất chiếu có thể đặt vé:
+     * 1. Status phải là AVAILABLE
+     * 2. Ngày chiếu phải trong vòng 7 ngày tới
+     */
+    public void validateShowtimeBookable(Showtime showtime) {
+        if (showtime.getStatus() != ShowtimeStatus.AVAILABLE) {
+            throw new BusinessException(
+                    "Suất chiếu không khả dụng để đặt vé", ErrorCode.VALIDATION_FAILED);
+        }
+        if (showtime.getStartTime().toLocalDate()
+                .isAfter(LocalDate.now().plusDays(ADVANCE_BOOKING_LIMIT_DAYS))) {
+            throw new BusinessException(
+                    "Chỉ có thể đặt vé cho suất chiếu trong vòng 7 ngày tới",
+                    ErrorCode.VALIDATION_FAILED);
+        }
+    }
+
     public MovieShowtimes getShowtimesByMovieId(Long movieId, LocalDate date) {
         return showtimeRepository.findShowtimesByMovieId(movieId, date);
     }
 
     public List<CinemaShowtimes> getShowtimesByCinemaId(Long cinemaId, LocalDate date) {
         return showtimeRepository.findShowtimesByCinemaId(cinemaId, date);
+    }
+
+    /**
+     * Admin: Lấy toàn bộ showtime của 1 phòng trong ngày (không lọc status).
+     */
+    public List<Showtime> getShowtimesByRoomAndDate(Long roomId, LocalDate date) {
+        return showtimeRepository.findAllByRoomIdAndDate(roomId, date);
     }
 
     @Transactional
@@ -79,6 +106,29 @@ public class ShowtimeService {
         Showtime existingShowtime = getById(showtimeId);
         existingShowtime.setStatus(ShowtimeStatus.SOLD_OUT);
         showtimeRepository.save(existingShowtime);
+    }
+
+    /**
+     * Batch cancel toàn bộ showtime AVAILABLE của phòng trong khoảng ngày chỉ định.
+     * Trả về danh sách showtime đã chuyển sang CANCELLED để caller xử lý refund.
+     */
+    @Transactional
+    public List<Showtime> cancelShowtimesByRoomBetweenDates(Long roomId, LocalDate from, LocalDate to) {
+        if (from.isAfter(to)) {
+            throw new BusinessException("Ngày bắt đầu phải trước ngày kết thúc", ErrorCode.VALIDATION_FAILED);
+        }
+        LocalDateTime fromDateTime = from.atStartOfDay();
+        LocalDateTime toDateTime = to.plusDays(1).atStartOfDay();
+
+        List<Showtime> activeShowtimes = showtimeRepository
+                .findActiveByRoomIdBetweenDates(roomId, fromDateTime, toDateTime);
+
+        for (Showtime showtime : activeShowtimes) {
+            showtime.setStatus(ShowtimeStatus.CANCELLED);
+            showtimeRepository.save(showtime);
+        }
+
+        return activeShowtimes;
     }
 
     private boolean isValidShowtime(Showtime newShowtime, boolean isCreate) {

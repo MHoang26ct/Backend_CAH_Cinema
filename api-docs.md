@@ -266,8 +266,16 @@
         
 - **Xóa lịch chiếu:** `DELETE /api/v1/admin/showtime/{showtimeId}`
     
+- **Xem lịch chiếu theo phòng:** `GET /api/v1/admin/showtime/rooms/{roomId}` (Query: `date` format: date, **required**)
+    - Xem toàn bộ showtime của phòng theo ngày (bao gồm mọi status: AVAILABLE, SOLD_OUT, HIDDEN, CANCELLED).
+        
+- **Hủy lịch chiếu hàng loạt:** `POST /api/v1/admin/showtime/cancel-by-room`
+    - Body: `roomId` (int64, **req**), `fromDate` (format: date, **req**), `toDate` (format: date, **req**), `reason` (string)
+    - Tự động refund booking PAID và hủy booking PENDING, tự động gửi email thông báo cho khách hàng.
 
 ### Xem lịch chiếu (Public)
+
+> **Lưu ý:** Chỉ có thể xem lịch chiếu trong vòng tối đa 7 ngày tới kể từ ngày hiện tại.
 
 - **Theo phim:** `GET /api/v1/public/showtimes/movies/{movieId}` (Query: `date` format: date, **required**)
 
@@ -337,9 +345,16 @@
 - **Tạo sơ đồ ghế (Admin):** `POST /api/v1/admin/seats/create`
     
     - Body: Mảng các object: `roomId` (int64), `row` (number, > 0), `col` (number, > 0), `seatTypeId` (int64)
-        
+
+- **Lấy sơ đồ ghế gốc theo phòng (Admin):** `GET /api/v1/admin/seats/rooms/{roomId}`
+    - Dùng để xem cấu hình sơ đồ ghế hiện tại của một phòng chiếu.
+
 - **Xóa ghế theo phòng:** `DELETE /api/v1/admin/seats/delete/{roomId}`
     
+- **Thay thế sơ đồ ghế (Room Cloning):** `PUT /api/v1/admin/seats/replace`
+    - Body: `roomId` (int64, **req**), `seats` (Mảng các object: `roomId` (int64), `row` (number, > 0), `col` (number, > 0), `seatTypeId` (int64))
+    - Chức năng: Thay thế sơ đồ ghế bằng cách tạo phòng mới. Showtime > 7 ngày tới sẽ tự động migrate sang phòng mới. Showtime ≤ 7 ngày giữ nguyên phòng cũ đến khi chiếu xong.
+
 - **Lấy ghế theo lịch chiếu (Public):** `GET /api/v1/public/seats` (Query: `showtimeId`, **required**)
 
 ```json

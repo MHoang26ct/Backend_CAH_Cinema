@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -37,6 +38,30 @@ class SeatModuleServiceTest {
 
         assertFalse(seatService.preLockSeats(7L, List.of(1L, 2L), 100L, 50L));
         verify(seatLockRepository).unlock(7L, 1L);
+    }
+
+    @Test
+    @DisplayName("Seat module: Lấy danh sách sơ đồ ghế gốc theo roomId")
+    void shouldReturnOriginalSeatsByRoomId() {
+        SeatRepository seatRepository = mock(SeatRepository.class);
+        SeatLockRepository seatLockRepository = mock(SeatLockRepository.class);
+        SeatTypeRepository seatTypeRepository = mock(SeatTypeRepository.class);
+        TicketService ticketService = mock(TicketService.class);
+        SeatService seatService = new SeatService(seatRepository, seatLockRepository, seatTypeRepository, ticketService);
+
+        Long roomId = 100L;
+        Seat seat1 = seat(1L, roomId);
+        Seat seat2 = seat(2L, roomId);
+        List<Seat> mockSeats = List.of(seat1, seat2);
+
+        when(seatRepository.findByRoomId(roomId)).thenReturn(mockSeats);
+
+        List<Seat> result = seatService.getOriginalSeatsByRoomId(roomId);
+
+        assertEquals(2, result.size());
+        assertEquals(1L, result.get(0).getSeatId());
+        assertEquals(2L, result.get(1).getSeatId());
+        verify(seatRepository).findByRoomId(roomId);
     }
 
     private Seat seat(Long seatId, Long roomId) {
