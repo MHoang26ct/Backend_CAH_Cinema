@@ -181,7 +181,7 @@ CREATE TABLE showtimes (
     end_time TIMESTAMP NOT NULL,
     base_price DECIMAL(18,2) NOT NULL CHECK (base_price >= 0),
     is_deleted BOOLEAN DEFAULT FALSE,
-    status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'SOLD_OUT', 'HIDDEN')),
+    status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'SOLD_OUT', 'HIDDEN', 'CANCELLED')),
     CONSTRAINT CHK_showtime_duration CHECK (start_time < end_time)
 );
 
