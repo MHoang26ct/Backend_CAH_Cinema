@@ -30,6 +30,7 @@ import com.uit.backend_cinema.modules.booking.domain.repository.PaymentConfirmat
 import com.uit.backend_cinema.modules.food_order.domain.service.FoodOrderService;
 import com.uit.backend_cinema.modules.outbox.domain.entity.OutboxEventType;
 import com.uit.backend_cinema.modules.outbox.domain.payload.BookingPaidPayload;
+import com.uit.backend_cinema.modules.outbox.domain.payload.ShowtimeCancelledPayload;
 import com.uit.backend_cinema.modules.outbox.domain.service.OutboxEventService;
 import com.uit.backend_cinema.modules.price_config.domain.service.PriceConfigService;
 import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
@@ -83,6 +84,7 @@ public class BookingService {
     @Transactional
     public PrePaymentBookingQuote createPrePaymentBooking(Long userId, CreateBookingRequestDTO requestDTO) {
         Showtime showtime = showtimeService.getById(requestDTO.getShowtimeId());
+        showtimeService.validateShowtimeBookable(showtime);
         List<Long> seatIds = requestDTO.getSeatIds();
         List<Seat> selectedSeats = seatService.promoteLocksForCheckout(requestDTO.getShowtimeId(), seatIds,
                 showtime.getRoomId(), userId);
@@ -290,5 +292,47 @@ public class BookingService {
         voucherService.releaseVoucherForExpiredBooking(booking.getVoucherId());
         ticketService.expireDraftItems(booking.getBookingId());
         foodOrderService.expireDraftItems(booking.getBookingId());
+    }
+
+    /**
+     * Refund toàn bộ booking còn active (PAID/PENDING) khi admin hủy showtime.
+     * - PAID  → REFUNDED + tạo outbox email thông báo
+     * - PENDING → EXPIRED + giải phóng seat lock và voucher
+     */
+    @Transactional
+    public void refundBookingsForCancelledShowtime(Long showtimeId, String reason) {
+        List<Booking> activeBookings = bookingRepository.findActiveByShowtimeId(showtimeId);
+        LocalDateTime now = LocalDateTime.now();
+
+        for (Booking booking : activeBookings) {
+            if (booking.getStatus() == BookingStatus.PAID) {
+                booking.setStatus(BookingStatus.REFUNDED);
+                bookingRepository.save(booking);
+
+                // Giải phóng voucher đã dùng
+                voucherService.releaseVoucherForExpiredBooking(booking.getVoucherId());
+
+                // Tạo outbox event để gửi email thông báo (bất đồng bộ)
+                ShowtimeCancelledPayload payload = new ShowtimeCancelledPayload();
+                payload.setBookingId(booking.getBookingId());
+                payload.setUserId(booking.getUserId());
+                payload.setShowtimeId(showtimeId);
+                payload.setReason(reason);
+
+                try {
+                    outboxEventService.createIfAbsent(
+                            OutboxEventType.SHOWTIME_CANCELLED,
+                            "booking-" + booking.getBookingId(),
+                            objectMapper.writeValueAsString(payload)
+                    );
+                } catch (JsonProcessingException ex) {
+                    throw new BusinessException("Không thể tạo outbox event", ErrorCode.OUTBOX_PAYLOAD_SERIALIZATION_FAILED, ex);
+                }
+
+            } else if (booking.getStatus() == BookingStatus.PENDING) {
+                // Hủy booking PENDING: đánh dấu EXPIRED + giải phóng lock
+                expireSingleBooking(booking, now);
+            }
+        }
     }
 }

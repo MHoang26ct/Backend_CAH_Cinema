@@ -141,4 +141,21 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepository {
                 })
                 .toList();
     }
+
+    @Override
+    public List<Showtime> findActiveByRoomIdBetweenDates(Long roomId, LocalDateTime from, LocalDateTime to) {
+        return jpaShowtimeRepository.findActiveByRoomIdBetweenDates(roomId, from, to).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public int updateRoomIdForShowtimesAfterDate(Long oldRoomId, Long newRoomId, LocalDateTime after) {
+        return jpaShowtimeRepository.updateRoomIdForShowtimesAfterDate(oldRoomId, newRoomId, after);
+    }
+
+    @Override
+    public Optional<LocalDateTime> findMaxEndTimeByRoomId(Long roomId) {
+        return jpaShowtimeRepository.findMaxEndTimeByRoomId(roomId);
+    }
 }

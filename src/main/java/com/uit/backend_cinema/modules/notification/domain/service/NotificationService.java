@@ -109,5 +109,34 @@ public class NotificationService {
                 + ":BOOKING:" + bookingId
                 + ":SEAT:" + ticket.getSeatId();
     }
+
+    /**
+     * Gửi email thông báo hủy suất chiếu do bảo trì / sự cố.
+     * Booking sẽ được hoàn tiền; admin xử lý hoàn tiền thực tế ngoài hệ thống.
+     */
+    public void sendShowtimeCancelledEmail(String email, Long bookingId,
+                                           Movie movie, Showtime showtime, String reason) {
+        String subject = "[CAH Cinema] Thông báo hủy suất chiếu - Booking #" + bookingId;
+        String content = buildShowtimeCancelledEmailContent(bookingId, movie, showtime, reason);
+        emailSender.sendEmail(email, subject, content);
+    }
+
+    private String buildShowtimeCancelledEmailContent(Long bookingId, Movie movie,
+                                                      Showtime showtime, String reason) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        StringBuilder content = new StringBuilder();
+        content.append("Kính gửi Quý khách,\n\n");
+        content.append("Chúng tôi xin thông báo suất chiếu sau đã bị hủy:\n\n");
+        content.append("Booking ID: ").append(bookingId).append("\n");
+        content.append("Phim: ").append(movie.getTitle()).append("\n");
+        content.append("Suất chiếu: ").append(showtime.getStartTime().format(formatter)).append("\n");
+        content.append("Lý do: ").append(reason != null ? reason : "Sự cố kỹ thuật").append("\n\n");
+        content.append("Đơn đặt vé của bạn đã được hoàn tiền. ");
+        content.append("Vui lòng liên hệ hotline để biết thêm chi tiết.\n\n");
+        content.append("Chúng tôi xin lỗi vì sự bất tiện này.\n");
+        content.append("Trân trọng,\nCAH Cinema");
+        return content.toString();
+    }
 }
+
 
