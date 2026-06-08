@@ -45,7 +45,8 @@ public class GlobalExceptionHandler {
                  BOOKING_INVALID_STATUS,
                  VOUCHER_HOLD_EXPIRED,
                  PAYMENT_REF_DUPLICATE,
-                 PAYMENT_ALREADY_CONFIRMED ->
+                 PAYMENT_ALREADY_CONFIRMED,
+                 TICKET_ALREADY_USED ->
                     HttpStatus.CONFLICT;
 
             case INVALID_CREDENTIALS,
@@ -65,13 +66,21 @@ public class GlobalExceptionHandler {
                  SEAT_ALREADY_BOOKED,
                  USER_NOT_CHECKED_IN,
                  COMMENT_LIMIT_EXCEEDED,
-                 VALIDATION_FAILED ->
+                 VALIDATION_FAILED,
+                 TICKET_INVALID_QR ->
                     HttpStatus.BAD_REQUEST;
 
             case INTERNAL_ERROR,
                  OUTBOX_EVENT_CREATE_FAILED,
                  OUTBOX_PAYLOAD_SERIALIZATION_FAILED,
-                 TICKET_CREATE_FAILED -> HttpStatus.INTERNAL_SERVER_ERROR;
+                 TICKET_CREATE_FAILED,
+                 MOMO_PAYMENT_CREATION_FAILED,
+                 VNPAY_PAYMENT_CREATION_FAILED -> HttpStatus.INTERNAL_SERVER_ERROR;
+
+            case MOMO_SIGNATURE_INVALID,
+                 MOMO_ORDER_ID_INVALID,
+                 VNPAY_SIGNATURE_INVALID,
+                 VNPAY_ORDER_ID_INVALID -> HttpStatus.BAD_REQUEST;
         };
     }
 

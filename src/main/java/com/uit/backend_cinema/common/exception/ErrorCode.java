@@ -39,6 +39,8 @@ public enum ErrorCode {
     OUTBOX_EVENT_CREATE_FAILED,
     OUTBOX_PAYLOAD_SERIALIZATION_FAILED,
     TICKET_CREATE_FAILED,
+    TICKET_ALREADY_USED,
+    TICKET_INVALID_QR,
 
     // Validation
     VALIDATION_FAILED,          // Dữ liệu đầu vào không hợp lệ (@Valid)
@@ -50,5 +52,13 @@ public enum ErrorCode {
     // Server
     INTERNAL_ERROR,             // Lỗi server không xác định
 
-    
+    // Payment Gateway - MoMo
+    MOMO_SIGNATURE_INVALID,     // Chữ ký MoMo không hợp lệ
+    MOMO_PAYMENT_CREATION_FAILED, // Gọi MoMo /create thất bại
+    MOMO_ORDER_ID_INVALID,      // orderId không parse được bookingId
+    // Payment Gateway - VNPay
+    VNPAY_SIGNATURE_INVALID,         // Chữ ký VNPay không hợp lệ
+    VNPAY_PAYMENT_CREATION_FAILED,   // Build URL thanh toán thất bại
+    VNPAY_ORDER_ID_INVALID,          // orderId không parse được bookingId
+
 }
