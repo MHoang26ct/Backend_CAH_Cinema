@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.common.util.JwtUtil;
 import com.uit.backend_cinema.common.util.QRCodeUtil;
 import com.uit.backend_cinema.modules.movies.domain.entity.Movie;
 import com.uit.backend_cinema.modules.notification.domain.repository.EmailSender;
@@ -24,13 +25,15 @@ import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 public class NotificationService {
     private final EmailSender emailSender;
     private final OtpStorage otpStorage;
+    private final JwtUtil jwtUtil;
 
     private static final long OTP_VALID_DURATION = 5;
     private static final int QR_SIZE = 300;
 
-    public NotificationService(EmailSender emailSender, OtpStorage otpStorage) {
+    public NotificationService(EmailSender emailSender, OtpStorage otpStorage, JwtUtil jwtUtil) {
         this.emailSender = emailSender;
         this.otpStorage = otpStorage;
+        this.jwtUtil = jwtUtil;
     }
 
     public void sendOtp(String email) {
@@ -105,9 +108,7 @@ public class NotificationService {
      * Tạo chuỗi nội dung để mã hoá vào QR Code của một vé.
      */
     private String buildQRText(Ticket ticket, Long bookingId) {
-        return "TICKET:" + ticket.getTicketId()
-                + ":BOOKING:" + bookingId
-                + ":SEAT:" + ticket.getSeatId();
+        return jwtUtil.generateTicketQrToken(ticket.getTicketId(), bookingId, ticket.getShowtimeId());
     }
 
     /**
