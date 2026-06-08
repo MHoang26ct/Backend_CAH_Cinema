@@ -36,4 +36,16 @@ public class BookingController {
         var response = bookingApiMapper.toResponse(quote);
         return ResponseEntity.ok(ApiResponse.success(response, "Tạo booking chờ thanh toán thành công"));
     }
+
+    @org.springframework.web.bind.annotation.GetMapping("/{bookingId}")
+    public ResponseEntity<?> getBookingStatus(
+            @org.springframework.web.bind.annotation.PathVariable Long bookingId,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        com.uit.backend_cinema.modules.booking.domain.entity.Booking booking = bookingService.getBooking(bookingId, user.getUserId());
+        com.uit.backend_cinema.modules.booking.api.dto.BookingStatusResponseDTO response = com.uit.backend_cinema.modules.booking.api.dto.BookingStatusResponseDTO.builder()
+                .bookingId(booking.getBookingId())
+                .status(booking.getStatus())
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(response, "Lấy trạng thái booking thành công"));
+    }
 }

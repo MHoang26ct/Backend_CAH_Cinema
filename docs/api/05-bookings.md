@@ -92,6 +92,19 @@
 }
 ```
 
+- **Lấy trạng thái Booking (User):** `GET /api/v1/bookings/{bookingId}`
+    - Dùng để Frontend polling kết quả thanh toán sau khi quét QR MoMo/VNPay.
+
+```json
+{
+  "code": 200,
+  "data": {
+    "bookingId": 42,
+    "status": "PAID"
+  }
+}
+```
+
 ### Thanh toán điện tử (MoMo & VNPay)
 
 - **Tạo đơn thanh toán MoMo (Yêu cầu đăng nhập):** `POST /api/v1/bookings/{bookingId}/momo/pay`

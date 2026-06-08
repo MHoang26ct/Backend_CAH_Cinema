@@ -117,8 +117,18 @@ public class BookingService {
         }
     }
 
+    public Booking getBooking(Long bookingId, Long userId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+        if (!booking.getUserId().equals(userId)) {
+            throw new BusinessException("Không có quyền truy cập booking này", ErrorCode.FORBIDDEN);
+        }
+        return booking;
+    }
+
     /**
      * Xác nhận thanh toán từ IPN callback của cổng thanh toán (server-to-server).
+
      * Không kiểm tra userId vì đây là server gọi server.
      * Dùng chung cho mọi gateway: MoMo, VNPay, ZaloPay, ...
      */
