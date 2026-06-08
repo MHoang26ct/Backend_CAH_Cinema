@@ -250,6 +250,7 @@ CREATE TABLE tickets (
     showtime_id INT NOT NULL REFERENCES showtimes(showtime_id),
     booking_id INT NOT NULL REFERENCES bookings(booking_id),
     price DECIMAL(18,2) NOT NULL CHECK (price >= 0),
+    is_checked_in BOOLEAN DEFAULT FALSE,
     CONSTRAINT uq_tickets_booking_seat UNIQUE (booking_id, seat_id),
     CONSTRAINT uq_tickets_showtime_seat UNIQUE (showtime_id, seat_id)
 );
@@ -321,3 +322,59 @@ CREATE TABLE movie_comments (
 );
 
 CREATE INDEX idx_movie_comments_movie_id ON movie_comments(movie_id);
+
+-- Bảng chung lưu thông tin yêu cầu thanh toán qua các cổng (MoMo, VNPay, ZaloPay, ...)
+-- Được tạo khi gọi API tạo đơn thanh toán tới gateway
+-- Dùng để:
+--   1. Tránh gọi gateway trùng lặp (trả lại payUrl cũ)
+--   2. Lưu trạng thái giao dịch xuyên suốt luồng
+--   3. Traceability: mapping booking ↔ gateway transaction
+CREATE TABLE payment_requests (
+    payment_request_id SERIAL PRIMARY KEY,
+
+    -- Liên kết với booking (1 booking chỉ có tối đa 1 payment request active)
+    booking_id INT NOT NULL REFERENCES bookings(booking_id),
+
+    -- Cổng thanh toán: MOMO, VNPAY, ZALOPAY, ...
+    gateway VARCHAR(30) NOT NULL,
+
+    -- Thông tin gửi lên gateway
+    request_id VARCHAR(100) NOT NULL,         -- Idempotency key do client tạo (lưu để trace)
+    gateway_request_id VARCHAR(100),          -- UUID do server sinh khi gọi MoMo API (idempotency server→MoMo)
+    order_id VARCHAR(200) NOT NULL,           -- Mã đơn hàng gửi lên gateway
+    amount BIGINT NOT NULL,                   -- Số tiền (VND)
+    order_info VARCHAR(255),                  -- Mô tả đơn hàng
+
+    -- Thông tin gateway trả về khi tạo đơn
+    pay_url TEXT,                             -- URL redirect sang trang thanh toán
+    deeplink TEXT,                            -- URL mở app thanh toán trực tiếp
+    qr_code_url TEXT,                         -- Dữ liệu để tạo mã QR
+    result_code INTEGER,                      -- resultCode từ gateway khi tạo đơn
+    response_message TEXT,                    -- message từ gateway
+
+    -- Thông tin sau khi user thanh toán (cập nhật từ IPN/callback)
+    gateway_trans_id VARCHAR(100),            -- Mã giao dịch phía gateway
+    pay_type VARCHAR(30),                     -- Hình thức TT: qr, webApp, app, ...
+
+    -- Trạng thái nội bộ
+    status VARCHAR(30) NOT NULL DEFAULT 'CREATED'
+        CHECK (status IN ('CREATED', 'PAID', 'FAILED')),
+        -- CREATED: đã tạo đơn thành công, chờ user thanh toán
+        -- PAID: callback xác nhận thanh toán thành công
+        -- FAILED: callback xác nhận thất bại
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index để query nhanh theo bookingId (không unique — 1 booking có nhiều payment requests khi retry)
+CREATE INDEX idx_payment_requests_booking_id
+    ON payment_requests (booking_id);
+
+-- Index tìm theo bookingId + requestId (dùng cho idempotency check client→server)
+CREATE INDEX idx_payment_requests_booking_request
+    ON payment_requests (booking_id, request_id);
+
+-- Tra cứu theo gateway + order_id (dùng khi nhận IPN)
+CREATE INDEX idx_payment_requests_gateway_order
+    ON payment_requests (gateway, order_id);

@@ -1,0 +1,5 @@
+.env
+deploy.env
+*.pem
+*.key
+tmp.patch
