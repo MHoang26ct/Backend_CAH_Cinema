@@ -46,4 +46,7 @@ public class TicketJpaEntity {
 
     @Column(name = "price", nullable = false)
     private BigDecimal price;
+
+    @Column(name = "is_checked_in", nullable = false)
+    private Boolean isCheckedIn = false;
 }

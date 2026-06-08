@@ -13,4 +13,5 @@ public class Ticket {
     private Long showtimeId;
     private Long bookingId;
     private BigDecimal price;
+    private Boolean isCheckedIn = false;
 }

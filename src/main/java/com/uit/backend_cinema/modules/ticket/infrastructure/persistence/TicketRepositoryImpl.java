@@ -1,6 +1,7 @@
 package com.uit.backend_cinema.modules.ticket.infrastructure.persistence;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
 
@@ -51,5 +52,17 @@ public class TicketRepositoryImpl implements TicketRepository {
                 showtimeId,
                 List.of(BookingStatus.PAID, BookingStatus.CHECKED_IN)
         );
+    }
+
+    @Override
+    public Optional<Ticket> findById(Long ticketId) {
+        return jpaTicketRepository.findById(ticketId).map(mapper::toDomain);
+    }
+
+    @Override
+    public Ticket save(Ticket ticket) {
+        var entity = mapper.toEntity(ticket);
+        var savedEntity = jpaTicketRepository.save(entity);
+        return mapper.toDomain(savedEntity);
     }
 }
