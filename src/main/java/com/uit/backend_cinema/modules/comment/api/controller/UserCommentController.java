@@ -20,7 +20,7 @@ import com.uit.backend_cinema.modules.comment.domain.entity.MovieComment;
 import com.uit.backend_cinema.modules.comment.domain.service.MovieCommentService;
 
 @RestController
-@RequestMapping("/api/v1/user/comments")
+@RequestMapping("/api/v1/comments")
 public class UserCommentController {
     private final MovieCommentService commentService;
     private final MovieCommentApiMapper mapper;

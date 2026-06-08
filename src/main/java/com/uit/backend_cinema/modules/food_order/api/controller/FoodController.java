@@ -13,7 +13,7 @@ import com.uit.backend_cinema.modules.food_order.api.mapper.FoodApiMapper;
 import com.uit.backend_cinema.modules.food_order.domain.service.FoodService;
 
 @RestController
-@RequestMapping("/api/v1/user/food")
+@RequestMapping("/api/v1/foods")
 public class FoodController {
 
     private final FoodService foodService;
