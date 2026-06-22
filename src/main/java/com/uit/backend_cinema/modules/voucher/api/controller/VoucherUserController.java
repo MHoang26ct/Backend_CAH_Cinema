@@ -13,7 +13,7 @@ import com.uit.backend_cinema.modules.voucher.api.mapper.VoucherApiMapper;
 import com.uit.backend_cinema.modules.voucher.domain.service.VoucherService;
 
 @RestController
-@RequestMapping("/api/v1/user/vouchers")
+@RequestMapping("/api/v1/vouchers")
 public class VoucherUserController {
     private final VoucherApiMapper voucherApiMapper;
     private final VoucherService voucherService;

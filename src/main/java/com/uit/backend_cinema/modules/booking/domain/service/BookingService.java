@@ -117,6 +117,82 @@ public class BookingService {
         }
     }
 
+    public Booking getBooking(Long bookingId, Long userId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+        if (!booking.getUserId().equals(userId)) {
+            throw new BusinessException("Không có quyền truy cập booking này", ErrorCode.FORBIDDEN);
+        }
+        return booking;
+    }
+
+    /**
+     * Xác nhận thanh toán từ IPN callback của cổng thanh toán (server-to-server).
+
+     * Không kiểm tra userId vì đây là server gọi server.
+     * Dùng chung cho mọi gateway: MoMo, VNPay, ZaloPay, ...
+     */
+    @Transactional
+    public ConfirmPaymentResponseDTO confirmPaymentByGateway(Long bookingId, String paymentRef, String gateway) {
+        // Idempotency: nếu đã confirm rồi thì trả về kết quả cũ
+        Optional<PaymentConfirmation> existing = paymentConfirmationRepository.findByPaymentRef(paymentRef);
+        if (existing.isPresent()) {
+            PaymentConfirmation confirmation = existing.get();
+            if (!confirmation.getBookingId().equals(bookingId)) {
+                throw new BusinessException("Mã tham chiếu thanh toán đã được dùng cho booking khác",
+                        ErrorCode.PAYMENT_REF_DUPLICATE);
+            }
+            Booking existingBooking = bookingRepository.findById(bookingId)
+                    .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+            if (existingBooking.getStatus() == BookingStatus.PAID) {
+                createBookingPaidOutbox(existingBooking, confirmation.getPaymentRef());
+            }
+            return buildPaymentResponse(existingBooking, confirmation.getPaymentRef(), confirmation.getGateway());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+
+        // Validate trạng thái (không cần check userId - server-to-server)
+        if (booking.getStatus() == BookingStatus.PAID) {
+            throw new BusinessException("Booking đã được thanh toán", ErrorCode.PAYMENT_ALREADY_CONFIRMED);
+        }
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new BusinessException("Booking không ở trạng thái chờ thanh toán", ErrorCode.BOOKING_INVALID_STATUS);
+        }
+        if (!booking.getExpiresAt().isAfter(now)) {
+            throw new BusinessException("Booking đã hết hạn thanh toán", ErrorCode.BOOKING_EXPIRED);
+        }
+
+        List<Long> seatIds = ticketService.findActiveDraftSeatIds(bookingId);
+        seatService.validateSeatsNotSold(booking.getShowtimeId(), seatIds);
+
+        foodOrderService.finalizeDraftForBookingIfAbsent(bookingId);
+
+        booking.setStatus(BookingStatus.PAID);
+        bookingRepository.save(booking);
+        try {
+            ticketService.finalizeTicketsForPaidBooking(bookingId, booking.getShowtimeId());
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException("Ghế đã được bán cho suất chiếu này", ErrorCode.SEAT_ALREADY_BOOKED, ex);
+        }
+
+        PaymentConfirmation confirmation = new PaymentConfirmation();
+        confirmation.setBookingId(bookingId);
+        confirmation.setPaymentRef(paymentRef);
+        confirmation.setStatus(PaymentConfirmationStatus.SUCCESS);
+        confirmation.setGateway(gateway);
+        try {
+            paymentConfirmationRepository.save(confirmation);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException("Mã tham chiếu thanh toán đã tồn tại", ErrorCode.PAYMENT_REF_DUPLICATE);
+        }
+
+        createBookingPaidOutbox(booking, paymentRef);
+        return buildPaymentResponse(booking, paymentRef, gateway);
+    }
+
     @Transactional
     public ConfirmPaymentResponseDTO confirmPayment(Long userId, Long bookingId, ConfirmPaymentRequestDTO requestDTO) {
         Optional<PaymentConfirmation> existingConfirmation = paymentConfirmationRepository

@@ -76,4 +76,31 @@ public class JwtUtil {
     private Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
+
+    public String generateTicketQrToken(Long ticketId, Long bookingId, Long showtimeId) {
+        return Jwts.builder()
+                .claim("ticketId", ticketId)
+                .claim("bookingId", bookingId)
+                .claim("showtimeId", showtimeId)
+                .claim("purpose", "TICKET_QR")
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + 365L * 24 * 60 * 60 * 1000)) // 1 year expiration
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public Claims validateTicketQrToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            if (!"TICKET_QR".equals(claims.get("purpose"))) {
+                return null;
+            }
+            if (claims.getExpiration().before(new Date())) {
+                return null;
+            }
+            return claims;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

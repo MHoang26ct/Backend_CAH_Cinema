@@ -82,17 +82,27 @@ public class SecurityConfig {
                         // Khu vực công cộng: Khách vãng lai có thể xem danh sách phim
                         .requestMatchers("/api/v1/public/**").permitAll()
 
-                        // Khu vực cấm: Chỉ ADMIN mới được vào Quản lý phim (Thêm/Sửa/Xóa)
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-
                         // Cho phép truy cập route báo lỗi nội bộ của Spring Boot (để tránh bị 403 giả)
                         .requestMatchers("/error").permitAll()
 
-                        // Khu vực yêu cầu đăng nhập: Chọn/bỏ chọn ghế
-                        .requestMatchers("/api/v1/seats/**").authenticated()
+                        // Các API yêu cầu đăng nhập chung (bất kể role nào: USER, STAFF, ADMIN)
+                        .requestMatchers(
+                                "/api/v1/users/me",
+                                "/api/v1/bookings/**",
+                                "/api/v1/seats/**",
+                                "/api/v1/comments/**",
+                                "/api/v1/foods/**",
+                                "/api/v1/vouchers/**"
+                        ).authenticated()
 
-                        // Tất cả các request khác bắt buộc phải có JWT hợp lệ
-                        .anyRequest().authenticated()
+                        // Khu vực nhân viên: Chỉ nhân viên và admin mới được thực hiện các tính năng soát vé
+                        .requestMatchers("/api/v1/staff/**").hasAnyRole("STAFF", "ADMIN")
+
+                        // Khu vực cấm: Chỉ ADMIN mới được vào Quản lý phim (Thêm/Sửa/Xóa)
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+
+                        // Chặn tất cả các request còn lại không nằm trong các nhóm trên
+                        .anyRequest().denyAll()
                 )
 
                 // Cấu hình custom exception handler để trả về chuẩn ErrorResponse

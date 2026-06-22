@@ -18,7 +18,8 @@ class NotificationModuleServiceTest {
     void verifyOtpDeletesMatchedOtp() {
         EmailSender emailSender = mock(EmailSender.class);
         OtpStorage otpStorage = mock(OtpStorage.class);
-        NotificationService notificationService = new NotificationService(emailSender, otpStorage);
+        com.uit.backend_cinema.common.util.JwtUtil jwtUtil = mock(com.uit.backend_cinema.common.util.JwtUtil.class);
+        NotificationService notificationService = new NotificationService(emailSender, otpStorage, jwtUtil);
 
         when(otpStorage.get("OTP: user@cah.vn")).thenReturn("123456");
 

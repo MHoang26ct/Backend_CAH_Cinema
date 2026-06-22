@@ -14,7 +14,7 @@ BEGIN;
 -- 1. Lookup data
 -- =============================================================
 
-INSERT INTO roles (role_name) VALUES ('ROLE_USER'), ('ROLE_ADMIN')
+INSERT INTO roles (role_name) VALUES ('ROLE_USER'), ('ROLE_ADMIN'), ('ROLE_STAFF')
 ON CONFLICT (role_name) DO NOTHING;
 
 INSERT INTO genres (name, created_at, is_deleted)
@@ -484,6 +484,14 @@ ON CONFLICT (user_id) DO NOTHING;
 
 INSERT INTO user_roles (user_id, role_id)
 SELECT 9999, role_id FROM roles WHERE role_name = 'ROLE_USER'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO users (user_id, name, email, password, auth_provider, rank_level, avatar_url)
+VALUES (9998, 'Staff User', 'staff@cah.com', '$2a$10$eD2FpewLsn7k1/09eWw04kFh8sA4Z7T/G3R9D1u372tT7eW2', 'EMAIL', 'SILVER', 'https://avatar.iran.liara.run/public/2')
+ON CONFLICT (user_id) DO NOTHING;
+
+INSERT INTO user_roles (user_id, role_id)
+SELECT 9998, role_id FROM roles WHERE role_name = 'ROLE_STAFF'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO movie_comments (movie_id, user_id, content)
