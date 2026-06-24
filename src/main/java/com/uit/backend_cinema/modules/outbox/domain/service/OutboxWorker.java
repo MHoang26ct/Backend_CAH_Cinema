@@ -33,7 +33,7 @@ public class OutboxWorker {
         this.outboxWorkerEnabled = outboxWorkerEnabled;
     }
 
-    @Scheduled(fixedDelayString = "${outbox.worker.fixed-delay-ms:5000}")
+    @Scheduled(fixedDelayString = "${outbox.worker.fixed-delay-ms:5000}", initialDelayString = "${outbox.worker.initial-delay-ms:0}")
     public void poll() {
         if (!outboxWorkerEnabled) {
             return;
