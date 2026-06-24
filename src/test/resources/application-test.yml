@@ -1,0 +1,87 @@
+# Root-level properties to resolve placeholders in application.yml and @Value annotations
+DB_URL: jdbc:postgresql://localhost:5432/testdb
+DB_USER: test
+DB_PASSWORD: test
+GOOGLE_CLIENT_ID: dummy-google-id
+GOOGLE_CLIENT_SECRET: dummy-google-secret
+REDIS_PORT: 6379
+GMAIL_USERNAME: dummy-gmail@gmail.com
+GG_APP_PASSWORD: dummy-password
+JWT_SECRET: 9a4f2c8d3b7a1e5f8c6b4d2e0a8f7c6b5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a
+MOMO_PARTNER_CODE: dummy
+MOMO_ACCESS_KEY: dummy
+MOMO_SECRET_KEY: dummy
+MOMO_ENDPOINT: http://localhost:8080/momo
+MOMO_REDIRECT_URL: http://localhost:3000
+MOMO_IPN_URL: http://localhost:8080/ipn
+VNPAY_TMN_CODE: dummy
+VNPAY_HASH_SECRET: dummy
+VNPAY_PAY_URL: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+VNPAY_RETURN_URL: http://localhost:3000
+VNPAY_IPN_URL: http://localhost:8080/ipn
+
+outbox:
+  worker:
+    enabled: true
+    fixed-delay-ms: 3600000
+
+spring:
+  application:
+    name: cinema-backend-test
+  datasource:
+    url: jdbc:postgresql://localhost:5432/testdb
+    username: test
+    password: test
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: dummy-google-id
+            client-secret: dummy-google-secret
+            scope:
+              - email
+              - profile
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: dummy-gmail@gmail.com
+    password: dummy-password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+jwt:
+  secret: 9a4f2c8d3b7a1e5f8c6b4d2e0a8f7c6b5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a
+  expiration: 86400000
+
+momo:
+  partner-code: dummy
+  access-key: dummy
+  secret-key: dummy
+  endpoint: http://localhost:8080/momo
+  redirect-url: http://localhost:3000
+  ipn-url: http://localhost:8080/ipn
+  payment-request-ttl-minutes: 10
+
+vnpay:
+  tmn-code: dummy
+  hash-secret: dummy
+  pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+  return-url: http://localhost:3000
+  ipn-url: http://localhost:8080/ipn
+  payment-request-ttl-minutes: 15
