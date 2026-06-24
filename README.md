@@ -198,7 +198,7 @@ Dự án được tích hợp sẵn đường ống dẫn tự động hóa tron
   - Đẩy lên Test Report (dạng HTML) và đóng gói lưu trữ file JAR kết quả nếu build thành công trên nhánh `main`.
 - **CD Pipeline ([deploy.yml](file:///Users/mhoang26ct/My%20Project/backend_cinema/.github/workflows/deploy.yml))**:
   - Tự động chạy sau khi CI Pipeline hoàn thành xuất sắc trên nhánh `main`.
-  - Tải file JAR đã build được và thực hiện triển khai qua SSH lên IP máy chủ `100.89.144.114` của người dùng `mhoang` sử dụng `appleboy/ssh-action`.
+  - Tải file JAR đã build được và thực hiện triển khai qua SSH lên máy chủ đích sử dụng `appleboy/ssh-action`.
   - Để chạy thực tế, bạn cần cấu hình các biến Secrets trong GitHub Repository: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`.
 
 ## 12. Đóng góp
