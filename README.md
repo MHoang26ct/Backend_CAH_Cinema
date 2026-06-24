@@ -144,6 +144,10 @@ Chạy test:
 ./gradlew test
 ```
 
+*Lưu ý khi chạy test:*
+- Dự án sử dụng **Testcontainers** để khởi chạy một cơ sở dữ liệu PostgreSQL thực tế trong container Docker phục vụ kiểm thử tích hợp. Do đó, bạn cần khởi động **Docker Daemon** (ví dụ: Docker Desktop) trên máy của mình trước khi chạy test.
+- Các thiết lập cấu hình của môi trường test được quản lý tại file [application-test.yml](file:///Users/mhoang26ct/My%20Project/backend_cinema/src/test/resources/application-test.yml).
+
 ## 8. Tài liệu API
 
 - Tài liệu endpoint tổng hợp: [api-docs.md](./api-docs.md)
@@ -177,12 +181,25 @@ Một số nhóm API chính:
 
 ## 11. Triển khai
 
+### 11.1. Triển khai thủ công
 Project có sẵn script và biến deploy:
 
 - Script: `deploy.sh`
 - Biến môi trường deploy: `deploy.env`
 
 Bạn nên rà soát và thay thế các thông số server trước khi dùng cho production.
+
+### 11.2. Triển khai tự động (CI/CD GitHub Actions)
+Dự án được tích hợp sẵn đường ống dẫn tự động hóa trong thư mục [.github/workflows/](file:///Users/mhoang26ct/My%20Project/backend_cinema/.github/workflows/):
+
+- **CI Pipeline ([ci.yml](file:///Users/mhoang26ct/My%20Project/backend_cinema/.github/workflows/ci.yml))**:
+  - Tự động kích hoạt khi có `push`/`pull_request` trên nhánh `main` và `develop`.
+  - Cài đặt JDK 17, thiết lập cache cho Gradle, build project và chạy toàn bộ suite kiểm thử (đã tích hợp Testcontainers).
+  - Đẩy lên Test Report (dạng HTML) và đóng gói lưu trữ file JAR kết quả nếu build thành công trên nhánh `main`.
+- **CD Pipeline ([deploy.yml](file:///Users/mhoang26ct/My%20Project/backend_cinema/.github/workflows/deploy.yml))**:
+  - Tự động chạy sau khi CI Pipeline hoàn thành xuất sắc trên nhánh `main`.
+  - Tải file JAR đã build được và thực hiện triển khai qua SSH lên IP máy chủ `100.89.144.114` của người dùng `mhoang` sử dụng `appleboy/ssh-action`.
+  - Để chạy thực tế, bạn cần cấu hình các biến Secrets trong GitHub Repository: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`.
 
 ## 12. Đóng góp
 
