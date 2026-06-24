@@ -24,6 +24,7 @@ outbox:
   worker:
     enabled: true
     fixed-delay-ms: 3600000
+    initial-delay-ms: 3600000
 
 spring:
   application:
