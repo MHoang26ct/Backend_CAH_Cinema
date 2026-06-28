@@ -8,6 +8,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.common.util.JwtUtil;
+import com.uit.backend_cinema.modules.booking.domain.entity.Booking;
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
+import com.uit.backend_cinema.modules.booking.domain.repository.BookingRepository;
 import com.uit.backend_cinema.modules.cinema.domain.entity.Cinema;
 import com.uit.backend_cinema.modules.cinema.domain.entity.Room;
 import com.uit.backend_cinema.modules.cinema.domain.service.CinemaService;
@@ -32,6 +35,7 @@ public class TicketCheckInService {
     private final RoomService roomService;
     private final CinemaService cinemaService;
     private final SeatRepository seatRepository;
+    private final BookingRepository bookingRepository;
     private final JwtUtil jwtUtil;
 
     public TicketCheckInService(TicketRepository ticketRepository,
@@ -40,6 +44,7 @@ public class TicketCheckInService {
                                 RoomService roomService,
                                 CinemaService cinemaService,
                                 SeatRepository seatRepository,
+                                BookingRepository bookingRepository,
                                 JwtUtil jwtUtil) {
         this.ticketRepository = ticketRepository;
         this.showtimeService = showtimeService;
@@ -47,6 +52,7 @@ public class TicketCheckInService {
         this.roomService = roomService;
         this.cinemaService = cinemaService;
         this.seatRepository = seatRepository;
+        this.bookingRepository = bookingRepository;
         this.jwtUtil = jwtUtil;
     }
 
@@ -89,9 +95,17 @@ public class TicketCheckInService {
             throw new BusinessException("Suất chiếu của vé này đã kết thúc", ErrorCode.VALIDATION_FAILED);
         }
 
-        // Cập nhật trạng thái
+        // Cập nhật trạng thái vé
         ticket.setIsCheckedIn(true);
         ticketRepository.save(ticket);
+
+        // Cập nhật trạng thái booking sang CHECKED_IN ngay khi có vé đầu tiên được check-in
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+        if (booking.getStatus() == BookingStatus.PAID) {
+            booking.setStatus(BookingStatus.CHECKED_IN);
+            bookingRepository.save(booking);
+        }
 
         // Lấy chi tiết thông tin
         Movie movie = movieService.getById(showtime.getMovieId());

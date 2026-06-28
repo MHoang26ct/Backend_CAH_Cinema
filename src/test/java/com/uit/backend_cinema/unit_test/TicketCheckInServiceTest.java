@@ -15,6 +15,9 @@ import org.junit.jupiter.api.Test;
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.common.util.JwtUtil;
+import com.uit.backend_cinema.modules.booking.domain.entity.Booking;
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
+import com.uit.backend_cinema.modules.booking.domain.repository.BookingRepository;
 import com.uit.backend_cinema.modules.cinema.domain.entity.Cinema;
 import com.uit.backend_cinema.modules.cinema.domain.entity.Room;
 import com.uit.backend_cinema.modules.cinema.domain.service.CinemaService;
@@ -39,6 +42,7 @@ class TicketCheckInServiceTest {
     private RoomService roomService;
     private CinemaService cinemaService;
     private SeatRepository seatRepository;
+    private BookingRepository bookingRepository;
     private JwtUtil jwtUtil;
     private TicketCheckInService ticketCheckInService;
 
@@ -50,6 +54,7 @@ class TicketCheckInServiceTest {
         roomService = mock(RoomService.class);
         cinemaService = mock(CinemaService.class);
         seatRepository = mock(SeatRepository.class);
+        bookingRepository = mock(BookingRepository.class);
         jwtUtil = mock(JwtUtil.class);
 
         ticketCheckInService = new TicketCheckInService(
@@ -59,6 +64,7 @@ class TicketCheckInServiceTest {
                 roomService,
                 cinemaService,
                 seatRepository,
+                bookingRepository,
                 jwtUtil
         );
     }
@@ -177,6 +183,11 @@ class TicketCheckInServiceTest {
         seat.setSeatType(new com.uit.backend_cinema.modules.seat.domain.entity.SeatType()); // mock seat type
         when(seatRepository.findById(4L)).thenReturn(Optional.of(seat));
 
+        Booking booking = new Booking();
+        booking.setBookingId(3L);
+        booking.setStatus(BookingStatus.PAID);
+        when(bookingRepository.findById(3L)).thenReturn(Optional.of(booking));
+
         CheckInResponseDTO response = ticketCheckInService.checkIn(request);
 
         assertNotNull(response);
@@ -185,7 +196,9 @@ class TicketCheckInServiceTest {
         assertEquals("IMAX 1", response.getRoomName());
         assertEquals("A5", response.getSeatName());
         assertTrue(ticket.getIsCheckedIn());
+        assertEquals(BookingStatus.CHECKED_IN, booking.getStatus());
 
         verify(ticketRepository).save(ticket);
+        verify(bookingRepository).save(booking);
     }
 }
