@@ -50,6 +50,9 @@ public class ShowtimeJpaEntity {
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
 
+    @Column(name = "original_duration_micros", nullable = false)
+    private Long originalDurationMicros;
+
     @Column(name = "base_price", nullable = false)
     private BigDecimal basePrice;
 

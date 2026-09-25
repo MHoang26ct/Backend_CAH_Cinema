@@ -11,7 +11,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import com.uit.backend_cinema.modules.booking.domain.repository.BookingRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -33,11 +35,14 @@ class ShowtimeModuleServiceTest {
     void createShowtimeSetsDefaultStatus() {
         ShowtimeRepository showtimeRepository = mock(ShowtimeRepository.class);
         MovieService movieService = mock(MovieService.class);
-        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService);
+        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService,
+                mock(BookingRepository.class), Clock.systemDefaultZone());
         Showtime showtime = validShowtime();
 
         when(showtimeRepository.findAllByRoomIdAndDate(eq(1L), any(LocalDate.class))).thenReturn(List.of());
-        doReturn(new Movie()).when(movieService).getById(2L);
+        Movie movie = new Movie();
+        movie.setDuration(120);
+        doReturn(movie).when(movieService).getById(2L);
 
         showtimeService.createShowtime(showtime);
 
@@ -63,7 +68,8 @@ class ShowtimeModuleServiceTest {
     void validateShowtimeBookable_success() {
         ShowtimeRepository showtimeRepository = mock(ShowtimeRepository.class);
         MovieService movieService = mock(MovieService.class);
-        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService);
+        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService,
+                mock(BookingRepository.class), Clock.systemDefaultZone());
         
         Showtime showtime = validShowtime(); // AVAILABLE, tomorrow
         
@@ -76,7 +82,8 @@ class ShowtimeModuleServiceTest {
     void validateShowtimeBookable_failStatus() {
         ShowtimeRepository showtimeRepository = mock(ShowtimeRepository.class);
         MovieService movieService = mock(MovieService.class);
-        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService);
+        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService,
+                mock(BookingRepository.class), Clock.systemDefaultZone());
         
         Showtime showtime = validShowtime();
         showtime.setStatus(ShowtimeStatus.CANCELLED);
@@ -90,7 +97,8 @@ class ShowtimeModuleServiceTest {
     void validateShowtimeBookable_failDays() {
         ShowtimeRepository showtimeRepository = mock(ShowtimeRepository.class);
         MovieService movieService = mock(MovieService.class);
-        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService);
+        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService,
+                mock(BookingRepository.class), Clock.systemDefaultZone());
         
         Showtime showtime = validShowtime();
         showtime.setStartTime(LocalDateTime.now().plusDays(8));
@@ -104,7 +112,8 @@ class ShowtimeModuleServiceTest {
     void cancelShowtimesByRoomBetweenDates_success() {
         ShowtimeRepository showtimeRepository = mock(ShowtimeRepository.class);
         MovieService movieService = mock(MovieService.class);
-        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService);
+        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService,
+                mock(BookingRepository.class), Clock.systemDefaultZone());
         
         LocalDate from = LocalDate.now();
         LocalDate to = from.plusDays(2);

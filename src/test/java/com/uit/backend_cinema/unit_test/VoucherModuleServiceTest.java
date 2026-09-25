@@ -24,7 +24,7 @@ class VoucherModuleServiceTest {
     @DisplayName("Voucher module: apply voucher khi tạo booking sẽ tăng used_count bằng atomic update")
     void applyVoucherForBookingConsumesVoucherAtomically() {
         VoucherRepository voucherRepository = mock(VoucherRepository.class);
-        VoucherService voucherService = new VoucherService(voucherRepository);
+        VoucherService voucherService = new VoucherService(voucherRepository, java.time.Clock.systemDefaultZone());
 
         Voucher voucher = new Voucher();
         voucher.setVoucherId(22L);

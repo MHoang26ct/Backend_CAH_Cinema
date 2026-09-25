@@ -3,6 +3,8 @@ package com.uit.backend_cinema.modules.showtime.infrastructure.repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -12,6 +14,10 @@ import org.springframework.data.repository.query.Param;
 import com.uit.backend_cinema.modules.showtime.infrastructure.entity.ShowtimeJpaEntity;
 
 public interface JpaShowtimeRepository extends JpaRepository<ShowtimeJpaEntity, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from ShowtimeJpaEntity s where s.showtimeId = :id")
+    Optional<ShowtimeJpaEntity> findByIdForUpdate(@Param("id") Long id);
 
     @Query("""
         SELECT s FROM ShowtimeJpaEntity s

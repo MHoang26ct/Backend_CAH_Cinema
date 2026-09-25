@@ -3,6 +3,7 @@ package com.uit.backend_cinema.modules.voucher.domain.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.Clock;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
@@ -21,7 +22,10 @@ import com.uit.backend_cinema.modules.voucher.domain.repository.VoucherRepositor
 public class VoucherService {
     private final VoucherRepository voucherRepository;
 
-    public VoucherService(VoucherRepository voucherRepository) {
+    private final Clock clock;
+
+    public VoucherService(VoucherRepository voucherRepository, Clock clock) {
+        this.clock = clock;
         this.voucherRepository = voucherRepository;
     }
 
@@ -37,7 +41,7 @@ public class VoucherService {
         }
 
         Voucher voucher = validateVoucherForApply(voucherId, subtotal);
-        int updated = voucherRepository.consumeVoucherAtomically(voucherId, LocalDateTime.now());
+        int updated = voucherRepository.consumeVoucherAtomically(voucherId, LocalDateTime.now(clock));
         if (updated == 0) {
             throw new BusinessException("Voucher không còn hiệu lực hoặc đã hết lượt sử dụng", ErrorCode.VALIDATION_FAILED);
         }
@@ -58,7 +62,7 @@ public class VoucherService {
     }
 
     public List<Voucher> getAllForUser() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         return voucherRepository.findAllForUser(now);
     }
 
@@ -85,7 +89,7 @@ public class VoucherService {
 
     @Transactional
     public void useVoucher(Long id) {
-        int updated = voucherRepository.consumeVoucherAtomically(id, LocalDateTime.now());
+        int updated = voucherRepository.consumeVoucherAtomically(id, LocalDateTime.now(clock));
         if (updated == 0) {
             throw new BusinessException(
                     "Voucher không còn hiệu lực hoặc đã hết lượt sử dụng",
@@ -105,11 +109,11 @@ public class VoucherService {
 
     private Voucher validateVoucherForApply(Long voucherId, BigDecimal subtotal) {
         Voucher voucher = findById(voucherId);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
 
         if (!Boolean.TRUE.equals(voucher.getIsActive())
                 || now.isBefore(voucher.getStartAt())
-                || now.isAfter(voucher.getExpiredAt())) {
+                || !now.isBefore(voucher.getExpiredAt())) {
             throw new BusinessException("Voucher không còn hiệu lực", ErrorCode.VALIDATION_FAILED);
         }
         if (subtotal.compareTo(voucher.getMinOrderValue()) < 0) {
@@ -155,7 +159,8 @@ public class VoucherService {
                 throw new BusinessException("Mã voucher đã tồn tại", ErrorCode.DUPLICATE_RESOURCE);
             }
         }
-        if (voucher.getStartAt().isAfter(voucher.getExpiredAt())) {
+        if (voucher.getStartAt() == null || voucher.getExpiredAt() == null
+                || !voucher.getStartAt().isBefore(voucher.getExpiredAt())) {
             throw new BusinessException("Ngày bắt đầu phải trước ngày hết hạn", ErrorCode.VALIDATION_FAILED);
         }
         BigDecimal value = voucher.getValue();

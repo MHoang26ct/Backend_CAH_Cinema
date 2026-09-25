@@ -16,5 +16,7 @@ public class CreateBookingResponseDTO {
     private BigDecimal seatSubtotal;
     private BigDecimal foodSubtotal;
     private BigDecimal discountAmount;
+    private BigDecimal lateDiscountAmount;
+    private BigDecimal voucherDiscountAmount;
     private BigDecimal totalAmount;
 }

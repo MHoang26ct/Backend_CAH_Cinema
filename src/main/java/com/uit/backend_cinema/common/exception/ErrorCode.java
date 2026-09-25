@@ -29,6 +29,9 @@ public enum ErrorCode {
     SEAT_ALREADY_BOOKED,        // Ghế đã được đặt / đang được chọn
 
     // Booking / Payment
+    SHOWTIME_BOOKING_CLOSED,
+    SHOWTIME_SCHEDULE_LOCKED,
+    DISCOUNT_NOT_COMBINABLE,
     BOOKING_EXPIRED,
     BOOKING_INVALID_STATUS,
     VOUCHER_HOLD_EXPIRED,

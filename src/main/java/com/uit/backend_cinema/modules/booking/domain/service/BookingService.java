@@ -1,7 +1,9 @@
 package com.uit.backend_cinema.modules.booking.domain.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 
@@ -56,6 +58,7 @@ public class BookingService {
     private final OutboxEventService outboxEventService;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
+    private final Clock clock;
 
     public BookingService(BookingRepository bookingRepository,
             SeatService seatService,
@@ -67,7 +70,9 @@ public class BookingService {
             PaymentConfirmationRepository paymentConfirmationRepository,
             OutboxEventService outboxEventService,
             ObjectMapper objectMapper,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            Clock clock) {
+        this.clock = clock;
         this.bookingRepository = bookingRepository;
         this.seatService = seatService;
         this.showtimeService = showtimeService;
@@ -83,17 +88,22 @@ public class BookingService {
 
     @Transactional
     public PrePaymentBookingQuote createPrePaymentBooking(Long userId, CreateBookingRequestDTO requestDTO) {
-        Showtime showtime = showtimeService.getById(requestDTO.getShowtimeId());
-        showtimeService.validateShowtimeBookable(showtime);
+        Showtime showtime = showtimeService.getByIdForUpdate(requestDTO.getShowtimeId());
+        showtimeService.validateBookingWindow(showtime, LocalDateTime.now(clock));
         List<Long> seatIds = requestDTO.getSeatIds();
         List<Seat> selectedSeats = seatService.promoteLocksForCheckout(requestDTO.getShowtimeId(), seatIds,
                 showtime.getRoomId(), userId);
         User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.UNAUTHORIZED));
 
         try {
-            LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(CHECKOUT_TTL_MINUTES);
-            BigDecimal showtimeMultiplier = priceConfigService.getPriceMultiplier(showtime.getStartTime(),
-                    showtime.getFormat());
+            LocalDateTime bookingTime = LocalDateTime.now(clock);
+            showtimeService.validateBookingWindow(showtime, bookingTime);
+            boolean late = bookingTime.isAfter(showtime.getStartTime().plusMinutes(15));
+            if (late && requestDTO.getVoucherId() != null) {
+                throw new BusinessException("Giá vé vào xem muộn không áp dụng cùng voucher", ErrorCode.DISCOUNT_NOT_COMBINABLE);
+            }
+            LocalDateTime expiresAt = bookingTime.plusMinutes(CHECKOUT_TTL_MINUTES);
+            BigDecimal showtimeMultiplier = priceConfigService.getPriceMultiplier(showtime.getStartTime(), showtime.getFormat());
             BigDecimal seatSubtotal = calculateSeatSubtotal(selectedSeats, showtime, showtimeMultiplier);
             BigDecimal subtotal = seatSubtotal;
             Booking booking = createInitialBooking(userId, requestDTO, subtotal, expiresAt);
@@ -108,7 +118,12 @@ public class BookingService {
             booking.setTotalAmount(subtotal);
             booking = bookingRepository.save(booking);
 
-            BigDecimal discountAmount = voucherService.applyVoucherForBooking(requestDTO.getVoucherId(), subtotal);
+            BigDecimal lateDiscount = late ? seatSubtotalAfterRank.multiply(new BigDecimal("0.50"))
+                    .setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+            booking.setLateDiscountAmount(lateDiscount);
+            BigDecimal voucherDiscount = late ? BigDecimal.ZERO
+                    : voucherService.applyVoucherForBooking(requestDTO.getVoucherId(), subtotal);
+            BigDecimal discountAmount = lateDiscount.add(voucherDiscount);
             Booking finalizedBooking = finalizeBookingAmount(booking, subtotal, discountAmount);
             return buildQuote(finalizedBooking, seatSubtotalAfterRank, foodSubtotalAfterRank, discountAmount);
         } catch (RuntimeException ex) {
@@ -150,9 +165,9 @@ public class BookingService {
             return buildPaymentResponse(existingBooking, confirmation.getPaymentRef(), confirmation.getGateway());
         }
 
-        LocalDateTime now = LocalDateTime.now();
         Booking booking = bookingRepository.findByIdForUpdate(bookingId)
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+        LocalDateTime now = LocalDateTime.now(clock);
 
         // Validate trạng thái (không cần check userId - server-to-server)
         if (booking.getStatus() == BookingStatus.PAID) {
@@ -201,10 +216,9 @@ public class BookingService {
             return handleExistingPaymentConfirmation(userId, bookingId, existingConfirmation.get());
         }
 
-        LocalDateTime now = LocalDateTime.now();
         Booking booking = bookingRepository.findByIdForUpdate(bookingId)
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
-        validatePaymentRequest(userId, booking, now);
+        validatePaymentRequest(userId, booking, LocalDateTime.now(clock));
         List<Long> seatIds = ticketService.findActiveDraftSeatIds(bookingId);
         seatService.validateSeatsNotSold(booking.getShowtimeId(), seatIds);
 
@@ -236,8 +250,8 @@ public class BookingService {
     @Scheduled(fixedDelayString = "${booking.prepayment.expiry-check-ms:60000}")
     @Transactional
     public void expirePendingBookings() {
-        LocalDateTime now = LocalDateTime.now();
-        List<Booking> expiredBookings = bookingRepository.findByStatusAndExpiresAtBefore(BookingStatus.PENDING, now);
+        LocalDateTime now = LocalDateTime.now(clock);
+        List<Booking> expiredBookings = bookingRepository.findByStatusAndExpiresAtLessThanEqual(BookingStatus.PENDING, now);
         for (Booking booking : expiredBookings) {
             expireSingleBooking(booking, now);
         }
@@ -246,7 +260,7 @@ public class BookingService {
     @Scheduled(fixedDelayString = "${booking.prepayment.purge-interval-ms:21600000}")
     @Transactional
     public void purgeSoftDeletedDrafts() {
-        LocalDateTime threshold = LocalDateTime.now().minusDays(PURGE_RETENTION_DAYS);
+        LocalDateTime threshold = LocalDateTime.now(clock).minusDays(PURGE_RETENTION_DAYS);
         ticketService.purgeSoftDeletedDraftItems(threshold);
         foodOrderService.purgeSoftDeletedDraftItems(threshold);
     }
@@ -319,6 +333,7 @@ public class BookingService {
         booking.setVoucherId(requestDTO.getVoucherId());
         booking.setPaymentMethod(requestDTO.getPaymentMethod());
         booking.setDiscountAmount(BigDecimal.ZERO);
+        booking.setLateDiscountAmount(BigDecimal.ZERO);
         booking.setTotalAmount(subtotal);
         booking.setStatus(BookingStatus.PENDING);
         booking.setExpiresAt(expiresAt);
@@ -342,6 +357,8 @@ public class BookingService {
                 .seatSubtotal(seatSubtotal)
                 .foodSubtotal(foodSubtotal)
                 .discountAmount(discountAmount)
+                .lateDiscountAmount(booking.getLateDiscountAmount())
+                .voucherDiscountAmount(discountAmount.subtract(booking.getLateDiscountAmount()))
                 .totalAmount(booking.getTotalAmount())
                 .build();
     }

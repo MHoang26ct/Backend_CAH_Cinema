@@ -18,9 +18,13 @@ public interface ShowtimeApiMapper {
     @Mapping(target = "showtimeId", ignore = true)
     @Mapping(target = "isDeleted", ignore = true)
     @Mapping(target = "status", ignore = true)
+    @Mapping(target = "endTime", ignore = true)
+    @Mapping(target = "originalDurationMicros", ignore = true)
     Showtime toDomain(CreateShowtimeDTO createShowtimeDTO);
 
     @Mapping(target = "isDeleted", ignore = true)
+    @Mapping(target = "endTime", ignore = true)
+    @Mapping(target = "originalDurationMicros", ignore = true)
     Showtime toDomain(UpdateShowtimeDTO updateShowtimeDTO);
 
     MovieShowtimesResponseDTO toMovieShowtimesResponseDto(MovieShowtimes source);

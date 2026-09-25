@@ -2,6 +2,7 @@ package com.uit.backend_cinema.modules.showtime.domain.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Clock;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Objects;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.movies.domain.service.MovieService;
+import com.uit.backend_cinema.modules.booking.domain.repository.BookingRepository;
 import com.uit.backend_cinema.modules.showtime.domain.entity.CinemaShowtimes;
 import com.uit.backend_cinema.modules.showtime.domain.entity.MovieShowtimes;
 import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
@@ -26,7 +28,13 @@ public class ShowtimeService {
     private final ShowtimeRepository showtimeRepository;
     private final MovieService movieService;
 
-    public ShowtimeService(ShowtimeRepository showtimeRepository, MovieService movieService) {
+    private final BookingRepository bookingRepository;
+    private final Clock clock;
+
+    public ShowtimeService(ShowtimeRepository showtimeRepository, MovieService movieService,
+                           BookingRepository bookingRepository, Clock clock) {
+        this.bookingRepository = bookingRepository;
+        this.clock = clock;
         this.showtimeRepository = showtimeRepository;
         this.movieService = movieService;
     }
@@ -37,18 +45,38 @@ public class ShowtimeService {
                         "Không tìm thấy suất chiếu", ErrorCode.RESOURCE_NOT_FOUND));
     }
 
-    /**
-     * Validate suất chiếu có thể đặt vé:
-     * 1. Status phải là AVAILABLE
-     * 2. Ngày chiếu phải trong vòng 7 ngày tới
-     */
+    @Transactional
+    public Showtime getByIdForUpdate(Long id) {
+        return showtimeRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy suất chiếu", ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    public Showtime getBookableById(Long id) {
+        Showtime showtime = getById(id);
+        validateBookingWindow(showtime, LocalDateTime.now(clock));
+        return showtime;
+    }
+
+    public void validateBookingWindow(Showtime showtime, LocalDateTime now) {
+        LocalDateTime midpoint = showtime.getStartTime().plusNanos(showtime.getOriginalDurationMicros() * 500L);
+        if (showtime.getStatus() != ShowtimeStatus.AVAILABLE || now.plusMinutes(15).isAfter(midpoint)) {
+            throw new BusinessException("Suất chiếu đã ngừng nhận đặt vé", ErrorCode.SHOWTIME_BOOKING_CLOSED);
+        }
+        if (showtime.getStartTime().toLocalDate()
+                .isAfter(now.toLocalDate().plusDays(ADVANCE_BOOKING_LIMIT_DAYS))) {
+            throw new BusinessException(
+                    "Chỉ có thể đặt vé cho suất chiếu trong vòng 7 ngày tới",
+                    ErrorCode.VALIDATION_FAILED);
+        }
+    }
+
     public void validateShowtimeBookable(Showtime showtime) {
         if (showtime.getStatus() != ShowtimeStatus.AVAILABLE) {
             throw new BusinessException(
                     "Suất chiếu không khả dụng để đặt vé", ErrorCode.VALIDATION_FAILED);
         }
         if (showtime.getStartTime().toLocalDate()
-                .isAfter(LocalDate.now().plusDays(ADVANCE_BOOKING_LIMIT_DAYS))) {
+                .isAfter(LocalDate.now(clock).plusDays(ADVANCE_BOOKING_LIMIT_DAYS))) {
             throw new BusinessException(
                     "Chỉ có thể đặt vé cho suất chiếu trong vòng 7 ngày tới",
                     ErrorCode.VALIDATION_FAILED);
@@ -73,6 +101,9 @@ public class ShowtimeService {
     @Transactional
     public void createShowtime(Showtime newShowtime) {
         validateShowtimePayload(newShowtime);
+        validateRequiredFields(newShowtime, true);
+        snapshotMovieDuration(newShowtime);
+        validateFutureStart(newShowtime);
         if (newShowtime.getStatus() == null) {
             newShowtime.setStatus(ShowtimeStatus.AVAILABLE);
         }
@@ -87,7 +118,25 @@ public class ShowtimeService {
     @Transactional
     public void updateShowtime(Showtime newShowtime) {
         validateShowtimePayload(newShowtime);
-        Showtime existingShowtime = getById(newShowtime.getShowtimeId());
+        validateRequiredFields(newShowtime, false);
+        Showtime existingShowtime = getByIdForUpdate(newShowtime.getShowtimeId());
+        boolean scheduleChanged = !Objects.equals(existingShowtime.getStartTime(), newShowtime.getStartTime())
+                || !Objects.equals(existingShowtime.getMovieId(), newShowtime.getMovieId())
+                || !Objects.equals(existingShowtime.getRoomId(), newShowtime.getRoomId());
+        if (scheduleChanged) {
+            LocalDateTime now = LocalDateTime.now(clock);
+            if (!existingShowtime.getStartTime().isAfter(now)
+                    || bookingRepository.hasScheduleBlockingBookings(existingShowtime.getShowtimeId(), now)) {
+                throw new BusinessException("Không thể đổi lịch suất chiếu đã bắt đầu hoặc có booking", ErrorCode.SHOWTIME_SCHEDULE_LOCKED);
+            }
+            validateFutureStart(newShowtime);
+        }
+        if (!Objects.equals(existingShowtime.getMovieId(), newShowtime.getMovieId())) {
+            snapshotMovieDuration(newShowtime);
+        } else {
+            newShowtime.setOriginalDurationMicros(existingShowtime.getOriginalDurationMicros());
+            newShowtime.setEndTime(newShowtime.getStartTime().plusNanos(existingShowtime.getOriginalDurationMicros() * 1000L));
+        }
         newShowtime.setIsDeleted(existingShowtime.getIsDeleted());
         if (isValidShowtime(newShowtime, false)) {
             showtimeRepository.save(newShowtime);
@@ -96,14 +145,14 @@ public class ShowtimeService {
 
     @Transactional
     public void deleteShowtime(Long showtimeId) {
-        Showtime existingShowtime = getById(showtimeId);
+        Showtime existingShowtime = getByIdForUpdate(showtimeId);
         existingShowtime.setIsDeleted(true);
         showtimeRepository.save(existingShowtime);
     }
 
     @Transactional
     public void changeStatusToSoldOut(Long showtimeId) {
-        Showtime existingShowtime = getById(showtimeId);
+        Showtime existingShowtime = getByIdForUpdate(showtimeId);
         existingShowtime.setStatus(ShowtimeStatus.SOLD_OUT);
         showtimeRepository.save(existingShowtime);
     }
@@ -191,10 +240,25 @@ public class ShowtimeService {
                 throw new BusinessException("Khoảng cách giữa 2 suất chiếu phải ít nhất 30 phút", ErrorCode.VALIDATION_FAILED);
             }
         }
-        if (startDateTime.toLocalDate().isAfter(LocalDate.now().plusDays(30))) {
+        if (startDateTime.toLocalDate().isAfter(LocalDate.now(clock).plusDays(30))) {
             throw new BusinessException("Suất chiếu không được tạo trước 30 ngày", ErrorCode.VALIDATION_FAILED);
         }
         return true;
+    }
+
+    private void snapshotMovieDuration(Showtime showtime) {
+        Integer duration = movieService.getById(showtime.getMovieId()).getDuration();
+        if (duration == null || duration < 15) {
+            throw new BusinessException("Thời lượng phim phải từ 15 phút", ErrorCode.VALIDATION_FAILED);
+        }
+        showtime.setOriginalDurationMicros(duration * 60_000_000L);
+        showtime.setEndTime(showtime.getStartTime().plusMinutes(duration));
+    }
+
+    private void validateFutureStart(Showtime showtime) {
+        if (!showtime.getStartTime().isAfter(LocalDateTime.now(clock))) {
+            throw new BusinessException("Suất chiếu phải bắt đầu trong tương lai", ErrorCode.VALIDATION_FAILED);
+        }
     }
 
     private void validateShowtimePayload(Showtime showtime) {
@@ -215,9 +279,6 @@ public class ShowtimeService {
         }
         if (showtime.getStartTime() == null) {
             throw new BusinessException("Thời gian bắt đầu không được trống", ErrorCode.VALIDATION_FAILED);
-        }
-        if (showtime.getEndTime() == null) {
-            throw new BusinessException("Thời gian kết thúc không được trống", ErrorCode.VALIDATION_FAILED);
         }
         if (showtime.getFormat() == null) {
             throw new BusinessException("Định dạng suất chiếu không được trống", ErrorCode.VALIDATION_FAILED);

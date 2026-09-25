@@ -30,7 +30,7 @@ public class UpdateShowtimeDTO {
     @NotNull(message = "Giờ bắt đầu không được trống")
     private LocalDateTime startTime;
 
-    @NotNull(message = "Giờ kết thúc không được trống")
+    // Accepted for compatibility; the server derives endTime from the duration snapshot.
     private LocalDateTime endTime;
 
     @NotNull(message = "Giá gốc không được trống")

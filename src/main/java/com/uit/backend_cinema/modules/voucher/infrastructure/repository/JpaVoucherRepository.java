@@ -37,7 +37,7 @@ public interface JpaVoucherRepository extends JpaRepository<VoucherJpaEntity, Lo
       and v.isActive = true
       and v.isDeleted = false
       and v.startAt <= :now
-      and v.expiredAt >= :now
+      and v.expiredAt > :now
       and v.usedCount < v.quantity
 """)
     int consumeVoucherAtomically(@Param("voucherId") Long voucherId, @Param("now") LocalDateTime now);

@@ -43,6 +43,11 @@ public class ShowtimeRepositoryImpl implements ShowtimeRepository {
     }
 
     @Override
+    public Optional<Showtime> findByIdForUpdate(Long showtimeId) {
+        return jpaShowtimeRepository.findByIdForUpdate(showtimeId).map(mapper::toDomain);
+    }
+
+    @Override
     public void save(Showtime showtime) {
         jpaShowtimeRepository.save(mapper.toJpaEntity(showtime));
     }
