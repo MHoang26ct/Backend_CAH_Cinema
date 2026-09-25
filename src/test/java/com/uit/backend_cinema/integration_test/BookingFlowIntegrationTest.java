@@ -41,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -162,8 +163,10 @@ public class BookingFlowIntegrationTest extends TestcontainersConfig {
         showtime.setMovieId(999L);
         showtime.setFormat(MovieFormat.TYPE_2D);
         showtime.setStatus(ShowtimeStatus.AVAILABLE);
-        showtime.setStartTime(LocalDateTime.now().plusDays(1));
-        showtime.setEndTime(LocalDateTime.now().plusDays(1).plusHours(2));
+        LocalDateTime startTime = LocalDateTime.now().plusDays(1);
+        showtime.setStartTime(startTime);
+        showtime.setEndTime(startTime.plusHours(2));
+        showtime.setOriginalDurationMicros(ChronoUnit.MICROS.between(startTime, showtime.getEndTime()));
         showtime.setBasePrice(new BigDecimal("100000"));
         showtime.setIsDeleted(false);
         showtime = jpaShowtimeRepository.save(showtime);
