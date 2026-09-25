@@ -213,3 +213,37 @@ Mọi đóng góp cải tiến đều được hoan nghênh. Khi gửi PR, vui l
 
 - [MHoang26ct](https://github.com/MHoang26ct)
 - [LeVanAnUITK19](https://github.com/LeVanAnUITK19)
+
+### Quy tắc thời gian và giá vé vào xem muộn
+
+- Khi tạo suất chiếu, backend tính `endTime = startTime + movie.duration` (phút)
+  và lưu thời lượng vào `original_duration_micros`. `endTime` trong request cũ
+  vẫn được chấp nhận nhưng không dùng để tính lịch. Sửa thời lượng phim không
+  cập nhật suất chiếu đã có; đổi giờ bắt đầu giữ thời lượng đã lưu. Nếu đổi
+  phim của suất chiếu, backend lấy thời lượng của phim mới.
+- Chỉ đổi giờ, phòng hoặc phim trước khi suất chiếu bắt đầu và không có booking
+  PENDING còn hạn, PAID hoặc CHECKED_IN. Kiểm tra và tạo booking dùng chung khóa
+  bản ghi suất chiếu để tránh cạnh tranh với sửa lịch.
+- Chỉ giữ ghế/tạo booking khi `now + 15 phút <= startTime + thời lượng gốc / 2`.
+  Booking mới có hạn thanh toán 15 phút; tại đúng `expiresAt` đã hết hạn.
+- Booking tạo sau hơn 15 phút đầu phim được giảm 50% tiền vé sau các hệ số,
+  làm tròn 2 chữ số theo HALF_UP; đồ ăn không giảm. Giá được chốt lúc tạo booking.
+  Gửi voucher cho đơn giảm giá muộn trả `DISCOUNT_NOT_COMBINABLE` (400).
+- Response tạo booking có thêm `lateDiscountAmount`, `voucherDiscountAmount`;
+  `discountAmount` là tổng hai khoản. `seatSubtotal` và giá lưu trên từng vé
+  vẫn là giá trước giảm, giống quy ước voucher hiện có. Tổng phải thanh toán là
+  `seatSubtotal + foodSubtotal - discountAmount`.
+- `SHOWTIME_BOOKING_CLOSED` và `SHOWTIME_SCHEDULE_LOCKED` trả HTTP 409.
+  Voucher hiệu lực trong `[startAt, expiredAt)`; hai mốc phải khác nhau.
+- Các phép kiểm tra dùng Clock với múi giờ JVM hiện tại. Mọi instance cần dùng
+  cùng múi giờ; đợt thay đổi này không chuyển đổi dữ liệu timestamp cũ.
+
+**Nâng cấp database:** dừng ghi dữ liệu trong lúc nâng cấp, chạy một lần
+`migrations/20260921_datetime_rules.sql` rồi triển khai backend mới trước khi
+mở lại lưu lượng. Script giữ nguyên lịch chiếu, giá và hạn booking cũ; thời lượng
+suất chiếu cũ lấy từ `end_time - start_time` vì không có lịch sử thời lượng phim.
+Database mới dùng `cah_cinema.sql` và seed đã cập nhật, không chạy migration này.
+
+**Kiểm thử:** `./gradlew test`. Các test `DateTimeStorageTest` dùng PostgreSQL 16
+và Redis 7 qua Testcontainers; tự bỏ qua nếu Docker không hoạt động. Unit test
+và API validation test không cần database hoặc Redis.

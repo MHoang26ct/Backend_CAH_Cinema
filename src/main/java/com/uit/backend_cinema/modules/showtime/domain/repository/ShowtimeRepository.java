@@ -11,6 +11,7 @@ import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
 
 public interface ShowtimeRepository {
     Optional<Showtime> findById(Long showtimeId);
+    Optional<Showtime> findByIdForUpdate(Long showtimeId);
     MovieShowtimes findShowtimesByMovieId(Long movieId, LocalDate date);
     void save(Showtime showtime);
     void softDeleteByRoomId(Long roomId);

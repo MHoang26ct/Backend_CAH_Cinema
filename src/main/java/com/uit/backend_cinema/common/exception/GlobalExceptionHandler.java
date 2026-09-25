@@ -41,6 +41,8 @@ public class GlobalExceptionHandler {
     private HttpStatus resolveStatus(ErrorCode code) {
         return switch (code) {
             case EMAIL_ALREADY_EXISTS,
+                 SHOWTIME_BOOKING_CLOSED,
+                 SHOWTIME_SCHEDULE_LOCKED,
                  BOOKING_EXPIRED,
                  BOOKING_INVALID_STATUS,
                  VOUCHER_HOLD_EXPIRED,
@@ -66,6 +68,7 @@ public class GlobalExceptionHandler {
                  SEAT_ALREADY_BOOKED,
                  USER_NOT_CHECKED_IN,
                  COMMENT_LIMIT_EXCEEDED,
+                 DISCOUNT_NOT_COMBINABLE,
                  VALIDATION_FAILED,
                  TICKET_INVALID_QR ->
                     HttpStatus.BAD_REQUEST;

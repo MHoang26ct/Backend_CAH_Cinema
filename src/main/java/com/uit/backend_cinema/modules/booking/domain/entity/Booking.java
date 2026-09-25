@@ -15,6 +15,7 @@ public class Booking {
     private Long voucherId;
     private BookingPaymentMethod paymentMethod;
     private BigDecimal discountAmount;
+    private BigDecimal lateDiscountAmount;
     private BigDecimal totalAmount;
     private BookingStatus status;
     private LocalDateTime expiresAt;

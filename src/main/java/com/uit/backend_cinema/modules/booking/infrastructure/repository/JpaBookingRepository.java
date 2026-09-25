@@ -18,11 +18,19 @@ import com.uit.backend_cinema.modules.booking.infrastructure.entity.BookingJpaEn
 
 public interface JpaBookingRepository extends JpaRepository<BookingJpaEntity, Long> {
 
+    @Query(value = """
+            select exists(select 1 from bookings
+              where showtime_id = :showtimeId and is_deleted = false
+                and (status in ('PAID', 'CHECKED_IN')
+                  or (status = 'PENDING' and expires_at > :now)))
+            """, nativeQuery = true)
+    boolean hasScheduleBlockingBookings(@Param("showtimeId") Long showtimeId, @Param("now") LocalDateTime now);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from BookingJpaEntity b where b.bookingId = :bookingId")
     Optional<BookingJpaEntity> findByIdForUpdate(@Param("bookingId") Long bookingId);
 
-    List<BookingJpaEntity> findByStatusAndExpiresAtBefore(BookingStatus status, LocalDateTime threshold);
+    List<BookingJpaEntity> findByStatusAndExpiresAtLessThanEqual(BookingStatus status, LocalDateTime threshold);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """
@@ -30,7 +38,7 @@ public interface JpaBookingRepository extends JpaRepository<BookingJpaEntity, Lo
             set status = 'EXPIRED', updated_at = :now, version = version + 1
             where booking_id = :bookingId
               and status = 'PENDING'
-              and expires_at < :now
+              and expires_at <= :now
               and is_deleted = false
             """, nativeQuery = true)
     int markExpiredIfPendingAndExpired(@Param("bookingId") Long bookingId, @Param("now") LocalDateTime now);

@@ -5,17 +5,21 @@ import java.util.List;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.FutureOrPresent;
 
 import lombok.Data;
 
 @Data
 public class UpdateOrCreateMovieDTO {
+    public interface Create extends jakarta.validation.groups.Default {}
     private String title;
     private String description;
 
-    @Min(value = 15, message = "Độ dài phim phải lớn hơn 15 phút")
+    @jakarta.validation.constraints.NotNull(message = "Thời lượng phim không được trống")
+    @Min(value = 15, message = "Thời lượng phim phải từ 15 phút")
     private Integer duration;
 
+    @FutureOrPresent(groups = Create.class, message = "Ngày phát hành không được trước hôm nay")
     private LocalDate releaseDate;
 
     private String ageRating;

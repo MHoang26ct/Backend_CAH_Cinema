@@ -31,7 +31,8 @@ public class AdminMovieController {
 
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<MovieDetailDTO>> createMovie(
-            @Valid @RequestBody UpdateOrCreateMovieDTO requestDTO) {
+            @org.springframework.validation.annotation.Validated(UpdateOrCreateMovieDTO.Create.class)
+            @RequestBody UpdateOrCreateMovieDTO requestDTO) {
         Movie newMovie = mapper.toDomain(requestDTO);
         MovieDetailDTO movie = mapper.toDetailDto(movieService.createMovie(newMovie));
         return ResponseEntity.ok(ApiResponse.success(movie, "Tạo phim thành công"));

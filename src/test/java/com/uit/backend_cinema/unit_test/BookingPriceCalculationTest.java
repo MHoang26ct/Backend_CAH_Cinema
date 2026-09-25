@@ -25,6 +25,7 @@ import com.uit.backend_cinema.modules.ticket.domain.service.TicketService;
 import com.uit.backend_cinema.modules.voucher.domain.service.VoucherService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -32,6 +33,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -82,6 +85,16 @@ class BookingPriceCalculationTest {
     @Mock
     private ObjectMapper objectMapper;
 
+    @Mock
+    private Clock clock;
+
+    @BeforeEach
+    void configureClock() {
+        Clock systemClock = Clock.systemDefaultZone();
+        when(clock.instant()).thenReturn(systemClock.instant());
+        when(clock.getZone()).thenReturn(ZoneId.systemDefault());
+    }
+
     private Seat createSeat(Long id, BigDecimal priceMultiplier, String typeName) {
         Seat seat = new Seat();
         seat.setSeatId(id);
@@ -125,7 +138,7 @@ class BookingPriceCalculationTest {
         Seat seat = createSeat(10L, new BigDecimal("1.00"), "STANDARD");
         User user = createUser(userId, UserRank.SILVER);
 
-        when(showtimeService.getById(showtimeId)).thenReturn(showtime);
+        when(showtimeService.getByIdForUpdate(showtimeId)).thenReturn(showtime);
         when(seatService.promoteLocksForCheckout(eq(showtimeId), any(), eq(1L), eq(userId)))
                 .thenReturn(Collections.singletonList(seat));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
@@ -162,7 +175,7 @@ class BookingPriceCalculationTest {
         Seat seat = createSeat(10L, new BigDecimal("1.20"), "VIP");
         User user = createUser(userId, UserRank.GOLD);
 
-        when(showtimeService.getById(showtimeId)).thenReturn(showtime);
+        when(showtimeService.getByIdForUpdate(showtimeId)).thenReturn(showtime);
         when(seatService.promoteLocksForCheckout(eq(showtimeId), any(), eq(1L), eq(userId)))
                 .thenReturn(Collections.singletonList(seat));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
@@ -201,7 +214,7 @@ class BookingPriceCalculationTest {
         Seat seat = createSeat(10L, new BigDecimal("1.00"), "STANDARD");
         User user = createUser(userId, UserRank.DIAMOND);
 
-        when(showtimeService.getById(showtimeId)).thenReturn(showtime);
+        when(showtimeService.getByIdForUpdate(showtimeId)).thenReturn(showtime);
         when(seatService.promoteLocksForCheckout(eq(showtimeId), any(), eq(1L), eq(userId)))
                 .thenReturn(Collections.singletonList(seat));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
@@ -241,7 +254,7 @@ class BookingPriceCalculationTest {
         Seat seat = createSeat(10L, new BigDecimal("1.00"), "STANDARD");
         User user = createUser(userId, UserRank.SILVER);
 
-        when(showtimeService.getById(showtimeId)).thenReturn(showtime);
+        when(showtimeService.getByIdForUpdate(showtimeId)).thenReturn(showtime);
         when(seatService.promoteLocksForCheckout(eq(showtimeId), any(), eq(1L), eq(userId)))
                 .thenReturn(Collections.singletonList(seat));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
@@ -278,7 +291,7 @@ class BookingPriceCalculationTest {
         Seat seatCouple = createSeat(11L, new BigDecimal("1.50"), "COUPLE");
         User user = createUser(userId, UserRank.SILVER);
 
-        when(showtimeService.getById(showtimeId)).thenReturn(showtime);
+        when(showtimeService.getByIdForUpdate(showtimeId)).thenReturn(showtime);
         when(seatService.promoteLocksForCheckout(eq(showtimeId), any(), eq(1L), eq(userId)))
                 .thenReturn(Arrays.asList(seatVIP, seatCouple));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));

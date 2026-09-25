@@ -464,8 +464,10 @@ WITH target_rooms AS (
     JOIN movie_pool mp
       ON mp.rn = MOD((EXTRACT(DOY FROM d.day_date)::INT + tr.room_id::INT + s.movie_offset), mp.total_movies) + 1
 )
-INSERT INTO showtimes (room_id, movie_id, format, start_time, end_time, base_price, is_deleted, status)
-SELECT ss.room_id, ss.movie_id, ss.format, ss.start_time, ss.end_time, ss.base_price, FALSE, 'AVAILABLE'
+INSERT INTO showtimes (room_id, movie_id, format, start_time, end_time, original_duration_micros, base_price, is_deleted, status)
+SELECT ss.room_id, ss.movie_id, ss.format, ss.start_time, ss.end_time,
+       (EXTRACT(EPOCH FROM (ss.end_time - ss.start_time)) * 1000000)::BIGINT,
+       ss.base_price, FALSE, 'AVAILABLE'
 FROM schedule_seed ss
 WHERE NOT EXISTS (
     SELECT 1 FROM showtimes st

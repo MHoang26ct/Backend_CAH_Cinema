@@ -52,6 +52,9 @@ public class BookingJpaEntity {
     @Column(name = "discount_amount", nullable = false)
     private BigDecimal discountAmount;
 
+    @Column(name = "late_discount_amount", nullable = false)
+    private BigDecimal lateDiscountAmount = BigDecimal.ZERO;
+
     @Column(name = "total_price", nullable = false)
     private BigDecimal totalAmount;
 

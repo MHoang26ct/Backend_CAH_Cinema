@@ -29,6 +29,11 @@ public class BookingRepositoryImpl implements BookingRepository {
     }
 
     @Override
+    public boolean hasScheduleBlockingBookings(Long showtimeId, LocalDateTime now) {
+        return jpaBookingRepository.hasScheduleBlockingBookings(showtimeId, now);
+    }
+
+    @Override
     public Booking save(Booking booking) {
         return mapper.toDomain(jpaBookingRepository.save(mapper.toEntity(booking)));
     }
@@ -39,8 +44,8 @@ public class BookingRepositoryImpl implements BookingRepository {
     }
 
     @Override
-    public List<Booking> findByStatusAndExpiresAtBefore(BookingStatus status, LocalDateTime threshold) {
-        return jpaBookingRepository.findByStatusAndExpiresAtBefore(status, threshold)
+    public List<Booking> findByStatusAndExpiresAtLessThanEqual(BookingStatus status, LocalDateTime threshold) {
+        return jpaBookingRepository.findByStatusAndExpiresAtLessThanEqual(status, threshold)
                 .stream()
                 .map(mapper::toDomain)
                 .toList();

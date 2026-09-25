@@ -10,11 +10,13 @@ import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
 public interface BookingRepository {
     Booking save(Booking booking);
 
+    boolean hasScheduleBlockingBookings(Long showtimeId, LocalDateTime now);
+
     Optional<Booking> findById(Long bookingId);
 
     Optional<Booking> findByIdForUpdate(Long bookingId);
 
-    List<Booking> findByStatusAndExpiresAtBefore(BookingStatus status, LocalDateTime threshold);
+    List<Booking> findByStatusAndExpiresAtLessThanEqual(BookingStatus status, LocalDateTime threshold);
 
     int markExpiredIfPendingAndExpired(Long bookingId, LocalDateTime now);
 

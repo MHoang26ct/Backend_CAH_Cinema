@@ -41,8 +41,7 @@ public class AuthSeatController {
             @RequestParam Long showtimeId,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
-        Showtime showtime = showtimeService.getById(showtimeId);
-        showtimeService.validateShowtimeBookable(showtime);
+        Showtime showtime = showtimeService.getBookableById(showtimeId);
         boolean success = seatService.preLockSeats(showtimeId, java.util.List.of(seatId), showtime.getRoomId(), user.getUserId());
         if (!success) {
             throw new BusinessException("Ghế đang được người khác chọn", ErrorCode.SEAT_ALREADY_BOOKED);
@@ -55,8 +54,7 @@ public class AuthSeatController {
             @Valid @RequestBody SeatBatchLockRequestDTO requestDTO,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
-        Showtime showtime = showtimeService.getById(requestDTO.getShowtimeId());
-        showtimeService.validateShowtimeBookable(showtime);
+        Showtime showtime = showtimeService.getBookableById(requestDTO.getShowtimeId());
         boolean success = seatService.preLockSeats(
                 requestDTO.getShowtimeId(),
                 requestDTO.getSeatIds(),

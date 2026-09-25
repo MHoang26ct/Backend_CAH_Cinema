@@ -54,7 +54,8 @@ class BookingModuleServiceTest {
                 paymentConfirmationRepository,
                 outboxEventService,
                 new ObjectMapper(),
-                userRepository
+                userRepository,
+                java.time.Clock.systemDefaultZone()
         );
         Booking booking = new Booking();
         booking.setBookingId(10L);
@@ -64,7 +65,7 @@ class BookingModuleServiceTest {
         booking.setStatus(BookingStatus.PENDING);
         booking.setExpiresAt(LocalDateTime.now().minusMinutes(1));
 
-        when(bookingRepository.findByStatusAndExpiresAtBefore(eq(BookingStatus.PENDING), any(LocalDateTime.class)))
+        when(bookingRepository.findByStatusAndExpiresAtLessThanEqual(eq(BookingStatus.PENDING), any(LocalDateTime.class)))
                 .thenReturn(List.of(booking));
         when(bookingRepository.markExpiredIfPendingAndExpired(eq(10L), any(LocalDateTime.class))).thenReturn(1);
         when(ticketService.findActiveDraftSeatIds(10L)).thenReturn(List.of(1L, 2L));
@@ -95,7 +96,8 @@ class BookingModuleServiceTest {
         BookingService bookingService = new BookingService(
                 bookingRepository, seatService, showtimeService, priceConfigService,
                 ticketService, foodOrderService, voucherService, paymentConfirmationRepository,
-                outboxEventService, objectMapper, userRepository
+                outboxEventService, objectMapper, userRepository,
+                java.time.Clock.systemDefaultZone()
         );
 
         Long showtimeId = 50L;
