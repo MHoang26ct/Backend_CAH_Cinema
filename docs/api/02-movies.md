@@ -14,9 +14,9 @@
         
     - `description` (string)
         
-    - `duration` (integer, **min: 15**)
+    - `duration` (integer, **required**, **min: 15**, đơn vị phút)
         
-    - `releaseDate` (string, format: date)
+    - `releaseDate` (string, format: date; khi tạo, nếu gửi thì phải từ hôm nay trở đi; cập nhật cho phép ngày quá khứ)
         
     - `ageRating` (string)
         
@@ -30,6 +30,8 @@
         
     - `genreIdList` (array of int64, **required**)
         
+- Sửa `duration` không cập nhật thời lượng/giờ kết thúc đã chốt của các suất chiếu tồn tại.
+
 - **Response:** `ApiResponseMovieDetailDTO` chứa thông tin phim và `genres` (mảng GenreDTO).
     
 

@@ -5,10 +5,12 @@
 - **Check-in vé bằng QR Code:** `POST /api/v1/staff/tickets/check-in`
     - **Auth:** Yêu cầu đăng nhập với role `ROLE_STAFF` hoặc `ROLE_ADMIN`.
     - **Request Body:**
-      - `qrToken` (string, **required**) - Chuỗi JWT mã hóa thông tin vé chứa trong QR Code.
+      - `qrToken` (string, **required**) - Chuỗi JWT có chữ ký chứa thông tin vé trong QR Code; chữ ký không có nghĩa nội dung được mã hóa.
     - **Hành vi:**
       - Cập nhật trạng thái vé (`isCheckedIn = true`).
       - Nếu booking đang ở trạng thái `PAID`, tự động chuyển sang `CHECKED_IN` ngay khi vé đầu tiên trong booking được check-in.
+    - **Cửa sổ check-in:** từ 24 giờ trước `startTime` đến 4 giờ sau `endTime`, tính cả hai mốc; từng vé chỉ được dùng một lần. Booking CHECKED_IN không đồng nghĩa mọi vé trong đơn đã dùng.
+    - **Giới hạn hiện tại:** service chưa kiểm tra riêng trạng thái suất đã hủy hoặc booking REFUNDED; không coi việc QR vượt qua kiểm tra là bảo đảm vé còn hiệu lực trong các trường hợp này. Chống quét đồng thời cần kiểm chứng riêng; xem [SRS mục 7.3](../../SRS.md#73-chênh-lệch-và-giới-hạn-đã-nhận-diện).
     - **Response:** `200 OK`
     ```json
     {

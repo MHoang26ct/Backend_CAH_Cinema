@@ -21,5 +21,9 @@ Dưới đây là danh sách các module API đã được phân loại theo ch�
 
 ## Thông tin chung
 
-- **Server:** `https://stuffy-astrology-collar.ngrok-free.dev`
-- **Security:** Bearer Auth (JWT Token) - Nhập token vào Header mà không cần tiền tố `Bearer`.
+- **Base URL:** dùng địa chỉ môi trường đang chạy; mặc định local là `http://localhost:8080`. Địa chỉ tunnel không cố định.
+- **Xác thực HTTP:** gửi header `Authorization: Bearer <access_token>`. Trong ô Authorize của Swagger dùng security scheme HTTP Bearer, chỉ nhập token vì Swagger tự thêm tiền tố.
+- **Phân quyền:** `/api/v1/public/**` không yêu cầu đăng nhập; các API booking, giữ ghế, hồ sơ, đồ ăn, voucher và bình luận của người dùng yêu cầu token hợp lệ. `/api/v1/staff/**` dành cho STAFF/ADMIN; `/api/v1/admin/**` dành cho ADMIN. Quyền sở hữu tài nguyên vẫn được kiểm tra riêng.
+- **Thời gian:** ngày dùng `yyyy-MM-dd`; date-time dùng ISO local, ví dụ `2026-09-25T18:00:00`, không có offset. Các instance cần thống nhất múi giờ.
+- **Ví dụ:** ID, ngày và số tiền chỉ minh họa; dùng dữ liệu thực còn hiệu lực khi gọi API. Những ví dụ chỉ có `code` và `data` đã lược bỏ `message`.
+- **Nghiệp vụ và giới hạn đã đối chiếu:** xem [SRS](../../SRS.md), đặc biệt mục 7.3. Tài liệu mô tả code hiện tại, không xác nhận tích hợp production đã được kiểm thử.
