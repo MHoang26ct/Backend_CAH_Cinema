@@ -1,9 +1,9 @@
 package com.uit.backend_cinema.modules.notification.domain.service;
 
+import java.security.SecureRandom;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 import java.time.format.DateTimeFormatter;
 import java.util.stream.Collectors;
@@ -27,6 +27,7 @@ public class NotificationService {
     private final OtpStorage otpStorage;
     private final JwtUtil jwtUtil;
 
+    private static final SecureRandom RANDOM = new SecureRandom();
     private static final long OTP_VALID_DURATION = 5;
     private static final int QR_SIZE = 300;
 
@@ -37,9 +38,24 @@ public class NotificationService {
     }
 
     public void sendOtp(String email) {
-        String otp = String.valueOf(100000 + new Random().nextInt(900000));
+        String otp = String.valueOf(100000 + RANDOM.nextInt(900000));
         otpStorage.save("OTP: " + email, otp, OTP_VALID_DURATION);
         emailSender.sendEmail(email, "OTP", "Mã xác nhận của bạn: " + otp);
+    }
+
+    public void sendRegistrationOtp(String email) {
+        String otp = String.valueOf(100000 + RANDOM.nextInt(900000));
+        if (!otpStorage.saveRegistrationOtp(email, otp)) {
+            throw new BusinessException("Vui lòng chờ 60 giây trước khi gửi lại OTP", ErrorCode.OTP_RATE_LIMITED);
+        }
+        emailSender.sendEmail(email, "Xác thực email đăng ký CAH Cinema",
+                "Mã xác thực đăng ký của bạn: " + otp + ". Mã có hiệu lực trong 5 phút.");
+    }
+
+    public void verifyRegistrationOtp(String email, String otp) {
+        if (otp == null || !otp.matches("[0-9]{6}") || !otpStorage.consumeRegistrationOtp(email, otp)) {
+            throw new BusinessException("OTP không hợp lệ hoặc đã hết hạn", ErrorCode.OTP_INVALID);
+        }
     }
 
     public boolean verifyOtp(String email, String otp) {

@@ -11,6 +11,7 @@ import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.auth.domain.entity.AuthProvider;
 import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
+import com.uit.backend_cinema.modules.notification.domain.service.NotificationService;
 
 @Service
 @Transactional(readOnly = true) // Cấu hình mặc định cho các hàm là chỉ đọc (tối ưu hiệu suất DB)
@@ -19,18 +20,29 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationService notificationService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, NotificationService notificationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.notificationService = notificationService;
+    }
+
+    public void sendRegistrationOtp(String email) {
+        if (userRepository.existsByEmail(email)) {
+            throw new BusinessException("Email đã được sử dụng", ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+        notificationService.sendRegistrationOtp(email);
     }
 
     // Đăng ký tài khoản bằng email
     @Transactional // Bật ghi dữ liệu cho hàm này
-    public User register(String email, String rawPassword, String name, String phone) {
+    public User register(String email, String rawPassword, String name, String phone, String otp) {
         if (userRepository.existsByEmail(email)) {
             throw new BusinessException("Email đã được sử dụng", ErrorCode.EMAIL_ALREADY_EXISTS);
         }
+
+        notificationService.verifyRegistrationOtp(email, otp);
 
         User user = new User();
         user.setEmail(email);

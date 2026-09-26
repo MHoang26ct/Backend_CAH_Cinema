@@ -4,6 +4,19 @@
 
 ### Đăng ký tài khoản
 
+1. Gọi `POST /api/v1/auth/register/send-otp` với body `{"email":"user@example.com"}`.
+   Mã đăng ký gồm 6 chữ số, có hiệu lực 5 phút. Gửi lại sau ít nhất 60 giây;
+   mã mới thay thế mã cũ. Email đã có tài khoản trả `409 EMAIL_ALREADY_EXISTS`.
+2. Gọi `/register` với thông tin tài khoản và `otp` nhận được. Chỉ khi mã đúng
+   mới tạo tài khoản và trả access token, refresh token, user.
+
+OTP gắn với chính xác email nhận mã, chỉ dùng một lần và bị hủy sau 5 lần nhập sai.
+Mã sai, hết hạn hoặc đã dùng trả `400 OTP_INVALID`; thiếu/sai định dạng trả
+`400 VALIDATION_FAILED`; gửi quá nhanh trả `429 OTP_RATE_LIMITED`.
+OTP của `/send-otp`, `/verify-otp` và luồng quên mật khẩu không dùng để đăng ký.
+Frontend phải cập nhật luồng này: `/register` hiện bắt buộc có `otp`.
+Nếu tạo tài khoản thất bại sau khi mã đã được tiêu thụ, cần gửi lại OTP.
+
 - **Endpoint:** `POST /api/v1/auth/register`
     
 - **Request Body:**
@@ -14,6 +27,8 @@
         
     - `name` (string, **required**)
         
+    - `otp` (string, **required**, 6 chữ số)
+
     - `phone` (string)
         
 - **Response:** `200 OK` (object)

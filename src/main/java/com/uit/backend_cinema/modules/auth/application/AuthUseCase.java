@@ -56,9 +56,13 @@ public class AuthUseCase {
         this.userApiMapper = userApiMapper;
     }
 
+    public void sendRegistrationOtp(String email) {
+        authService.sendRegistrationOtp(email);
+    }
+
     // ĐĂNG KÝ
-    public AuthResponseDTO register(String email, String rawPassword, String name, String phone) {
-        User user = authService.register(email, rawPassword, name, phone);
+    public AuthResponseDTO register(String email, String rawPassword, String name, String phone, String otp) {
+        User user = authService.register(email, rawPassword, name, phone, otp);
         return buildAuthResponse(user);
     }
 

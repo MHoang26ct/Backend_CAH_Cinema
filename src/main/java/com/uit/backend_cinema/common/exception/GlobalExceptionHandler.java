@@ -57,6 +57,7 @@ public class GlobalExceptionHandler {
                  UNAUTHORIZED ->
                     HttpStatus.UNAUTHORIZED;
 
+            case OTP_RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case RESOURCE_NOT_FOUND -> HttpStatus.NOT_FOUND;
 
