@@ -4,36 +4,96 @@
 
 ### Đăng ký tài khoản
 
-1. Gọi `POST /api/v1/auth/register/send-otp` với body `{"email":"user@example.com"}`.
-   Mã đăng ký gồm 6 chữ số, có hiệu lực 5 phút. Gửi lại sau ít nhất 60 giây;
-   mã mới thay thế mã cũ. Email đã có tài khoản trả `409 EMAIL_ALREADY_EXISTS`.
-2. Gọi `/register` với thông tin tài khoản và `otp` nhận được. Chỉ khi mã đúng
-   mới tạo tài khoản và trả access token, refresh token, user.
+Đăng ký bằng email gồm hai bước. Backend chỉ tạo tài khoản và cấp token sau khi
+OTP đăng ký được xác thực thành công.
 
-OTP gắn với email nhận mã (tên miền không phân biệt chữ hoa/thường), chỉ dùng
-một lần và bị hủy sau 5 lần nhập sai. Giới hạn gửi lại cũng dùng cùng địa chỉ đã chuẩn hóa.
-Mã sai, hết hạn hoặc đã dùng trả `400 OTP_INVALID`; thiếu/sai định dạng trả
-`400 VALIDATION_FAILED`; gửi quá nhanh trả `429 OTP_RATE_LIMITED`.
-OTP của `/send-otp`, `/verify-otp` và luồng quên mật khẩu không dùng để đăng ký.
-Frontend phải cập nhật luồng này: `/register` hiện bắt buộc có `otp`.
-Nếu tạo tài khoản thất bại sau khi mã đã được tiêu thụ, cần gửi lại OTP.
+#### Bước 1: Gửi OTP đăng ký
+
+- **Endpoint:** `POST /api/v1/auth/register/send-otp`
+- **Authentication:** Không yêu cầu
+- **Request body:**
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+- **Response `200 OK`:**
+
+```json
+{
+  "code": 200,
+  "message": "Gửi OTP đăng ký thành công",
+  "data": null
+}
+```
+
+OTP gồm 6 chữ số, có hiệu lực trong 5 phút và chỉ dùng một lần. Mỗi email chỉ
+được yêu cầu gửi lại sau 60 giây. Phần tên miền email không phân biệt chữ hoa,
+chữ thường khi áp dụng thời gian chờ và xác thực OTP.
+
+#### Bước 2: Đăng ký bằng OTP
 
 - **Endpoint:** `POST /api/v1/auth/register`
-    
-- **Request Body:**
-    
-    - `email` (string, **required**)
-        
-    - `password` (string, **required**)
-        
-    - `name` (string, **required**)
-        
-    - `otp` (string, **required**, 6 chữ số)
+- **Authentication:** Không yêu cầu
+- **Request body:**
 
-    - `phone` (string)
-        
-- **Response:** `200 OK` (object)
-    
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePassword123!",
+  "name": "Nguyễn Văn A",
+  "phone": "0901234567",
+  "otp": "123456"
+}
+```
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+| --- | --- | --- | --- |
+| `email` | string | Có | Email đã nhận OTP đăng ký |
+| `password` | string | Có | Mật khẩu tài khoản |
+| `name` | string | Có | Họ và tên |
+| `phone` | string | Không | Số điện thoại |
+| `otp` | string | Có | Chính xác 6 chữ số |
+
+- **Response `200 OK`:**
+
+```json
+{
+  "code": 200,
+  "message": "Đăng ký thành công",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "refreshToken": "2f8f62c0-...",
+    "user": {
+      "userId": 1,
+      "name": "Nguyễn Văn A",
+      "email": "user@example.com",
+      "phone": "0901234567",
+      "avatarUrl": null,
+      "authProvider": "EMAIL",
+      "role": "ROLE_USER",
+      "totalPaid": null,
+      "totalPoint": null,
+      "rankLevel": "SILVER"
+    }
+  }
+}
+```
+
+#### Mã lỗi đăng ký
+
+| HTTP | `code` | Trường hợp |
+| --- | --- | --- |
+| `400` | `VALIDATION_FAILED` | Thiếu trường bắt buộc, email sai định dạng hoặc OTP không đủ 6 chữ số |
+| `400` | `OTP_INVALID` | OTP sai, hết hạn, đã dùng hoặc đã bị hủy sau 5 lần nhập sai |
+| `409` | `EMAIL_ALREADY_EXISTS` | Email đã có tài khoản |
+| `429` | `OTP_RATE_LIMITED` | Yêu cầu gửi lại OTP trước khi hết 60 giây |
+
+OTP do `/send-otp` và `/verify-otp` cấp không thể dùng để đăng ký. Nếu việc tạo
+tài khoản thất bại sau khi OTP đã được tiêu thụ, client cần yêu cầu OTP mới.
+
 
 ### Đăng nhập (Email/Password)
 
