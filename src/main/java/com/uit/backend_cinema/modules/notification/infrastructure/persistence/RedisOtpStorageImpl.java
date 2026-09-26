@@ -2,6 +2,7 @@ package com.uit.backend_cinema.modules.notification.infrastructure.persistence;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -42,7 +43,11 @@ public class RedisOtpStorageImpl implements OtpStorage {
             """, Long.class);
 
     private List<Object> registrationKeys(String email) {
-        String key = "OTP:REGISTER:" + email;
+        // Domains are case-insensitive; preserve the potentially case-sensitive local part.
+        int separator = email.lastIndexOf('@');
+        String canonicalEmail = email.substring(0, separator + 1)
+                + email.substring(separator + 1).toLowerCase(Locale.ROOT);
+        String key = "OTP:REGISTER:" + canonicalEmail;
         return List.of(key, key + ":cooldown", key + ":attempts");
     }
 

@@ -10,7 +10,8 @@
 2. Gọi `/register` với thông tin tài khoản và `otp` nhận được. Chỉ khi mã đúng
    mới tạo tài khoản và trả access token, refresh token, user.
 
-OTP gắn với chính xác email nhận mã, chỉ dùng một lần và bị hủy sau 5 lần nhập sai.
+OTP gắn với email nhận mã (tên miền không phân biệt chữ hoa/thường), chỉ dùng
+một lần và bị hủy sau 5 lần nhập sai. Giới hạn gửi lại cũng dùng cùng địa chỉ đã chuẩn hóa.
 Mã sai, hết hạn hoặc đã dùng trả `400 OTP_INVALID`; thiếu/sai định dạng trả
 `400 VALIDATION_FAILED`; gửi quá nhanh trả `429 OTP_RATE_LIMITED`.
 OTP của `/send-otp`, `/verify-otp` và luồng quên mật khẩu không dùng để đăng ký.

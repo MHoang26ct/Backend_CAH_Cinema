@@ -172,6 +172,19 @@ class RegistrationOtpIntegrationTest {
     }
 
     @Test
+    void domainCaseVariantsShareCooldownAndVerification() throws Exception {
+        send();
+        email = email.replace("@example.com", "@EXAMPLE.COM");
+        mvc.perform(post("/api/v1/auth/register/send-otp").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + email + "\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("OTP_RATE_LIMITED"));
+        verify(emailSender, times(1)).sendEmail(anyString(), anyString(), anyString());
+        register(deliveredOtp).andExpect(status().isOk());
+        assertFalse(storage.consumeRegistrationOtp(email.replace("@EXAMPLE.COM", "@example.com"), deliveredOtp));
+    }
+
+    @Test
     void invalidatesCodeAfterFiveWrongAttempts() throws Exception {
         send();
         String wrong = deliveredOtp.equals("123456") ? "654321" : "123456";
