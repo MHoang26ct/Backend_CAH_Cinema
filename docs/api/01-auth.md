@@ -74,8 +74,8 @@ chữ thường khi áp dụng thời gian chờ và xác thực OTP.
       "avatarUrl": null,
       "authProvider": "EMAIL",
       "role": "ROLE_USER",
-      "totalPaid": null,
-      "totalPoint": null,
+      "totalPaid": 0,
+      "totalPoint": 0,
       "rankLevel": "SILVER"
     }
   }
