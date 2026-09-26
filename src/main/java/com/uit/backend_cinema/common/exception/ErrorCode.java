@@ -14,6 +14,7 @@ public enum ErrorCode {
     // Token
     TOKEN_EXPIRED,              // Refresh token đã hết hạn
     TOKEN_INVALID,              // Refresh token không tồn tại / sai
+    OTP_RATE_LIMITED,           // Gửi lại OTP quá nhanh
     OTP_INVALID,                // OTP không hợp lệ
 
     ACCESS_TOKEN_EXPIRED,       // Access token (JWT) đã hết hạn (từ filter)

@@ -73,6 +73,12 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(null, "Đổi mật khẩu thành công"));
     }
 
+    @PostMapping("/register/send-otp")
+    public ResponseEntity<?> sendRegistrationOtp(@Valid @RequestBody SendOtpRequestDTO request) {
+        authUseCase.sendRegistrationOtp(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success(null, "Gửi OTP đăng ký thành công"));
+    }
+
     // ĐĂNG KÝ
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequestDTO request) {
@@ -80,7 +86,8 @@ public class AuthController {
                 request.getEmail(),
                 request.getPassword(),
                 request.getName(),
-                request.getPhone()
+                request.getPhone(),
+                request.getOtp()
         );
         return ResponseEntity.ok(ApiResponse.success(response, "Đăng ký thành công"));
     }
