@@ -1,38 +1,21 @@
-# 6. Voucher & Khuyến mãi (Vouchers)
+# 6. Voucher
 
-## Dành cho Admin (Yêu cầu ROLE_ADMIN)
+## Admin — yêu cầu `ROLE_ADMIN`
 
-- **Danh sách voucher:** `GET /api/v1/admin/vouchers` (Query: `pageable`)
-    
-- **Tạo voucher:** `POST /api/v1/admin/vouchers/create`
-    
-    - Body: `code`, `type` (FIXED_AMOUNT, PERCENT), `value`, `quantity`, `startAt`, `expiredAt` (**Tất cả required**)
-        
-- **Cập nhật voucher:** `POST /api/v1/admin/vouchers/update`
-    
-    - Thêm: `voucherId`, `isActive`, `isDeleted`, `minOrderValue`, `maxDiscount`.
-        
-- **Xóa voucher:** `DELETE /api/v1/admin/vouchers/{voucherId}`
-    
+| Method | Endpoint | Request / query |
+| --- | --- | --- |
+| `GET` | `/api/v1/admin/vouchers` | phân trang Spring: `page`, `size`, `sort`; mặc định `size=20`, sort `voucherId,DESC` |
+| `GET` | `/api/v1/admin/vouchers/{voucherId}` | — |
+| `POST` | `/api/v1/admin/vouchers/create` | `code`, `type`, `value`, `quantity`, `startAt`, `expiredAt` bắt buộc; `maxDiscount`, `minOrderValue` tùy chọn |
+| `POST` | `/api/v1/admin/vouchers/update` | `voucherId`, `code`, `type`, `value`, `minOrderValue`, `quantity`, `startAt`, `expiredAt`, `isActive`, `isDeleted` bắt buộc; `maxDiscount` tùy chọn |
+| `DELETE` | `/api/v1/admin/vouchers/{voucherId}` | — |
 
-## Dành cho User (Yêu cầu đăng nhập)
+`type` là enum voucher do backend định nghĩa (hiện gồm `FIXED_AMOUNT` và `PERCENT`). `startAt` và `expiredAt` dùng date-time. Voucher chỉ hiệu lực trong khoảng `[startAt, expiredAt)` và hai mốc phải khác nhau.
 
-- **Lấy voucher của tôi:** `GET /api/v1/vouchers`
+## User đã đăng nhập
 
-```json
-{
-  "code": 200,
-  "data": [
-    {
-      "type": "PERCENT",
-      "value": 10.00,
-      "maxDiscount": 50000.00,
-      "minOrderValue": 200000.00,
-      "quantity": 100,
-      "usedCount": 23,
-      "startAt": "2026-05-01T00:00:00",
-      "expiredAt": "2026-05-31T23:59:59"
-    }
-  ]
-}
-```
+| Method | Endpoint | Mô tả |
+| --- | --- | --- |
+| `GET` | `/api/v1/vouchers` | Danh sách voucher khả dụng của người dùng hiện tại |
+
+Các endpoint voucher trả `ApiResponse`.

@@ -1,84 +1,27 @@
 # 4. Lịch chiếu (Showtimes)
 
-## Dành cho Admin (Yêu cầu ROLE_ADMIN)
+## Admin — yêu cầu `ROLE_ADMIN`
 
-- **Tạo lịch chiếu:** `POST /api/v1/admin/showtime`
-    
-    - Body: `movieId` (**req**, min 1), `roomId` (**req**, min 1), `format` (enum: 2D, 3D, IMAX), `startTime` (date-time, **req**), `endTime` (date-time, **req**), `basePrice` (number, **req**, > 0)
-        
-- **Cập nhật lịch chiếu:** `PUT /api/v1/admin/showtime`
-    
-    - Thêm field: `showtimeId` (int64, **req**, min 1), `status` (enum: AVAILABLE, SOLD_OUT, HIDDEN, **req**)
-        
-- **Xóa lịch chiếu:** `DELETE /api/v1/admin/showtime/{showtimeId}`
-    
-- **Xem lịch chiếu theo phòng:** `GET /api/v1/admin/showtime/rooms/{roomId}` (Query: `date` format: date, **required**)
-    - Xem toàn bộ showtime của phòng theo ngày (bao gồm mọi status: AVAILABLE, SOLD_OUT, HIDDEN, CANCELLED).
-        
-- **Hủy lịch chiếu hàng loạt:** `POST /api/v1/admin/showtime/cancel-by-room`
-    - Body: `roomId` (int64, **req**), `fromDate` (format: date, **req**), `toDate` (format: date, **req**), `reason` (string)
-    - Tự động refund booking PAID và hủy booking PENDING, tự động gửi email thông báo cho khách hàng.
+| Method | Endpoint | Request / query |
+| --- | --- | --- |
+| `POST` | `/api/v1/admin/showtime` | `movieId`, `roomId`, `format`, `startTime`, `basePrice` bắt buộc |
+| `PUT` | `/api/v1/admin/showtime` | `showtimeId`, `movieId`, `roomId`, `startTime`, `basePrice`, `status` bắt buộc; `format` tùy chọn |
+| `DELETE` | `/api/v1/admin/showtime/{showtimeId}` | — |
+| `GET` | `/api/v1/admin/showtime/rooms/{roomId}` | query `date` bắt buộc, định dạng `yyyy-MM-dd` |
+| `POST` | `/api/v1/admin/showtime/cancel-by-room` | `roomId`, `fromDate`, `toDate` bắt buộc; `reason` tùy chọn |
 
-## Dành cho Public (Không yêu cầu đăng nhập)
+### Lưu ý thời gian
 
-> **Lưu ý:** Chỉ có thể xem lịch chiếu trong vòng tối đa 7 ngày tới kể từ ngày hiện tại.
+- `endTime` vẫn được chấp nhận để tương thích request cũ nhưng **không bắt buộc và không được dùng để tính lịch chiếu**.
+- Backend tính `endTime` từ `startTime` và snapshot thời lượng của phim.
+- Khi cập nhật, thời lượng snapshot của suất chiếu được giữ khi chỉ đổi giờ; nếu đổi phim, backend dùng thời lượng của phim mới.
+- `date`, `fromDate`, `toDate` dùng định dạng `yyyy-MM-dd`; `startTime` và `endTime` trong response dùng định dạng date-time.
 
-- **Theo phim:** `GET /api/v1/public/showtimes/movies/{movieId}` (Query: `date` format: date, **required**)
+## Public
 
-```json
-{
-  "code": 200,
-  "data": {
-    "movie": {
-      "movieId": 3,
-      "title": "Avengers: Endgame",
-      "description": "..."
-    },
-    "cinemas": [
-      {
-        "cinemaId": 1,
-        "cinemaName": "CGV Vincom Bà Triệu",
-        "address": "191 Bà Triệu, HN",
-        "showtimes": [
-          {
-            "showtimeId": 7,
-            "startTime": "2026-05-18T18:00:00",
-            "endTime": "2026-05-18T20:10:00",
-            "format": "2D",
-            "basePrice": 75000.00,
-            "status": "AVAILABLE",
-            "roomName": "Hall 1"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+| Method | Endpoint | Query bắt buộc |
+| --- | --- | --- |
+| `GET` | `/api/v1/public/showtimes/movies/{movieId}` | `date` (`yyyy-MM-dd`) |
+| `GET` | `/api/v1/public/showtimes/cinemas/{cinemaId}` | `date` (`yyyy-MM-dd`) |
 
-- **Theo rạp:** `GET /api/v1/public/showtimes/cinemas/{cinemaId}` (Query: `date` format: date, **required**)
-
-```json
-{
-  "code": 200,
-  "data": {
-    "movie": {
-      "movieId": 3,
-      "title": "Avengers: Endgame",
-      "posterUrl": "https://...",
-      "ageRating": "T13"
-    },
-    "showtimes": [
-      {
-        "showtimeId": 7,
-        "startTime": "2026-05-18T18:00:00",
-        "endTime": "2026-05-18T20:10:00",
-        "format": "2D",
-        "basePrice": 75000.00,
-        "status": "AVAILABLE",
-        "roomName": "Hall 1"
-      }
-    ]
-  }
-}
-```
+Các endpoint public chỉ trả lịch chiếu phù hợp để đặt vé. Response được bọc trong `ApiResponse`.
