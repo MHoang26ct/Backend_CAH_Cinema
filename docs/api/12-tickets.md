@@ -1,35 +1,25 @@
-# 12. Nghiệp vụ Check-in vé (Tickets)
+# 12. Check-in vé
 
-## Dành cho Staff / Admin
+## Staff / Admin
 
-- **Check-in vé bằng QR Code:** `POST /api/v1/staff/tickets/check-in`
-    - **Auth:** Yêu cầu đăng nhập với role `ROLE_STAFF` hoặc `ROLE_ADMIN`.
-    - **Request Body:**
-      - `qrToken` (string, **required**) - Chuỗi JWT mã hóa thông tin vé chứa trong QR Code.
-    - **Hành vi:**
-      - Cập nhật trạng thái vé (`isCheckedIn = true`).
-      - Nếu booking đang ở trạng thái `PAID`, tự động chuyển sang `CHECKED_IN` ngay khi vé đầu tiên trong booking được check-in.
-    - **Response:** `200 OK`
-    ```json
-    {
-      "code": 200,
-      "message": "Check-in vé thành công",
-      "data": {
-        "ticketId": 12,
-        "bookingId": 45,
-        "movieTitle": "Michael",
-        "cinemaName": "CGV Vincom Bà Triệu",
-        "roomName": "Hall 1",
-        "showtimeStart": "2026-06-15T18:00:00",
-        "seatName": "A8"
-      }
-    }
-    ```
-    - **Lỗi có thể xảy ra:**
+| Method | Endpoint | Request |
+| --- | --- | --- |
+| `POST` | `/api/v1/staff/tickets/check-in` | `{ "qrToken": "..." }` |
 
-      | HTTP Status | Error Code | Mô tả |
-      |---|---|---|
-      | `400` | `TICKET_INVALID_QR` | Mã QR không hợp lệ, hết hạn, thiếu thông tin, hoặc không khớp dữ liệu trong hệ thống |
-      | `400` | `VALIDATION_FAILED` | Chưa đến ngày chiếu (chỉ được check-in trước tối đa 24h) hoặc suất chiếu đã kết thúc quá 4 tiếng |
-      | `404` | `RESOURCE_NOT_FOUND` | Không tìm thấy vé hoặc booking trong hệ thống |
-      | `409` | `TICKET_ALREADY_USED` | Vé đã được check-in trước đó |
+Endpoint yêu cầu `ROLE_STAFF` hoặc `ROLE_ADMIN`. `qrToken` không được để trống.
+
+Response `200 OK` là `ApiResponse` với dữ liệu:
+
+```json
+{
+  "ticketId": 12,
+  "bookingId": 45,
+  "movieTitle": "Tên phim",
+  "cinemaName": "Tên rạp",
+  "roomName": "Tên phòng",
+  "showtimeStart": "2026-06-15T18:00:00",
+  "seatName": "A8"
+}
+```
+
+Backend kiểm tra QR/ticket và điều kiện check-in trước khi cập nhật trạng thái vé. Lỗi được trả theo chuẩn error response của hệ thống.

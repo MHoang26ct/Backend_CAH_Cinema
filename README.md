@@ -150,9 +150,11 @@ Chạy test:
 
 ## 8. Tài liệu API
 
-- Tài liệu endpoint tổng hợp: [api-docs.md](./api-docs.md)
+- Tài liệu endpoint theo module: [docs/api/README.md](./docs/api/README.md)
 - Swagger UI (khi app đang chạy):
   - `http://localhost:8080/swagger-ui/index.html`
+- OpenAPI JSON (khi app đang chạy):
+  - `http://localhost:8080/v3/api-docs`
 
 Một số nhóm API chính:
 
@@ -177,7 +179,7 @@ Một số nhóm API chính:
 2. Cập nhật schema/dữ liệu mẫu nếu thay đổi nghiệp vụ.
 3. Viết test cho domain service/repository quan trọng.
 4. Chạy `./gradlew test` trước khi tạo pull request.
-5. Cập nhật `api-docs.md` khi endpoint thay đổi.
+5. Cập nhật tài liệu trong `docs/api/` và kiểm tra Swagger/OpenAPI khi endpoint thay đổi.
 
 ## 11. Triển khai
 
