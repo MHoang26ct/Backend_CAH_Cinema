@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +55,16 @@ public class UserUseCase {
     public UserDTO updateProfile(Long userId, String name, String email, String phone, String avatarUrl) {
         UserAccountPolicy.requireInteractive(userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.RESOURCE_NOT_FOUND)));
+
+        if (email != null && !email.isBlank()) {
+            String normalizedEmail = email.trim().toLowerCase();
+            Optional<User> existing = userRepository.findByEmail(normalizedEmail);
+            if (existing.isPresent() && !existing.get().getUserId().equals(userId)) {
+                throw new BusinessException("Email đã được sử dụng bởi tài khoản khác", ErrorCode.EMAIL_ALREADY_EXISTS);
+            }
+            email = normalizedEmail;
+        }
+
         User updated = userRepository.updateProfile(userId, name, email, phone, avatarUrl);
         return userApiMapper.toDto(updated);
     }

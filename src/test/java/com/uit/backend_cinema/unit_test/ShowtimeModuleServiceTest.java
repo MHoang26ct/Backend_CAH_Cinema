@@ -134,4 +134,76 @@ class ShowtimeModuleServiceTest {
         verify(showtimeRepository).save(s1);
         verify(showtimeRepository).save(s2);
     }
+
+    @Test
+    @DisplayName("createShowtime: ném lỗi nếu trùng khoảng đệm với suất chiếu đêm hôm trước")
+    void createShowtimeOverlapsWithOvernightShowtimeFromPreviousDay() {
+        ShowtimeRepository showtimeRepository = mock(ShowtimeRepository.class);
+        MovieService movieService = mock(MovieService.class);
+        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService,
+                mock(BookingRepository.class), Clock.systemDefaultZone());
+
+        LocalDate today = LocalDate.now().plusDays(2);
+        // Suất hôm trước: 23:30 -> 01:30 sáng hôm sau (ngày `today`)
+        Showtime overnight = new Showtime();
+        overnight.setShowtimeId(99L);
+        overnight.setRoomId(1L);
+        overnight.setStartTime(today.minusDays(1).atTime(23, 30));
+        overnight.setEndTime(today.atTime(1, 30));
+        overnight.setStatus(ShowtimeStatus.AVAILABLE);
+
+        when(showtimeRepository.findAllByRoomIdAndDate(eq(1L), eq(today.minusDays(1)))).thenReturn(List.of(overnight));
+        when(showtimeRepository.findAllByRoomIdAndDate(eq(1L), eq(today))).thenReturn(List.of());
+        when(showtimeRepository.findAllByRoomIdAndDate(eq(1L), eq(today.plusDays(1)))).thenReturn(List.of());
+
+        // Suất mới: bắt đầu lúc 08:00 sáng ngày `today`
+        // Nhưng nếu suất mới bắt đầu lúc 01:45 (cách suất cũ chỉ 15 phút < 30 phút buffer)
+        // Lưu ý: rule bắt đầu trong khoảng 08:00 - 23:59.
+        // Giả sử suất hôm trước kéo dài đến 07:45 sáng (boundary 08:00) và suất mới lúc 08:00 (cách 15 phút < 30 phút)
+        overnight.setEndTime(today.atTime(7, 45));
+
+        Showtime newShowtime = validShowtime();
+        newShowtime.setStartTime(today.atTime(8, 0));
+        newShowtime.setEndTime(today.atTime(10, 0));
+
+        Movie movie = new Movie();
+        movie.setDuration(120);
+        doReturn(movie).when(movieService).getById(2L);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> showtimeService.createShowtime(newShowtime));
+        assertEquals("Khoảng cách giữa 2 suất chiếu phải ít nhất 30 phút", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("createShowtime: bỏ qua các suất chiếu CANCELLED hoặc deleted khi kiểm tra trùng lặp")
+    void createShowtimeIgnoresCancelledAndDeletedShowtimes() {
+        ShowtimeRepository showtimeRepository = mock(ShowtimeRepository.class);
+        MovieService movieService = mock(MovieService.class);
+        ShowtimeService showtimeService = new ShowtimeService(showtimeRepository, movieService,
+                mock(BookingRepository.class), Clock.systemDefaultZone());
+
+        LocalDate today = LocalDate.now().plusDays(2);
+        Showtime cancelledShowtime = new Showtime();
+        cancelledShowtime.setShowtimeId(88L);
+        cancelledShowtime.setRoomId(1L);
+        cancelledShowtime.setStartTime(today.atTime(10, 0));
+        cancelledShowtime.setEndTime(today.atTime(12, 0));
+        cancelledShowtime.setStatus(ShowtimeStatus.CANCELLED);
+
+        when(showtimeRepository.findAllByRoomIdAndDate(eq(1L), eq(today.minusDays(1)))).thenReturn(List.of());
+        when(showtimeRepository.findAllByRoomIdAndDate(eq(1L), eq(today))).thenReturn(List.of(cancelledShowtime));
+        when(showtimeRepository.findAllByRoomIdAndDate(eq(1L), eq(today.plusDays(1)))).thenReturn(List.of());
+
+        Showtime newShowtime = validShowtime();
+        newShowtime.setStartTime(today.atTime(10, 0));
+        newShowtime.setEndTime(today.atTime(12, 0));
+
+        Movie movie = new Movie();
+        movie.setDuration(120);
+        doReturn(movie).when(movieService).getById(2L);
+
+        showtimeService.createShowtime(newShowtime);
+
+        verify(showtimeRepository).save(newShowtime);
+    }
 }
