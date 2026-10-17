@@ -2,6 +2,7 @@ package com.uit.backend_cinema.common.sercurity;
 
 import java.io.IOException;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -70,13 +72,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
-        } catch (Exception e) {
-            /*
-            * Nếu token có vấn đề hoặc bị làm giả thì jwt util sẽ ném exception
-            * Bỏ qua và không cho xác thực
-            * Request coi như không có quyền và sẽ bị chặn lại ở lớp bảo vệ bên trong
-            * */
-            System.out.println("Lỗi xác thực JWT: " + e.getMessage());
+        } catch (JwtException | IllegalArgumentException | AuthenticationException e) {
+            // Invalid credentials remain anonymous; SecurityConfig decides 401/403.
+            // Never log parser messages: they may contain token claims or account data.
         }
 
         // Cho phép request được đi tiếp (vào controller)
