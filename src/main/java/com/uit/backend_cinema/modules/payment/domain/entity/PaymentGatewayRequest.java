@@ -65,6 +65,13 @@ public class PaymentGatewayRequest {
     /** Hình thức thanh toán: qr, app, webApp, ... */
     private String payType;
 
+    private String vnpCreateDate;
+    private String vnpExpireDate;
+    private String vnpPayDate;
+    private String vnpBankCode;
+    private String vnpBankTranNo;
+    private String vnpCardType;
+
     /** Trạng thái nội bộ */
     private PaymentGatewayRequestStatus status;
 

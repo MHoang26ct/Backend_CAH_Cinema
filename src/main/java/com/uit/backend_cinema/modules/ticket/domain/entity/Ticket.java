@@ -13,5 +13,6 @@ public class Ticket {
     private Long showtimeId;
     private Long bookingId;
     private BigDecimal price;
+    private TicketStatus status = TicketStatus.VALID;
     private Boolean isCheckedIn = false;
 }

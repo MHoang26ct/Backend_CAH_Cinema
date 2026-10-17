@@ -4,12 +4,15 @@ import java.math.BigDecimal;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+import com.uit.backend_cinema.modules.ticket.domain.entity.TicketStatus;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -20,10 +23,6 @@ import lombok.Setter;
                 @UniqueConstraint(
                         name = "uq_tickets_booking_seat",
                         columnNames = {"booking_id", "seat_id"}
-                ),
-                @UniqueConstraint(
-                        name = "uq_tickets_showtime_seat",
-                        columnNames = {"showtime_id", "seat_id"}
                 )
         }
 )
@@ -46,6 +45,10 @@ public class TicketJpaEntity {
 
     @Column(name = "price", nullable = false)
     private BigDecimal price;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private TicketStatus status = TicketStatus.VALID;
 
     @Column(name = "is_checked_in", nullable = false)
     private Boolean isCheckedIn = false;

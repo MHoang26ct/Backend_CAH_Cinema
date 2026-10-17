@@ -27,6 +27,12 @@ public class PaymentInfraMapper {
                 .responseMessage(entity.getResponseMessage())
                 .gatewayTransId(entity.getGatewayTransId())
                 .payType(entity.getPayType())
+                .vnpCreateDate(entity.getVnpCreateDate())
+                .vnpExpireDate(entity.getVnpExpireDate())
+                .vnpPayDate(entity.getVnpPayDate())
+                .vnpBankCode(entity.getVnpBankCode())
+                .vnpBankTranNo(entity.getVnpBankTranNo())
+                .vnpCardType(entity.getVnpCardType())
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
@@ -53,6 +59,12 @@ public class PaymentInfraMapper {
         entity.setResponseMessage(domain.getResponseMessage());
         entity.setGatewayTransId(domain.getGatewayTransId());
         entity.setPayType(domain.getPayType());
+        entity.setVnpCreateDate(domain.getVnpCreateDate());
+        entity.setVnpExpireDate(domain.getVnpExpireDate());
+        entity.setVnpPayDate(domain.getVnpPayDate());
+        entity.setVnpBankCode(domain.getVnpBankCode());
+        entity.setVnpBankTranNo(domain.getVnpBankTranNo());
+        entity.setVnpCardType(domain.getVnpCardType());
         entity.setStatus(domain.getStatus());
         entity.setCreatedAt(domain.getCreatedAt());
         entity.setUpdatedAt(domain.getUpdatedAt());

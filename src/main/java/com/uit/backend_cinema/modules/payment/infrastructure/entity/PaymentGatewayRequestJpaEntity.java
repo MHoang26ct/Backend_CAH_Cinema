@@ -72,6 +72,24 @@ public class PaymentGatewayRequestJpaEntity {
     @Column(name = "pay_type", length = 30)
     private String payType;
 
+    @Column(name = "vnp_create_date", length = 14)
+    private String vnpCreateDate;
+
+    @Column(name = "vnp_expire_date", length = 14)
+    private String vnpExpireDate;
+
+    @Column(name = "vnp_pay_date", length = 14)
+    private String vnpPayDate;
+
+    @Column(name = "vnp_bank_code", length = 50)
+    private String vnpBankCode;
+
+    @Column(name = "vnp_bank_tran_no", length = 255)
+    private String vnpBankTranNo;
+
+    @Column(name = "vnp_card_type", length = 50)
+    private String vnpCardType;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private PaymentGatewayRequestStatus status;

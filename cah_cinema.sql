@@ -232,6 +232,27 @@ CREATE TABLE bookings (
     total_price DECIMAL(18,2) NOT NULL DEFAULT 0 CHECK (total_price >= 0),
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID', 'CANCELLED', 'EXPIRED', 'REFUNDED', 'CHECKED_IN')),
     expires_at TIMESTAMP NOT NULL,
+    payment_deadline TIMESTAMP,
+    reconciliation_deadline TIMESTAMP,
+    booking_source VARCHAR(20) NOT NULL DEFAULT 'ONLINE' CHECK (booking_source IN ('ONLINE', 'COUNTER')),
+    created_by_staff_id INT REFERENCES users(user_id),
+    contact_name VARCHAR(255),
+    contact_email VARCHAR(255),
+    contact_phone VARCHAR(20),
+    seat_subtotal_gross DECIMAL(18,2) DEFAULT 0 CHECK (seat_subtotal_gross >= 0),
+    food_subtotal_gross DECIMAL(18,2) DEFAULT 0 CHECK (food_subtotal_gross >= 0),
+    rank_discount_amount DECIMAL(18,2) DEFAULT 0 CHECK (rank_discount_amount >= 0),
+    voucher_discount_seat DECIMAL(18,2) DEFAULT 0 CHECK (voucher_discount_seat >= 0),
+    voucher_discount_food DECIMAL(18,2) DEFAULT 0 CHECK (voucher_discount_food >= 0),
+    net_seat_amount DECIMAL(18,2) DEFAULT 0 CHECK (net_seat_amount >= 0),
+    net_food_amount DECIMAL(18,2) DEFAULT 0 CHECK (net_food_amount >= 0),
+    food_fulfillment_status VARCHAR(20) NOT NULL DEFAULT 'NOT_APPLICABLE' CHECK (food_fulfillment_status IN ('NOT_APPLICABLE', 'PENDING', 'FULFILLED')),
+    food_fulfilled_at TIMESTAMP,
+    food_fulfilled_by_staff_id INT REFERENCES users(user_id),
+    cancellation_policy_snapshot TEXT,
+    is_voucher_released BOOLEAN NOT NULL DEFAULT FALSE,
+    is_points_accumulated BOOLEAN NOT NULL DEFAULT FALSE,
+    is_points_reversed BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     version BIGINT NOT NULL DEFAULT 0,
@@ -268,10 +289,14 @@ CREATE TABLE tickets (
     showtime_id INT NOT NULL REFERENCES showtimes(showtime_id),
     booking_id INT NOT NULL REFERENCES bookings(booking_id),
     price DECIMAL(18,2) NOT NULL CHECK (price >= 0),
+    status VARCHAR(20) NOT NULL DEFAULT 'VALID' CHECK (status IN ('VALID', 'CANCELLED')),
     is_checked_in BOOLEAN DEFAULT FALSE,
-    CONSTRAINT uq_tickets_booking_seat UNIQUE (booking_id, seat_id),
-    CONSTRAINT uq_tickets_showtime_seat UNIQUE (showtime_id, seat_id)
+    CONSTRAINT uq_tickets_booking_seat UNIQUE (booking_id, seat_id)
 );
+
+CREATE UNIQUE INDEX uq_tickets_valid_showtime_seat
+ON tickets (showtime_id, seat_id)
+WHERE status = 'VALID';
 
 CREATE TABLE food_orders (
     food_order_id SERIAL PRIMARY KEY,
@@ -373,6 +398,12 @@ CREATE TABLE payment_requests (
     -- Thông tin sau khi user thanh toán (cập nhật từ IPN/callback)
     gateway_trans_id VARCHAR(100),            -- Mã giao dịch phía gateway
     pay_type VARCHAR(30),                     -- Hình thức TT: qr, webApp, app, ...
+    vnp_create_date VARCHAR(14),
+    vnp_expire_date VARCHAR(14),
+    vnp_pay_date VARCHAR(14),
+    vnp_bank_code VARCHAR(50),
+    vnp_bank_tran_no VARCHAR(255),
+    vnp_card_type VARCHAR(50),
 
     -- Trạng thái nội bộ
     status VARCHAR(30) NOT NULL DEFAULT 'CREATED'
@@ -396,3 +427,48 @@ CREATE INDEX idx_payment_requests_booking_request
 -- Tra cứu theo gateway + order_id (dùng khi nhận IPN)
 CREATE INDEX idx_payment_requests_gateway_order
     ON payment_requests (gateway, order_id);
+
+CREATE TABLE payment_receipts (
+    payment_receipt_id SERIAL PRIMARY KEY,
+    booking_id INT NOT NULL REFERENCES bookings(booking_id),
+    payment_request_id INT REFERENCES payment_requests(payment_request_id),
+    gateway VARCHAR(30) NOT NULL,
+    transaction_reference VARCHAR(100) NOT NULL,
+    order_id VARCHAR(200),
+    amount DECIMAL(18,2) NOT NULL CHECK (amount >= 0),
+    pay_date TIMESTAMP,
+    verified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(30) NOT NULL DEFAULT 'RECORDED'
+        CHECK (status IN ('RECORDED', 'ALLOCATED', 'REFUNDED', 'OVERPAID')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_payment_receipts_gateway_trans UNIQUE (gateway, transaction_reference)
+);
+
+CREATE INDEX idx_payment_receipts_booking ON payment_receipts (booking_id);
+
+CREATE TABLE refunds (
+    refund_id SERIAL PRIMARY KEY,
+    payment_receipt_id INT NOT NULL REFERENCES payment_receipts(payment_receipt_id),
+    booking_id INT NOT NULL REFERENCES bookings(booking_id),
+    cause VARCHAR(50) NOT NULL
+        CHECK (cause IN ('CUSTOMER_CANCELLED', 'SHOWTIME_CANCELLED', 'EXPIRED_LATE_PAYMENT', 'DUPLICATE_CHARGE', 'SEAT_ALLOCATION_FAILED', 'MANUAL_STAFF')),
+    amount DECIMAL(18,2) NOT NULL CHECK (amount > 0),
+    policy_snapshot TEXT,
+    status VARCHAR(30) NOT NULL DEFAULT 'REQUESTED'
+        CHECK (status IN ('REQUESTED', 'PROCESSING', 'UNKNOWN', 'SUCCEEDED', 'FAILED', 'REVIEW_REQUIRED')),
+    request_reference VARCHAR(100) NOT NULL,
+    actor_staff_id INT REFERENCES users(user_id),
+    claimed_at TIMESTAMP,
+    processed_at TIMESTAMP,
+    gateway_response_code VARCHAR(50),
+    gateway_transaction_no VARCHAR(100),
+    gateway_response_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_refunds_receipt_cause UNIQUE (payment_receipt_id, cause),
+    CONSTRAINT uq_refunds_request_ref UNIQUE (request_reference)
+);
+
+CREATE INDEX idx_refunds_booking ON refunds (booking_id);
+CREATE INDEX idx_refunds_status ON refunds (status);
