@@ -17,4 +17,7 @@ public class VnpayProperties implements VnpayPaymentConfig {
     private String returnUrl;
     private String ipnUrl;
     private int paymentRequestTtlMinutes = 15;
+    private String apiUrl = "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction";
+    private int connectTimeoutSeconds = 10;
+    private int readTimeoutSeconds = 15;
 }

@@ -67,5 +67,8 @@ public enum ErrorCode {
     VNPAY_SIGNATURE_INVALID,         // Chữ ký VNPay không hợp lệ
     VNPAY_PAYMENT_CREATION_FAILED,   // Build URL thanh toán thất bại
     VNPAY_ORDER_ID_INVALID,          // orderId không parse được bookingId
+    GATEWAY_TIMEOUT,                 // Gateway gọi timeout
+    GATEWAY_COMMUNICATION_FAILED,    // Lỗi kết nối gateway
+    VNPAY_TRANSACTION_FAILED,        // Giao dịch VNPay thất bại
 
 }

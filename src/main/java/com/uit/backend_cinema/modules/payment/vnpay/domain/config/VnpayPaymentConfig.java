@@ -7,4 +7,7 @@ public interface VnpayPaymentConfig {
     String getReturnUrl();
     String getIpnUrl();
     int getPaymentRequestTtlMinutes();
+    String getApiUrl();
+    int getConnectTimeoutSeconds();
+    int getReadTimeoutSeconds();
 }

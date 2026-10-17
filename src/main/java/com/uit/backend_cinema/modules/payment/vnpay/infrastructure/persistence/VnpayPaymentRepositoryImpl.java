@@ -111,6 +111,16 @@ public class VnpayPaymentRepositoryImpl implements VnpayPaymentRepository {
         String bankCode = params.get("vnp_BankCode");
         String cardType = params.get("vnp_CardType");
 
+        String payDate = params.get("vnp_PayDate");
+        String bankTranNo = params.get("vnp_BankTranNo");
+        String amountStr = params.get("vnp_Amount");
+        Long amount = null;
+        try {
+            if (amountStr != null) {
+                amount = Long.parseLong(amountStr);
+            }
+        } catch (NumberFormatException ignored) {}
+
         // Giao dịch thành công khi cả hai mã đều là "00"
         boolean success = "00".equals(responseCode) && "00".equals(transactionStatus);
 
@@ -128,6 +138,12 @@ public class VnpayPaymentRepositoryImpl implements VnpayPaymentRepository {
                 .orderId(orderId)
                 .transactionId(transactionNo)
                 .payType(cardType != null ? cardType : bankCode)
+                .amount(amount)
+                .payDate(payDate)
+                .transactionStatus(transactionStatus)
+                .bankCode(bankCode)
+                .bankTranNo(bankTranNo)
+                .cardType(cardType)
                 .message("VNPay response: Code=" + responseCode + ", Status=" + transactionStatus)
                 .resultCode(resultCode)
                 .build();

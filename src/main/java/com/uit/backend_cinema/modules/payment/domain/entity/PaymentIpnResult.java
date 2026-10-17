@@ -23,4 +23,11 @@ public class PaymentIpnResult {
     private String message;
     /** Result code gốc từ gateway */
     private int resultCode;
+
+    private Long amount;
+    private String payDate;
+    private String transactionStatus;
+    private String bankCode;
+    private String bankTranNo;
+    private String cardType;
 }
