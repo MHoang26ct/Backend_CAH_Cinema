@@ -44,7 +44,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     private UserDetails buildUserDetails(User user) {
-        if (!Boolean.FALSE.equals(user.getIsDeleted()) || user.getUserId() == null || user.getUserId() <= 0) {
+        if (!user.isInteractiveAccount() || user.getUserId() == null || user.getUserId() <= 0) {
             throw new UsernameNotFoundException("Tài khoản không còn hợp lệ");
         }
         String username = user.getEmail() != null ? user.getEmail() : user.getPhone();

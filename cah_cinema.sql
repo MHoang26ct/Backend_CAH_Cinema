@@ -11,6 +11,8 @@ CREATE TABLE users (
     phone VARCHAR(20),
     avatar_url TEXT,
     auth_provider VARCHAR(20) NOT NULL CHECK (auth_provider IN ('EMAIL', 'GOOGLE')),
+    account_type VARCHAR(20) NOT NULL DEFAULT 'REGISTERED'
+        CONSTRAINT chk_users_account_type CHECK (account_type IN ('REGISTERED', 'WALK_IN')),
     total_paid  DECIMAL(18,2) NOT NULL DEFAULT 0 CHECK (total_paid  >= 0),
     total_point INT           NOT NULL DEFAULT 0 CHECK (total_point >= 0),
     rank_level  VARCHAR(20)   NOT NULL DEFAULT 'SILVER' CHECK (rank_level IN ('SILVER', 'GOLD', 'DIAMOND')),
@@ -18,6 +20,20 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN DEFAULT FALSE
 );
+
+CREATE UNIQUE INDEX uq_users_walk_in ON users (account_type) WHERE account_type = 'WALK_IN';
+
+CREATE FUNCTION prevent_user_account_type_change() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.account_type IS DISTINCT FROM OLD.account_type THEN
+        RAISE EXCEPTION 'Account type is immutable' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER trg_users_account_type_immutable
+    BEFORE UPDATE OF account_type ON users
+    FOR EACH ROW EXECUTE FUNCTION prevent_user_account_type_change();
 
 CREATE TABLE movies (
     movie_id SERIAL PRIMARY KEY,

@@ -64,6 +64,7 @@ public class AuthService {
                         ErrorCode.INVALID_CREDENTIALS
                 ));
 
+        UserAccountPolicy.requireInteractive(user);
         if (user.getPassword() == null || !passwordEncoder.matches(rawPassword, user.getPassword())) {
             throw new BusinessException(
                     "Email hoặc mật khẩu không chính xác",
@@ -91,6 +92,7 @@ public class AuthService {
             user.setIsDeleted(false);
         } else {
             user = existingUser.get();
+            UserAccountPolicy.requireInteractive(user);
             user.setName(name);
             user.setAvatarUrl(avatarUrl);
             user.setProviderId(providerId);
@@ -105,6 +107,7 @@ public class AuthService {
         if (user.isEmpty()) {
             throw new BusinessException("Email không tồn tại", ErrorCode.INVALID_CREDENTIALS);
         }
+        UserAccountPolicy.requireInteractive(user.get());
         user.get().setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user.get());
     }
@@ -117,6 +120,7 @@ public class AuthService {
             throw new BusinessException("Email không tồn tại", ErrorCode.INVALID_CREDENTIALS);
         }
         User user = userOpt.get();
+        UserAccountPolicy.requireInteractive(user);
         if (user.getPassword() == null || !passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new BusinessException("Mật khẩu cũ không chính xác", ErrorCode.INVALID_CREDENTIALS);
         }
