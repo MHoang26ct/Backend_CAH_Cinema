@@ -63,4 +63,25 @@ public class StaffBookingController {
         ConfirmPaymentResponseDTO response = bookingService.confirmPayment(user.getUserId(), bookingId, requestDTO);
         return ResponseEntity.ok(ApiResponse.success(response, "Xác nhận thanh toán thành công"));
     }
+
+    @GetMapping("/{bookingId}/cancellation-quote")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<?> getStaffCancellationQuote(
+            @PathVariable Long bookingId,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        var quote = bookingService.getCancellationQuote(bookingId, user.getUserId(), true);
+        return ResponseEntity.ok(ApiResponse.success(quote));
+    }
+
+    @PostMapping("/{bookingId}/cancel")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<?> staffCancelBooking(
+            @PathVariable Long bookingId,
+            @RequestBody(required = false) com.uit.backend_cinema.modules.booking.api.dto.CancelBookingRequestDTO request,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        var response = bookingService.cancelBooking(bookingId, user.getUserId(), true, request);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }

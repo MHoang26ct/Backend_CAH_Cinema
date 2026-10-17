@@ -19,4 +19,8 @@ public interface RefundRepository {
     List<Refund> findByBookingId(Long bookingId);
 
     List<Refund> findByStatus(RefundStatus status);
+
+    boolean claimCashRefund(Long refundId, Long staffId, java.time.LocalDateTime claimedAt);
+
+    boolean confirmCashPayout(Long refundId, Long staffId, java.time.LocalDateTime processedAt);
 }

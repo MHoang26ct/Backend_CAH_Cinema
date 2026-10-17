@@ -53,6 +53,16 @@ public class RefundRepositoryImpl implements RefundRepository {
         return jpaRepository.findByStatus(status).stream().map(this::toDomain).toList();
     }
 
+    @Override
+    public boolean claimCashRefund(Long refundId, Long staffId, java.time.LocalDateTime claimedAt) {
+        return jpaRepository.claimCashRefund(refundId, staffId, claimedAt, RefundStatus.PROCESSING) > 0;
+    }
+
+    @Override
+    public boolean confirmCashPayout(Long refundId, Long staffId, java.time.LocalDateTime processedAt) {
+        return jpaRepository.confirmCashPayout(refundId, staffId, processedAt) > 0;
+    }
+
     private Refund toDomain(RefundJpaEntity entity) {
         if (entity == null) return null;
         return Refund.builder()

@@ -88,7 +88,17 @@ public class GlobalExceptionHandler {
                  VNPAY_TRANSACTION_FAILED,
                  PAYMENT_METHOD_NOT_SUPPORTED,
                  CASH_PAYMENT_REQUIRES_STAFF,
-                 INVALID_CUSTOMER_TYPE -> HttpStatus.BAD_REQUEST;
+                 INVALID_CUSTOMER_TYPE,
+                 BOOKING_CANNOT_BE_CANCELLED,
+                 BOOKING_CANCEL_DEADLINE_EXCEEDED,
+                 BOOKING_ALREADY_CHECKED_IN,
+                 REFUND_INVALID_STATUS,
+                 REFUND_STAFF_MISMATCH,
+                 REFUND_METHOD_MISMATCH,
+                 QUOTE_EXPIRED_OR_CHANGED -> HttpStatus.BAD_REQUEST;
+
+            case REFUND_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case REFUND_ALREADY_CLAIMED -> HttpStatus.CONFLICT;
 
             case GATEWAY_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
             case GATEWAY_COMMUNICATION_FAILED -> HttpStatus.BAD_GATEWAY;
