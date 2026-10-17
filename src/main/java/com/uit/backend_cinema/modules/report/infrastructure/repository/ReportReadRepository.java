@@ -31,6 +31,7 @@ public interface ReportReadRepository extends JpaRepository<BookingJpaEntity, Lo
                        SUM(price)  AS ticket_sum,
                        COUNT(*)    AS ticket_count
                 FROM tickets
+                WHERE status = 'VALID'
                 GROUP BY booking_id
             ) t_agg ON t_agg.booking_id = b.booking_id
             LEFT JOIN (
@@ -58,6 +59,7 @@ public interface ReportReadRepository extends JpaRepository<BookingJpaEntity, Lo
             LEFT JOIN (
                 SELECT booking_id, COUNT(*) AS ticket_count
                 FROM tickets
+                WHERE status = 'VALID'
                 GROUP BY booking_id
             ) t_agg ON t_agg.booking_id = b.booking_id
             WHERE b.status IN ('PAID', 'CHECKED_IN')
@@ -83,6 +85,7 @@ public interface ReportReadRepository extends JpaRepository<BookingJpaEntity, Lo
             JOIN showtimes s      ON s.showtime_id = tk.showtime_id
             JOIN movies m         ON m.movie_id    = s.movie_id
             WHERE b.status IN ('PAID', 'CHECKED_IN')
+              AND tk.status = 'VALID'
               AND b.created_at >= :from
               AND b.created_at < :to
             GROUP BY m.movie_id, m.title
@@ -106,6 +109,7 @@ public interface ReportReadRepository extends JpaRepository<BookingJpaEntity, Lo
             JOIN rooms r          ON r.room_id     = s.room_id
             JOIN cinemas c        ON c.cinema_id   = r.cinema_id
             WHERE b.status IN ('PAID', 'CHECKED_IN')
+              AND tk.status = 'VALID'
               AND b.created_at >= :from
               AND b.created_at < :to
             GROUP BY c.cinema_id, c.name

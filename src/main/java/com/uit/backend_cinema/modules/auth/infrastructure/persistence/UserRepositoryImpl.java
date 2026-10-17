@@ -76,6 +76,11 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public void deductPaidAndRecalcRank(Long userId, BigDecimal amount) {
+        jpaUserRepository.deductPaidAndRecalcRank(userId, amount);
+    }
+
+    @Override
     public User updateProfile(Long userId, String name, String email, String phone, String avatarUrl) {
         UserJpaEntity entity = jpaUserRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User không tồn tại: " + userId));

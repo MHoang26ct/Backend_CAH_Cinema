@@ -28,6 +28,11 @@ public interface UserRepository {
      */
     void accumulatePaidAndRecalcRank(Long userId, BigDecimal amount);
 
+    /**
+     * Khấu trừ {@code amount} khỏi total_paid và tính lại total_point + rank_level.
+     */
+    void deductPaidAndRecalcRank(Long userId, BigDecimal amount);
+
     Optional<User> findWalkInUser();
 
     User getOrCreateWalkInUser();

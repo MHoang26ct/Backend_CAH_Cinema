@@ -9,9 +9,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.modules.auth.domain.entity.AccountType;
 import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 import com.uit.backend_cinema.modules.booking.domain.entity.Booking;
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
 import com.uit.backend_cinema.modules.booking.domain.repository.BookingRepository;
 import com.uit.backend_cinema.modules.notification.domain.service.NotificationService;
 import com.uit.backend_cinema.modules.outbox.domain.entity.OutboxEvent;
@@ -62,6 +64,14 @@ public class SendTicketEmailOutboxHandler {
         SendTicketEmailPayload payload = readPayload(event.getPayload());
         Booking booking = bookingRepository.findById(payload.getBookingId())
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+
+        // Không phát email vé còn dùng được sau hủy/hoàn tiền
+        if (booking.getStatus() == BookingStatus.CANCELLED || booking.getStatus() == BookingStatus.REFUNDED
+                || booking.getStatus() == BookingStatus.EXPIRED) {
+            outboxEventService.markDone(event.getOutboxEventId());
+            return;
+        }
+
         User user = userRepository.findById(payload.getUserId())
                 .orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
         List<Ticket> tickets = ticketService.findAllByBookingId(booking.getBookingId());
@@ -76,7 +86,7 @@ public class SendTicketEmailOutboxHandler {
 
         String recipientEmail = (booking.getContactEmail() != null && !booking.getContactEmail().isBlank())
                 ? booking.getContactEmail()
-                : user.getEmail();
+                : (user.getAccountType() != AccountType.WALK_IN ? user.getEmail() : null);
 
         if (recipientEmail != null && !recipientEmail.isBlank()) {
             notificationService.sendTicketEmail(recipientEmail, booking.getBookingId(), movie, showtime, tickets, seats);

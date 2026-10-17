@@ -9,6 +9,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.modules.auth.domain.entity.AccountType;
 import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 import com.uit.backend_cinema.modules.booking.domain.entity.Booking;
@@ -67,13 +68,19 @@ public class ShowtimeCancelledOutboxHandler {
         Showtime showtime = showtimeService.getById(payload.getShowtimeId());
         Movie movie = movieService.getById(showtime.getMovieId());
 
-        notificationService.sendShowtimeCancelledEmail(
-                user.getEmail(),
-                booking.getBookingId(),
-                movie,
-                showtime,
-                payload.getReason()
-        );
+        String recipientEmail = (booking.getContactEmail() != null && !booking.getContactEmail().isBlank())
+                ? booking.getContactEmail()
+                : (user.getAccountType() != AccountType.WALK_IN ? user.getEmail() : null);
+
+        if (recipientEmail != null && !recipientEmail.isBlank()) {
+            notificationService.sendShowtimeCancelledEmail(
+                    recipientEmail,
+                    booking.getBookingId(),
+                    movie,
+                    showtime,
+                    payload.getReason()
+            );
+        }
 
         outboxEventService.markDone(event.getOutboxEventId());
     }

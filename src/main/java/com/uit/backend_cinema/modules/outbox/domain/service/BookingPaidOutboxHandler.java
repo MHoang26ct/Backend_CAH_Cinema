@@ -53,27 +53,49 @@ public class BookingPaidOutboxHandler {
         Booking booking = bookingRepository.findById(payload.getBookingId())
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
 
-        if (booking.getStatus() != BookingStatus.PAID) {
-            throw new BusinessException("Booking chưa thanh toán, không thể tạo vé", ErrorCode.BOOKING_INVALID_STATUS);
+        // Nếu booking đã bị hủy hoặc hoàn tiền trước khi outbox chạy:
+        if (booking.getStatus() == BookingStatus.CANCELLED || booking.getStatus() == BookingStatus.REFUNDED
+                || booking.getStatus() == BookingStatus.EXPIRED) {
+            // Không cấp vé, không gửi email vé, thu hồi tích điểm nếu có
+            if (Boolean.TRUE.equals(booking.getIsPointsAccumulated())) {
+                userRepository.findById(booking.getUserId()).ifPresent(user -> {
+                    if (user.getAccountType() != AccountType.WALK_IN && !Boolean.TRUE.equals(user.getIsDeleted())) {
+                        userRepository.deductPaidAndRecalcRank(booking.getUserId(), booking.getTotalAmount());
+                    }
+                });
+                booking.setIsPointsAccumulated(false);
+                bookingRepository.save(booking);
+            }
+            ticketService.expireDraftItems(booking.getBookingId());
+            foodOrderService.expireDraftItems(booking.getBookingId());
+            outboxEventService.markDone(event.getOutboxEventId());
+            return;
         }
 
-        try {
-            ticketService.finalizeTicketsForPaidBooking(booking.getBookingId(), booking.getShowtimeId());
-        } catch (DataIntegrityViolationException ex) {
-            throw new BusinessException("Ghế đã được bán cho suất chiếu này", ErrorCode.SEAT_ALREADY_BOOKED, ex);
+        // Nếu booking ở trạng thái PAID hoặc CHECKED_IN
+        if (booking.getStatus() == BookingStatus.PAID) {
+            try {
+                ticketService.finalizeTicketsForPaidBooking(booking.getBookingId(), booking.getShowtimeId());
+            } catch (DataIntegrityViolationException ex) {
+                throw new BusinessException("Ghế đã được bán cho suất chiếu này", ErrorCode.SEAT_ALREADY_BOOKED, ex);
+            }
+
+            SendTicketEmailPayload emailPayload = new SendTicketEmailPayload();
+            emailPayload.setBookingId(booking.getBookingId());
+            emailPayload.setUserId(booking.getUserId());
+
+            outboxEventService.createIfAbsent(
+                    OutboxEventType.SEND_TICKET_EMAIL,
+                    booking.getBookingId().toString(),
+                    writePayload(emailPayload)
+            );
         }
 
-        SendTicketEmailPayload emailPayload = new SendTicketEmailPayload();
-        emailPayload.setBookingId(booking.getBookingId());
-        emailPayload.setUserId(booking.getUserId());
+        // Tạo hóa đơn kiểm toán nếu chưa có
+        if (booking.getPaymentMethod() != null) {
+            invoiceService.createInvoice(booking.getBookingId(), booking.getPaymentMethod().name(), booking.getTotalAmount());
+        }
 
-        outboxEventService.createIfAbsent(
-                OutboxEventType.SEND_TICKET_EMAIL,
-                booking.getBookingId().toString(),
-                writePayload(emailPayload)
-        );
-
-        invoiceService.createInvoice(booking.getBookingId(), booking.getPaymentMethod().name(), booking.getTotalAmount());
         // Cộng tiền vào total_paid, tính lại điểm và cập nhật rank (chỉ cho interactive account và idempotent)
         if (!Boolean.TRUE.equals(booking.getIsPointsAccumulated())) {
             userRepository.findById(booking.getUserId()).ifPresent(user -> {
