@@ -12,6 +12,13 @@ public interface JpaPaymentGatewayRequestRepository
     /** Tìm payment request theo bookingId — dùng để kiểm tra đã tạo đơn chưa */
     Optional<PaymentGatewayRequestJpaEntity> findFirstByBookingIdOrderByCreatedAtDesc(Long bookingId);
 
+    /** Tìm payment request theo gateway và bookingId */
+    Optional<PaymentGatewayRequestJpaEntity> findFirstByGatewayAndBookingIdOrderByCreatedAtDesc(String gateway, Long bookingId);
+
+    /** Tìm các request CREATED cần đối soát */
+    java.util.List<PaymentGatewayRequestJpaEntity> findTop10ByGatewayAndStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
+            String gateway, PaymentGatewayRequestStatus status, java.time.LocalDateTime threshold);
+
     /** Tìm theo gateway + orderId — dùng khi nhận IPN callback */
     Optional<PaymentGatewayRequestJpaEntity> findByGatewayAndOrderId(String gateway, String orderId);
 }

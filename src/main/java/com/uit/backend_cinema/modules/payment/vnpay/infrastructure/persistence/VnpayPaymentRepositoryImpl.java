@@ -20,7 +20,8 @@ import java.util.Map;
 public class VnpayPaymentRepositoryImpl implements VnpayPaymentRepository {
 
     private final VnpayProperties vnpayProperties;
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final java.time.ZoneId VN_ZONE = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(VN_ZONE);
 
     public VnpayPaymentRepositoryImpl(VnpayProperties vnpayProperties) {
         this.vnpayProperties = vnpayProperties;
@@ -48,12 +49,20 @@ public class VnpayPaymentRepositoryImpl implements VnpayPaymentRepository {
         vnpParams.put("vnp_IpAddr", ipAddr);
 
         // Ngày tạo và ngày hết hạn
-        LocalDateTime createTime = LocalDateTime.now();
-        String vnpCreateDate = createTime.format(DATE_FORMATTER);
+        String vnpCreateDate = request.getVnpCreateDate();
+        if (vnpCreateDate == null || vnpCreateDate.isBlank()) {
+            LocalDateTime createTime = LocalDateTime.now(VN_ZONE);
+            vnpCreateDate = createTime.format(DATE_FORMATTER);
+            request.setVnpCreateDate(vnpCreateDate);
+        }
         vnpParams.put("vnp_CreateDate", vnpCreateDate);
 
-        LocalDateTime expireTime = createTime.plusMinutes(vnpayProperties.getPaymentRequestTtlMinutes());
-        String vnpExpireDate = expireTime.format(DATE_FORMATTER);
+        String vnpExpireDate = request.getVnpExpireDate();
+        if (vnpExpireDate == null || vnpExpireDate.isBlank()) {
+            LocalDateTime expireTime = LocalDateTime.now(VN_ZONE).plusMinutes(vnpayProperties.getPaymentRequestTtlMinutes());
+            vnpExpireDate = expireTime.format(DATE_FORMATTER);
+            request.setVnpExpireDate(vnpExpireDate);
+        }
         vnpParams.put("vnp_ExpireDate", vnpExpireDate);
 
         // Mã ngân hàng (nếu có chọn trước)

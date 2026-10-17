@@ -28,4 +28,12 @@ public class PaymentRequestService {
     public Optional<PaymentGatewayRequest> findByGatewayAndOrderId(String gateway, String orderId) {
         return repository.findByGatewayAndOrderId(gateway, orderId);
     }
+
+    public Optional<PaymentGatewayRequest> findLatestByBookingIdAndGateway(Long bookingId, String gateway) {
+        return repository.findLatestByBookingIdAndGateway(bookingId, gateway);
+    }
+
+    public java.util.List<PaymentGatewayRequest> findPendingReconciliationRequests(String gateway, java.time.LocalDateTime threshold) {
+        return repository.findPendingReconciliationRequests(gateway, threshold);
+    }
 }

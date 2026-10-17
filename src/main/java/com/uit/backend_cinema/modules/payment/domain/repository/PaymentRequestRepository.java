@@ -10,5 +10,7 @@ import java.util.Optional;
 public interface PaymentRequestRepository {
     PaymentGatewayRequest save(PaymentGatewayRequest request);
     Optional<PaymentGatewayRequest> findLatestByBookingId(Long bookingId);
+    Optional<PaymentGatewayRequest> findLatestByBookingIdAndGateway(Long bookingId, String gateway);
     Optional<PaymentGatewayRequest> findByGatewayAndOrderId(String gateway, String orderId);
+    java.util.List<PaymentGatewayRequest> findPendingReconciliationRequests(String gateway, java.time.LocalDateTime threshold);
 }

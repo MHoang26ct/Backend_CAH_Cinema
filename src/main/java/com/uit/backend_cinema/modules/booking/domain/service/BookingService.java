@@ -638,7 +638,8 @@ public class BookingService {
         }
 
         List<Long> seatIds = ticketService.findActiveDraftSeatIds(booking.getBookingId());
-        seatService.releaseSeatLocksByOwner(booking.getShowtimeId(), seatIds, booking.getUserId());
+        Long lockOwner = booking.getCreatedByStaffId() != null ? booking.getCreatedByStaffId() : booking.getUserId();
+        seatService.releaseSeatLocksByOwner(booking.getShowtimeId(), seatIds, lockOwner);
 
         voucherService.releaseVoucherForExpiredBooking(booking.getVoucherId());
         ticketService.expireDraftItems(booking.getBookingId());
