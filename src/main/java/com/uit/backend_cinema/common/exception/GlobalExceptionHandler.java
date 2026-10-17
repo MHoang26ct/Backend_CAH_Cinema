@@ -84,7 +84,10 @@ public class GlobalExceptionHandler {
             case MOMO_SIGNATURE_INVALID,
                  MOMO_ORDER_ID_INVALID,
                  VNPAY_SIGNATURE_INVALID,
-                 VNPAY_ORDER_ID_INVALID -> HttpStatus.BAD_REQUEST;
+                 VNPAY_ORDER_ID_INVALID,
+                 PAYMENT_METHOD_NOT_SUPPORTED,
+                 CASH_PAYMENT_REQUIRES_STAFF,
+                 INVALID_CUSTOMER_TYPE -> HttpStatus.BAD_REQUEST;
         };
     }
 

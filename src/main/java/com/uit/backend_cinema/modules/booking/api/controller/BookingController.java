@@ -32,6 +32,11 @@ public class BookingController {
             @Valid @RequestBody CreateBookingRequestDTO requestDTO,
             @AuthenticationPrincipal CustomUserDetails user
     ) {
+        if (requestDTO.getPaymentMethod() == com.uit.backend_cinema.modules.booking.domain.entity.BookingPaymentMethod.CASH) {
+            throw new com.uit.backend_cinema.common.exception.BusinessException(
+                    "Thanh toán tiền mặt chỉ áp dụng tại quầy",
+                    com.uit.backend_cinema.common.exception.ErrorCode.CASH_PAYMENT_REQUIRES_STAFF);
+        }
         PrePaymentBookingQuote quote = bookingService.createPrePaymentBooking(user.getUserId(), requestDTO);
         var response = bookingApiMapper.toResponse(quote);
         return ResponseEntity.ok(ApiResponse.success(response, "Tạo booking chờ thanh toán thành công"));

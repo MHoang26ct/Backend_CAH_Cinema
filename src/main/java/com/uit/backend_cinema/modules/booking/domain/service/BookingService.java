@@ -7,9 +7,25 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 
+import com.uit.backend_cinema.common.util.VndMoney;
+import com.uit.backend_cinema.modules.food_order.api.entity.FoodOrderItemRequestDTO;
+import com.uit.backend_cinema.modules.auth.domain.entity.AccountType;
 import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.entity.UserRank;
 import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
+import com.uit.backend_cinema.modules.auth.domain.service.UserAccountPolicy;
+import com.uit.backend_cinema.modules.booking.api.dto.CreateStaffBookingRequestDTO;
+import com.uit.backend_cinema.modules.booking.api.dto.CustomerLookupResponseDTO;
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingPaymentMethod;
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingSource;
+import com.uit.backend_cinema.modules.booking.domain.entity.CustomerType;
+import com.uit.backend_cinema.modules.booking.domain.entity.FoodFulfillmentStatus;
+import com.uit.backend_cinema.modules.booking.domain.entity.PriceSnapshot;
+import com.uit.backend_cinema.modules.payment.domain.entity.PaymentReceipt;
+import com.uit.backend_cinema.modules.payment.domain.entity.PaymentReceiptStatus;
+import com.uit.backend_cinema.modules.payment.domain.repository.PaymentReceiptRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -55,11 +71,16 @@ public class BookingService {
     private final FoodOrderService foodOrderService;
     private final VoucherService voucherService;
     private final PaymentConfirmationRepository paymentConfirmationRepository;
+    private final PaymentReceiptRepository paymentReceiptRepository;
     private final OutboxEventService outboxEventService;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
     private final Clock clock;
 
+    @Value("${payment.momo.enabled:true}")
+    private boolean momoEnabled = true;
+
+    @Autowired
     public BookingService(BookingRepository bookingRepository,
             SeatService seatService,
             ShowtimeService showtimeService,
@@ -68,6 +89,7 @@ public class BookingService {
             FoodOrderService foodOrderService,
             VoucherService voucherService,
             PaymentConfirmationRepository paymentConfirmationRepository,
+            PaymentReceiptRepository paymentReceiptRepository,
             OutboxEventService outboxEventService,
             ObjectMapper objectMapper,
             UserRepository userRepository,
@@ -81,53 +103,236 @@ public class BookingService {
         this.foodOrderService = foodOrderService;
         this.voucherService = voucherService;
         this.paymentConfirmationRepository = paymentConfirmationRepository;
+        this.paymentReceiptRepository = paymentReceiptRepository;
         this.outboxEventService = outboxEventService;
         this.objectMapper = objectMapper;
         this.userRepository = userRepository;
     }
 
+    public BookingService(BookingRepository bookingRepository,
+            SeatService seatService,
+            ShowtimeService showtimeService,
+            PriceConfigService priceConfigService,
+            TicketService ticketService,
+            FoodOrderService foodOrderService,
+            VoucherService voucherService,
+            PaymentConfirmationRepository paymentConfirmationRepository,
+            OutboxEventService outboxEventService,
+            ObjectMapper objectMapper,
+            UserRepository userRepository,
+            Clock clock) {
+        this(bookingRepository, seatService, showtimeService, priceConfigService,
+             ticketService, foodOrderService, voucherService, paymentConfirmationRepository,
+             null, outboxEventService, objectMapper, userRepository, clock);
+    }
+
+    public void setMomoEnabled(boolean momoEnabled) {
+        this.momoEnabled = momoEnabled;
+    }
+
     @Transactional
     public PrePaymentBookingQuote createPrePaymentBooking(Long userId, CreateBookingRequestDTO requestDTO) {
-        Showtime showtime = showtimeService.getByIdForUpdate(requestDTO.getShowtimeId());
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.UNAUTHORIZED));
+        UserAccountPolicy.requireInteractive(user);
+
+        return createBookingInternal(
+                user,
+                userId,
+                BookingSource.ONLINE,
+                null,
+                user.getName(),
+                user.getEmail(),
+                user.getPhone(),
+                requestDTO.getShowtimeId(),
+                requestDTO.getSeatIds(),
+                requestDTO.getFoodItems(),
+                requestDTO.getVoucherId(),
+                requestDTO.getPaymentMethod()
+        );
+    }
+
+    @Transactional
+    public PrePaymentBookingQuote createStaffBooking(Long staffUserId, CreateStaffBookingRequestDTO requestDTO) {
+        User staff = userRepository.findById(staffUserId)
+                .orElseThrow(() -> new BusinessException("Nhân viên không tồn tại", ErrorCode.UNAUTHORIZED));
+        User customer;
+        String contactName;
+        String contactEmail;
+        String contactPhone;
+
+        if (requestDTO.getCustomerType() == CustomerType.WALK_IN) {
+            customer = userRepository.getOrCreateWalkInUser();
+            contactName = requestDTO.getContactName();
+            contactEmail = requestDTO.getContactEmail();
+            contactPhone = requestDTO.getContactPhone();
+        } else if (requestDTO.getCustomerType() == CustomerType.REGISTERED) {
+            if (requestDTO.getCustomerId() == null) {
+                throw new BusinessException("CustomerId không được để trống khi chọn khách hàng thành viên", ErrorCode.VALIDATION_FAILED);
+            }
+            customer = userRepository.findById(requestDTO.getCustomerId())
+                    .orElseThrow(() -> new BusinessException("Khách hàng không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+            UserAccountPolicy.requireInteractive(customer);
+            contactName = requestDTO.getContactName() != null ? requestDTO.getContactName() : customer.getName();
+            contactEmail = requestDTO.getContactEmail() != null ? requestDTO.getContactEmail() : customer.getEmail();
+            contactPhone = requestDTO.getContactPhone() != null ? requestDTO.getContactPhone() : customer.getPhone();
+        } else {
+            throw new BusinessException("Loại khách hàng không hợp lệ", ErrorCode.INVALID_CUSTOMER_TYPE);
+        }
+
+        return createBookingInternal(
+                customer,
+                staffUserId,
+                BookingSource.COUNTER,
+                staffUserId,
+                contactName,
+                contactEmail,
+                contactPhone,
+                requestDTO.getShowtimeId(),
+                requestDTO.getSeatIds(),
+                requestDTO.getFoodItems(),
+                requestDTO.getVoucherId(),
+                requestDTO.getPaymentMethod()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public CustomerLookupResponseDTO lookupCustomerByEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new BusinessException("Email không được để trống", ErrorCode.VALIDATION_FAILED);
+        }
+        User user = userRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new BusinessException("Không tìm thấy khách hàng với email: " + email, ErrorCode.RESOURCE_NOT_FOUND));
+        UserAccountPolicy.requireInteractive(user);
+        return CustomerLookupResponseDTO.builder()
+                .userId(user.getUserId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .rankLevel(user.getRankLevel() != null ? user.getRankLevel().name() : "SILVER")
+                .build();
+    }
+
+    private PrePaymentBookingQuote createBookingInternal(
+            User customer,
+            Long lockOwnerId,
+            BookingSource bookingSource,
+            Long createdByStaffId,
+            String contactName,
+            String contactEmail,
+            String contactPhone,
+            Long showtimeId,
+            List<Long> seatIds,
+            List<FoodOrderItemRequestDTO> foodItems,
+            Long voucherId,
+            BookingPaymentMethod paymentMethod) {
+
+        if (!momoEnabled && paymentMethod == BookingPaymentMethod.MOMO) {
+            throw new BusinessException("Cổng thanh toán MoMo tạm thời ngưng hỗ trợ", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+        }
+
+        Showtime showtime = showtimeService.getByIdForUpdate(showtimeId);
         showtimeService.validateBookingWindow(showtime, LocalDateTime.now(clock));
-        List<Long> seatIds = requestDTO.getSeatIds();
-        List<Seat> selectedSeats = seatService.promoteLocksForCheckout(requestDTO.getShowtimeId(), seatIds,
-                showtime.getRoomId(), userId);
-        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.UNAUTHORIZED));
+
+        List<Seat> selectedSeats = seatService.promoteLocksForCheckout(
+                showtimeId, seatIds, showtime.getRoomId(), lockOwnerId);
 
         try {
             LocalDateTime bookingTime = LocalDateTime.now(clock);
             showtimeService.validateBookingWindow(showtime, bookingTime);
+
             boolean late = bookingTime.isAfter(showtime.getStartTime().plusMinutes(15));
-            if (late && requestDTO.getVoucherId() != null) {
+            if (late && voucherId != null) {
                 throw new BusinessException("Giá vé vào xem muộn không áp dụng cùng voucher", ErrorCode.DISCOUNT_NOT_COMBINABLE);
             }
-            LocalDateTime expiresAt = bookingTime.plusMinutes(CHECKOUT_TTL_MINUTES);
-            BigDecimal showtimeMultiplier = priceConfigService.getPriceMultiplier(showtime.getStartTime(), showtime.getFormat());
-            BigDecimal seatSubtotal = calculateSeatSubtotal(selectedSeats, showtime, showtimeMultiplier);
-            BigDecimal subtotal = seatSubtotal;
-            Booking booking = createInitialBooking(userId, requestDTO, subtotal, expiresAt);
 
-            ticketService.createDraftItems(booking.getBookingId(), selectedSeats, showtime, showtimeMultiplier);
-            var foodDraftItems = foodOrderService.createDraftItems(booking.getBookingId(), requestDTO.getFoodItems());
-            BigDecimal foodSubtotal = foodOrderService.calculateDraftSubtotal(foodDraftItems);
-            BigDecimal factor = BigDecimal.ONE.subtract(user.getRankLevel().getDiscountRate());
-            BigDecimal seatSubtotalAfterRank = seatSubtotal.multiply(factor);
-            BigDecimal foodSubtotalAfterRank = foodSubtotal.multiply(factor);
-            subtotal = seatSubtotalAfterRank.add(foodSubtotalAfterRank);
-            booking.setTotalAmount(subtotal);
+            LocalDateTime paymentDeadline = bookingTime.plusMinutes(CHECKOUT_TTL_MINUTES);
+            LocalDateTime reconciliationDeadline = paymentDeadline.plusSeconds(30);
+            LocalDateTime expiresAt = paymentDeadline;
+
+            BigDecimal showtimeMultiplier = priceConfigService.getPriceMultiplier(showtime.getStartTime(), showtime.getFormat());
+            BigDecimal seatSubtotalGross = calculateSeatSubtotal(selectedSeats, showtime, showtimeMultiplier);
+
+            Booking booking = new Booking();
+            booking.setUserId(customer.getUserId() != null ? customer.getUserId() : lockOwnerId);
+            booking.setShowtimeId(showtimeId);
+            booking.setVoucherId(voucherId);
+            booking.setPaymentMethod(paymentMethod);
+            booking.setBookingSource(bookingSource);
+            booking.setCreatedByStaffId(createdByStaffId);
+            booking.setContactName(contactName);
+            booking.setContactEmail(contactEmail);
+            booking.setContactPhone(contactPhone);
+            booking.setPaymentDeadline(paymentDeadline);
+            booking.setReconciliationDeadline(reconciliationDeadline);
+            booking.setExpiresAt(expiresAt);
+            booking.setDiscountAmount(BigDecimal.ZERO);
+            booking.setLateDiscountAmount(BigDecimal.ZERO);
+            booking.setTotalAmount(seatSubtotalGross);
+            booking.setStatus(BookingStatus.PENDING);
+            booking.setIsDeleted(false);
             booking = bookingRepository.save(booking);
 
-            BigDecimal lateDiscount = late ? seatSubtotalAfterRank.multiply(new BigDecimal("0.50"))
-                    .setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+            ticketService.createDraftItems(booking.getBookingId(), selectedSeats, showtime, showtimeMultiplier);
+            var foodDraftItems = foodOrderService.createDraftItems(booking.getBookingId(), foodItems);
+            BigDecimal foodSubtotalGross = foodOrderService.calculateDraftSubtotal(foodDraftItems);
+
+            BigDecimal rankRate = (customer.getAccountType() == AccountType.WALK_IN || customer.getRankLevel() == null)
+                    ? BigDecimal.ZERO
+                    : customer.getRankLevel().getDiscountRate();
+            BigDecimal factor = BigDecimal.ONE.subtract(rankRate);
+
+            BigDecimal seatSubtotalAfterRank = seatSubtotalGross.multiply(factor);
+            BigDecimal foodSubtotalAfterRank = foodSubtotalGross.multiply(factor);
+            BigDecimal rankDiscount = (seatSubtotalGross.subtract(seatSubtotalAfterRank))
+                    .add(foodSubtotalGross.subtract(foodSubtotalAfterRank));
+
+            BigDecimal lateDiscount = late
+                    ? seatSubtotalAfterRank.multiply(new BigDecimal("0.50")).setScale(2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+            BigDecimal seatAfterLate = seatSubtotalAfterRank.subtract(lateDiscount);
+
+            BigDecimal subtotalBeforeVoucher = seatAfterLate.add(foodSubtotalAfterRank);
+            BigDecimal voucherDiscountTotal = BigDecimal.ZERO;
+            BigDecimal voucherDiscountSeat = BigDecimal.ZERO;
+            BigDecimal voucherDiscountFood = BigDecimal.ZERO;
+
+            if (!late) {
+                BigDecimal applied = voucherService.applyVoucherForBooking(voucherId, subtotalBeforeVoucher);
+                if (applied != null && applied.compareTo(BigDecimal.ZERO) > 0) {
+                    voucherDiscountTotal = applied;
+                    if (subtotalBeforeVoucher.compareTo(BigDecimal.ZERO) > 0) {
+                        voucherDiscountSeat = voucherDiscountTotal.multiply(seatAfterLate)
+                                .divide(subtotalBeforeVoucher, 2, RoundingMode.HALF_UP)
+                                .min(seatAfterLate);
+                        voucherDiscountFood = voucherDiscountTotal.subtract(voucherDiscountSeat).min(foodSubtotalAfterRank);
+                    }
+                }
+            }
+
+            BigDecimal discountAmount = lateDiscount.add(voucherDiscountTotal);
+            BigDecimal totalAmount = subtotalBeforeVoucher.subtract(voucherDiscountTotal).max(BigDecimal.ZERO);
+            BigDecimal netSeatAmount = seatAfterLate.subtract(voucherDiscountSeat).max(BigDecimal.ZERO);
+            BigDecimal netFoodAmount = foodSubtotalAfterRank.subtract(voucherDiscountFood).max(BigDecimal.ZERO);
+
+            booking.setSeatSubtotalGross(seatSubtotalGross);
+            booking.setFoodSubtotalGross(foodSubtotalGross);
+            booking.setRankDiscountAmount(rankDiscount);
             booking.setLateDiscountAmount(lateDiscount);
-            BigDecimal voucherDiscount = late ? BigDecimal.ZERO
-                    : voucherService.applyVoucherForBooking(requestDTO.getVoucherId(), subtotal);
-            BigDecimal discountAmount = lateDiscount.add(voucherDiscount);
-            Booking finalizedBooking = finalizeBookingAmount(booking, subtotal, discountAmount);
-            return buildQuote(finalizedBooking, seatSubtotalAfterRank, foodSubtotalAfterRank, discountAmount);
+            booking.setVoucherDiscountSeat(voucherDiscountSeat);
+            booking.setVoucherDiscountFood(voucherDiscountFood);
+            booking.setNetSeatAmount(netSeatAmount);
+            booking.setNetFoodAmount(netFoodAmount);
+            booking.setDiscountAmount(discountAmount);
+            booking.setTotalAmount(totalAmount);
+            booking.setFoodFulfillmentStatus((foodDraftItems == null || foodDraftItems.isEmpty())
+                    ? FoodFulfillmentStatus.NOT_APPLICABLE
+                    : FoodFulfillmentStatus.PENDING);
+            booking = bookingRepository.save(booking);
+
+            return buildQuote(booking, seatSubtotalAfterRank, foodSubtotalAfterRank, discountAmount);
         } catch (RuntimeException ex) {
-            seatService.releaseSeatLocksByOwner(requestDTO.getShowtimeId(), seatIds, userId);
+            seatService.releaseSeatLocksByOwner(showtimeId, seatIds, lockOwnerId);
             throw ex;
         }
     }
@@ -135,7 +340,7 @@ public class BookingService {
     public Booking getBooking(Long bookingId, Long userId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
-        if (!booking.getUserId().equals(userId)) {
+        if (!isAuthorizedForBooking(userId, booking)) {
             throw new BusinessException("Không có quyền truy cập booking này", ErrorCode.FORBIDDEN);
         }
         return booking;
@@ -143,7 +348,6 @@ public class BookingService {
 
     /**
      * Xác nhận thanh toán từ IPN callback của cổng thanh toán (server-to-server).
-
      * Không kiểm tra userId vì đây là server gọi server.
      * Dùng chung cho mọi gateway: MoMo, VNPay, ZaloPay, ...
      */
@@ -193,6 +397,24 @@ public class BookingService {
             throw new BusinessException("Ghế đã được bán cho suất chiếu này", ErrorCode.SEAT_ALREADY_BOOKED, ex);
         }
 
+        if (paymentReceiptRepository != null) {
+            PaymentReceipt receipt = PaymentReceipt.builder()
+                    .bookingId(bookingId)
+                    .gateway(gateway)
+                    .transactionReference(paymentRef)
+                    .orderId(bookingId.toString())
+                    .amount(booking.getTotalAmount())
+                    .payDate(now)
+                    .verifiedAt(now)
+                    .status(PaymentReceiptStatus.RECORDED)
+                    .build();
+            try {
+                paymentReceiptRepository.save(receipt);
+            } catch (Exception ex) {
+                // Receipt already saved
+            }
+        }
+
         PaymentConfirmation confirmation = new PaymentConfirmation();
         confirmation.setBookingId(bookingId);
         confirmation.setPaymentRef(paymentRef);
@@ -218,7 +440,13 @@ public class BookingService {
 
         Booking booking = bookingRepository.findByIdForUpdate(bookingId)
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
-        validatePaymentRequest(userId, booking, LocalDateTime.now(clock));
+        LocalDateTime now = LocalDateTime.now(clock);
+        validatePaymentRequest(userId, booking, now);
+
+        if (booking.getPaymentMethod() == BookingPaymentMethod.VNPAY && "CASH".equalsIgnoreCase(requestDTO.getGateway())) {
+            throw new BusinessException("Không thể xác nhận tiền mặt cho đơn hàng chọn cổng VNPay", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+        }
+
         List<Long> seatIds = ticketService.findActiveDraftSeatIds(bookingId);
         seatService.validateSeatsNotSold(booking.getShowtimeId(), seatIds);
 
@@ -230,6 +458,24 @@ public class BookingService {
             ticketService.finalizeTicketsForPaidBooking(bookingId, booking.getShowtimeId());
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException("Ghế đã được bán cho suất chiếu này", ErrorCode.SEAT_ALREADY_BOOKED, ex);
+        }
+
+        if (paymentReceiptRepository != null) {
+            PaymentReceipt receipt = PaymentReceipt.builder()
+                    .bookingId(bookingId)
+                    .gateway(requestDTO.getGateway())
+                    .transactionReference(requestDTO.getPaymentRef())
+                    .orderId(bookingId.toString())
+                    .amount(booking.getTotalAmount())
+                    .payDate(now)
+                    .verifiedAt(now)
+                    .status(PaymentReceiptStatus.RECORDED)
+                    .build();
+            try {
+                paymentReceiptRepository.save(receipt);
+            } catch (Exception ex) {
+                // Receipt already saved
+            }
         }
 
         PaymentConfirmation confirmation = new PaymentConfirmation();
@@ -274,7 +520,7 @@ public class BookingService {
         }
         Booking existingBooking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
-        if (!existingBooking.getUserId().equals(userId)) {
+        if (!isAuthorizedForBooking(userId, existingBooking)) {
             throw new BusinessException("Bạn không có quyền thanh toán cho booking này", ErrorCode.FORBIDDEN);
         }
         if (existingBooking.getStatus() == BookingStatus.PAID) {
@@ -284,7 +530,7 @@ public class BookingService {
     }
 
     private void validatePaymentRequest(Long userId, Booking booking, LocalDateTime now) {
-        if (!booking.getUserId().equals(userId)) {
+        if (!isAuthorizedForBooking(userId, booking)) {
             throw new BusinessException("Bạn không có quyền thanh toán cho booking này", ErrorCode.FORBIDDEN);
         }
         if (booking.getStatus() == BookingStatus.PAID) {
@@ -296,6 +542,18 @@ public class BookingService {
         if (!booking.getExpiresAt().isAfter(now)) {
             throw new BusinessException("Booking đã hết hạn thanh toán", ErrorCode.BOOKING_EXPIRED);
         }
+    }
+
+    private boolean isAuthorizedForBooking(Long userId, Booking booking) {
+        if (booking.getUserId() != null && booking.getUserId().equals(userId)) {
+            return true;
+        }
+        if (booking.getCreatedByStaffId() != null && booking.getCreatedByStaffId().equals(userId)) {
+            return true;
+        }
+        return userRepository.findById(userId)
+                .map(u -> "STAFF".equals(u.getRole()) || "ADMIN".equals(u.getRole()) || "ROLE_STAFF".equals(u.getRole()) || "ROLE_ADMIN".equals(u.getRole()))
+                .orElse(false);
     }
 
     private void createBookingPaidOutbox(Booking booking, String paymentRef) {

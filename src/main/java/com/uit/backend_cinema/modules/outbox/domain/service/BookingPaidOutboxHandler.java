@@ -1,5 +1,6 @@
 package com.uit.backend_cinema.modules.outbox.domain.service;
 
+import com.uit.backend_cinema.modules.auth.domain.entity.AccountType;
 import com.uit.backend_cinema.modules.invoice.domain.service.InvoiceService;
 import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -73,8 +74,16 @@ public class BookingPaidOutboxHandler {
         );
 
         invoiceService.createInvoice(booking.getBookingId(), booking.getPaymentMethod().name(), booking.getTotalAmount());
-        // Cộng tiền vào total_paid, tính lại điểm và cập nhật rank
-        userRepository.accumulatePaidAndRecalcRank(booking.getUserId(), booking.getTotalAmount());
+        // Cộng tiền vào total_paid, tính lại điểm và cập nhật rank (chỉ cho interactive account và idempotent)
+        if (!Boolean.TRUE.equals(booking.getIsPointsAccumulated())) {
+            userRepository.findById(booking.getUserId()).ifPresent(user -> {
+                if (user.getAccountType() != AccountType.WALK_IN && !Boolean.TRUE.equals(user.getIsDeleted())) {
+                    userRepository.accumulatePaidAndRecalcRank(booking.getUserId(), booking.getTotalAmount());
+                }
+            });
+            booking.setIsPointsAccumulated(true);
+            bookingRepository.save(booking);
+        }
         ticketService.expireDraftItems(booking.getBookingId());
         foodOrderService.expireDraftItems(booking.getBookingId());
         outboxEventService.markDone(event.getOutboxEventId());

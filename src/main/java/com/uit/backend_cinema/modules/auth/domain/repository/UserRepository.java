@@ -27,6 +27,10 @@ public interface UserRepository {
      * Thực thi bằng 1 câu UPDATE duy nhất (không load entity).
      */
     void accumulatePaidAndRecalcRank(Long userId, BigDecimal amount);
+
+    Optional<User> findWalkInUser();
+
+    User getOrCreateWalkInUser();
 }
 
 

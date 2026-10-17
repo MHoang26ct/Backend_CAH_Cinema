@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.uit.backend_cinema.modules.auth.domain.entity.AccountType;
 import com.uit.backend_cinema.modules.auth.infrastructure.entity.UserJpaEntity;
 
 @Repository
@@ -16,6 +17,8 @@ public interface JpaUserRepository extends JpaRepository<UserJpaEntity, Long> {
     Optional<UserJpaEntity> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    Optional<UserJpaEntity> findByAccountType(AccountType accountType);
 
     /**
      * Cộng thêm {@code amount} vào total_paid, tính lại total_points

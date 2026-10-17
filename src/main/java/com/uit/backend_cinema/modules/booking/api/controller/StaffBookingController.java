@@ -16,13 +16,41 @@ import com.uit.backend_cinema.modules.booking.api.dto.ConfirmPaymentRequestDTO;
 import com.uit.backend_cinema.modules.booking.api.dto.ConfirmPaymentResponseDTO;
 import com.uit.backend_cinema.modules.booking.domain.service.BookingService;
 
+import com.uit.backend_cinema.modules.booking.api.dto.CreateBookingResponseDTO;
+import com.uit.backend_cinema.modules.booking.api.dto.CreateStaffBookingRequestDTO;
+import com.uit.backend_cinema.modules.booking.api.dto.CustomerLookupResponseDTO;
+import com.uit.backend_cinema.modules.booking.api.mapper.BookingApiMapper;
+import com.uit.backend_cinema.modules.booking.domain.entity.PrePaymentBookingQuote;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 @RestController
 @RequestMapping("/api/v1/staff/bookings")
 public class StaffBookingController {
     private final BookingService bookingService;
+    private final BookingApiMapper bookingApiMapper;
 
-    public StaffBookingController(BookingService bookingService) {
+    public StaffBookingController(BookingService bookingService, BookingApiMapper bookingApiMapper) {
         this.bookingService = bookingService;
+        this.bookingApiMapper = bookingApiMapper;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<?> createStaffBooking(
+            @Valid @RequestBody CreateStaffBookingRequestDTO requestDTO,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        PrePaymentBookingQuote quote = bookingService.createStaffBooking(user.getUserId(), requestDTO);
+        CreateBookingResponseDTO response = bookingApiMapper.toResponse(quote);
+        return ResponseEntity.ok(ApiResponse.success(response, "Tạo booking tại quầy thành công"));
+    }
+
+    @GetMapping("/customer-lookup")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<?> lookupCustomer(@RequestParam String email) {
+        CustomerLookupResponseDTO response = bookingService.lookupCustomerByEmail(email);
+        return ResponseEntity.ok(ApiResponse.success(response, "Tra cứu khách hàng thành công"));
     }
 
     @PostMapping("/{bookingId}/confirm-payment")

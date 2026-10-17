@@ -74,7 +74,13 @@ public class SendTicketEmailOutboxHandler {
         Movie movie = movieService.getById(showtime.getMovieId());
         List<Seat> seats = seatService.findByIds(tickets.stream().map(Ticket::getSeatId).toList());
 
-        notificationService.sendTicketEmail(user.getEmail(), booking.getBookingId(), movie, showtime, tickets, seats);
+        String recipientEmail = (booking.getContactEmail() != null && !booking.getContactEmail().isBlank())
+                ? booking.getContactEmail()
+                : user.getEmail();
+
+        if (recipientEmail != null && !recipientEmail.isBlank()) {
+            notificationService.sendTicketEmail(recipientEmail, booking.getBookingId(), movie, showtime, tickets, seats);
+        }
         outboxEventService.markDone(event.getOutboxEventId());
     }
 
