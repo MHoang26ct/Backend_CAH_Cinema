@@ -2,7 +2,11 @@
 
 ## Hệ thống quản lý rạp chiếu phim và đặt vé Cinema
 
-**Phiên bản:** 0.2 — Dự thảo chờ phê duyệt
+**Phiên bản:** 1.0 — Baseline đã phê duyệt
+
+**Mã tài liệu:** CINEMA-SRS-1.0
+
+**Phê duyệt:** Chủ dự án xác nhận trong cuộc trao đổi ngày 18/10/2026. Việc phê duyệt xác lập yêu cầu và phạm vi, không thay thế nghiệm thu triển khai.
 
 **Ngày cập nhật:** 18/10/2026
 
@@ -17,7 +21,8 @@
 | Phiên bản | Ngày | Nội dung | Trạng thái |
 |---|---:|---|---|
 | 0.1 | 14/10/2026 | Đặc tả ban đầu dựa trên mã nguồn và API hiện có | Lưu để tham chiếu |
-| 0.2 | 18/10/2026 | Chuẩn hóa phạm vi đồ án; bổ sung Stripe Sandbox, payment/refund, quyết định voucher/điểm/đồ ăn và bằng chứng kiểm thử | Chờ phê duyệt baseline |
+| 0.2 | 18/10/2026 | Chuẩn hóa phạm vi đồ án; bổ sung Stripe Sandbox, payment/refund, quyết định voucher/điểm/đồ ăn và bằng chứng kiểm thử | Bản dự thảo đã được xem xét |
+| 1.0 | 18/10/2026 | Ghi nhận phê duyệt; cập nhật sửa lỗi admin/refund, kết quả kiểm thử và hạ tầng Cloudflare; tách mã yêu cầu xử lý thanh toán muộn khỏi driver Sandbox | Baseline đã phê duyệt |
 
 ### Quy ước trạng thái
 
@@ -91,7 +96,7 @@ Tài liệu này là căn cứ để:
 
 - `README.md` và `docs/api/` của repository.
 - `docs/stripe-sandbox.md` — phạm vi, cấu hình và bằng chứng Stripe Sandbox.
-- `migrations/20261017_03_stripe_sandbox.sql` và `migrations/20261018_04_stripe_legacy_constraints.sql`.
+- `migrations/20261017_03_stripe_sandbox.sql`, `migrations/20261018_04_stripe_legacy_constraints.sql` và `migrations/20261018_05_refund_membership_adjustment.sql`.
 - Stripe Documentation: Testing, Webhooks, Checkout Sessions, Refunds, Currencies.
 
 ---
@@ -135,6 +140,7 @@ Cinema cung cấp backend cho ứng dụng khách và màn hình vận hành r�
 | Gửi email | SMTP/Gmail theo cấu hình môi trường. |
 | Payment demo | Stripe Sandbox, test API key, HTTPS webhook endpoint công khai. |
 | Tài liệu API | Swagger/OpenAPI khi ứng dụng chạy. |
+| Truy cập môi trường demo | HTTPS tại `mhoang26ct.online` → Cloudflare Tunnel → Nginx loopback → Spring Boot loopback; thay thế ngrok. |
 
 ## 2.5. Ràng buộc và giả định
 
@@ -162,6 +168,7 @@ Cinema cung cấp backend cho ứng dụng khách và màn hình vận hành r�
 | FR-PAY-01 | Tạo thanh toán Stripe Checkout cho booking Stripe Sandbox hợp lệ. | Đã kiểm chứng Sandbox |
 | FR-PAY-02 | Nhận/xác minh webhook và chỉ ghi nhận thanh toán từ bằng chứng provider hợp lệ. | Đã kiểm chứng Sandbox |
 | FR-PAY-03 | Cung cấp driver PaymentIntent chỉ cho regression test Sandbox an toàn. | Đã kiểm chứng Sandbox |
+| FR-PAY-04 | Xử lý hết hạn và nghĩa vụ bù hoàn khi tiền đến muộn. | Đã kiểm chứng expiry; bù hoàn có kiểm thử backend |
 | FR-REFUND-01 | Tạo quote hủy và hủy booking đã thanh toán theo chính sách refund. | Hiện trạng; chính sách đã chốt |
 | FR-REFUND-02 | Hoàn Stripe toàn phần/một phần, idempotent và có đối soát trạng thái provider. | Đã kiểm chứng Sandbox |
 | FR-TICKET-01 | Phát hành vé chỉ sau payment được xác minh; tạo QR và không phát hành trùng. | Đã kiểm chứng cùng Stripe |
@@ -171,7 +178,7 @@ Cinema cung cấp backend cho ứng dụng khách và màn hình vận hành r�
 | FR-CONTENT-01 | Quản lý/xem bình luận và bài viết khuyến mãi theo quyền. | Hiện trạng |
 | FR-REPORT-01 | Admin xem báo cáo kinh doanh theo khoảng lọc API hỗ trợ. | Hiện trạng |
 | FR-NOTIFY-01 | Gửi OTP/thông báo qua email, tách trạng thái gửi khỏi trạng thái tiền/vé. | Hiện trạng |
-| FR-MEMBER-01 | Điều chỉnh tổng chi tiêu/điểm/hạng theo refund đã thành công. | **Yêu cầu đã chốt; cần đối chiếu triển khai** |
+| FR-MEMBER-01 | Điều chỉnh tổng chi tiêu/điểm/hạng theo refund đã thành công. | Đã triển khai; có unit test, chưa nghiệm thu đầy đủ mọi tình huống trên môi trường demo |
 
 ## 3.2. Use case tổng quan
 
@@ -260,7 +267,13 @@ Cinema cung cấp backend cho ứng dụng khách và màn hình vận hành r�
 - **Quy tắc:** Đối chiếu booking/request/provider ID, amount, currency, account, `livemode=false`; durable inbox deduplicate event ID; event cũ/lặp không làm lùi trạng thái.
 - **Tiêu chí chấp nhận:** Browser return, client response hoặc HTTP 200 từ client không thể tự tạo `PAID`, receipt hay ticket.
 
-### FR-PAY-03 — Xử lý hết hạn và tiền về muộn
+### FR-PAY-03 — Driver kiểm thử PaymentIntent Sandbox
+
+- **Mô tả:** Cung cấp điểm vào kiểm thử PaymentIntent có kiểm soát, sử dụng chung luồng xác nhận nghiệp vụ với thanh toán thông thường.
+- **Quy tắc:** Chỉ hoạt động khi profile/flag Sandbox hợp lệ, sử dụng test key, JWT của chủ booking và `X-Sandbox-Token`; chỉ nhận các kịch bản cho phép tại UC-05. Không nhận số thẻ, CVC hay số tiền tùy ý từ client.
+- **Tiêu chí chấp nhận:** Thiếu/sai token hoặc sai quyền sở hữu bị từ chối; decline và `requires_action` không tạo receipt/vé; driver không tự chuyển booking sang `PAID`.
+
+### FR-PAY-04 — Xử lý hết hạn và tiền về muộn
 
 - **Mô tả:** Cinema giữ deadline nghiệp vụ 15 phút dù Stripe Checkout có expiry tối thiểu 30 phút.
 - **Quy tắc:** Không kéo dài booking để khớp Stripe; worker đóng/expire provider payment khi đến hạn. Tiền được xác nhận sau deadline, booking `EXPIRED`, hết ghế hoặc không thể phát vé phải được bù hoàn 100%.
@@ -287,7 +300,8 @@ Cinema cung cấp backend cho ứng dụng khách và màn hình vận hành r�
   3. Hạng thành viên phải được tính lại từ tổng chi tiêu ròng, tránh sai số do làm tròn riêng theo từng refund một phần.
   4. Refund `FAILED`, `UNKNOWN` hoặc `REVIEW_REQUIRED` không được trừ quyền lợi trước khi có bằng chứng thành công.
 - **Tiêu chí chấp nhận:** Full/partial refund làm thay đổi tổng chi tiêu/hạng đúng theo tổng ròng; thực hiện lại cùng event không trừ lần hai.
-- **Trạng thái:** Gap cần đối chiếu và bổ sung nếu service membership hiện chưa đảo biến động sau refund thành công.
+- **Trạng thái triển khai:** Đã bổ sung `RefundMembershipService`, khóa refund và marker audit để chống xử lý lặp; có unit test success/replay/provider failure. Migration đã áp dụng trên server Sandbox. Việc kiểm thử đầy đủ tổng chi tiêu/điểm/hạng cho mọi tình huống full/partial refund trên môi trường demo vẫn là tiêu chí nghiệm thu, không suy ra chỉ từ số lượng unit test.
+- **Trường hợp hiệu chỉnh:** Nếu provider xác nhận `FAILED` sau một kết quả thành công đã được phản ánh vào quyền lợi, hệ thống phải bù lại đúng biến động đã áp dụng, không bù lặp và không khôi phục hiệu lực vé.
 
 ### FR-TICKET-01 — Phát hành vé
 
@@ -388,9 +402,9 @@ Frontend nằm ngoài repository backend này, nhưng giao diện đồ án ph�
 PENDING → PAID → CHECKED_IN
 PENDING → EXPIRED
 PAID → CANCELLED
-
-`REFUNDED` là trạng thái legacy có thể tồn tại trong dữ liệu lịch sử; kết quả tiền hiện hành luôn phải đọc từ `Refund.status`, không suy ra từ `Booking.status`.
 ```
+
+`REFUNDED` là trạng thái lịch sử có thể tồn tại trong dữ liệu cũ; kết quả tiền hiện hành luôn phải đọc từ `Refund.status`, không suy ra từ `Booking.status`.
 
 - Không được chuyển `EXPIRED` về `PAID` chỉ vì payment đến muộn.
 - Không được coi `CANCELLED` là refund đã `SUCCEEDED`.
@@ -491,7 +505,9 @@ REQUESTED → PROCESSING → SUCCEEDED
 | Hosted Checkout | Session test VND đúng amount, `livemode=false`, expire được | Đã kiểm chứng; browser completion chưa tự động hóa |
 | Payment/refund live | Tiền và settlement ngân hàng thật | Ngoài phạm vi |
 
-Kết quả local sau bổ sung Stripe được ghi nhận: **332 tests, 0 failures, 0 errors, 1 skipped**. Bằng chứng này không thay thế browser E2E, performance test hay payment live.
+Kết quả kiểm thử cục bộ ngày 18/10/2026, sau khi bổ sung Stripe và sửa luồng admin/refund membership: **336 tests, 0 failures, 0 errors, 1 skipped**; lệnh `./gradlew test bootJar` thành công. Đây là kết quả đã ghi nhận của lần chạy trước khi chốt tài liệu, không phải một lần chạy mới khi xuất bản Word. Bằng chứng này không thay thế browser E2E, kiểm thử hiệu năng hay thanh toán thật.
+
+Bằng chứng triển khai sau khi chuyển sang Cloudflare: HTTPS công khai tại `mhoang26ct.online` qua Tunnel/Nginx trả HTTP 200 cho trang Stripe return; webhook thiếu/sai chữ ký trả HTTP 400. Stripe Sandbox đã cấu hình endpoint theo domain mới. Các kiểm tra kết nối này không tự chứng minh settlement/refund nghiệp vụ; cần đối chiếu signed webhook với payment/booking tương ứng.
 
 ## 6.7. Truy vết yêu cầu
 
@@ -500,6 +516,7 @@ Kết quả local sau bổ sung Stripe được ghi nhận: **332 tests, 0 failu
 | FR-SEAT-01, FR-BOOKING-01 | UC-03 | BR-SEAT-*, BR-BKG-*; NFR-CON-01 | Ghế cạnh tranh, giá snapshot, booking expiry |
 | FR-PAY-01, FR-PAY-02 | UC-04 | BR-PAY-*; NFR-SEC-02, NFR-CON-02 | Signed webhook, amount mismatch, replay, provider retrieval |
 | FR-PAY-03 | UC-05 | BR-PAY-03; NFR-SEC-03 | Token/profile/scenario/ownership reject |
+| FR-PAY-04 | UC-04, UC-07 | BR-BKG-02; NFR-REL-02 | Deadline, expiry, late payment và nghĩa vụ bù hoàn |
 | FR-REFUND-* | UC-07 | BR-REFUND-*; NFR-CON-02 | Full/partial/pending/failed/duplicate refund |
 | FR-MEMBER-01 | UC-07 | BR-MEMBER-01 | Full/partial refund, idempotent point/rank recalculation |
 | FR-TICKET-* | UC-04, UC-09 | BR-TICKET-01; NFR-CON-01 | Issue once, QR invalid/used/concurrent check-in |
@@ -507,7 +524,7 @@ Kết quả local sau bổ sung Stripe được ghi nhận: **332 tests, 0 failu
 
 ---
 
-# 7. Quyết định, gap và quản lý thay đổi
+# 7. Quyết định, giới hạn và quản lý thay đổi
 
 ## 7.1. Quyết định nghiệp vụ đã phê duyệt
 
@@ -522,21 +539,21 @@ Kết quả local sau bổ sung Stripe được ghi nhận: **332 tests, 0 failu
 
 | Mã | Nội dung | Trạng thái |
 |---|---|---|
-| RES-01 | Membership `totalPaid`/point/rank sau refund thành công | Đã bổ sung reconciliation idempotent theo từng refund, có marker audit và unit test success/replay/provider failure. Cần áp dụng migration `20261018_05_refund_membership_adjustment.sql` trước khi deploy môi trường dùng DB hiện hữu. |
+| RES-01 | Membership `totalPaid`/point/rank sau refund thành công | Đã triển khai xử lý chống lặp và unit test success/replay/provider failure. Migration membership ngày 18/10/2026 (mục 1.5) đã áp dụng, xác minh hai cột audit trên Sandbox. Môi trường khác phải kiểm tra migration trước triển khai. |
 | RES-02 | Hủy showtime từng giải phóng voucher của booking đã thanh toán | Đã sửa: chỉ booking `PENDING` hết hạn mới trả voucher; booking đã thanh toán bị hủy showtime giữ nguyên voucher đã dùng. |
 | RES-03 | Admin/email có thể ngụ ý refund đã chi trả | Đã sửa: booking bị hủy và refund obligation được tạo; API/email không tuyên bố gateway payout đã thành công. Kết quả tiền đọc từ `Refund.status`. |
 | GAP-03 | Browser E2E hosted Checkout và hoàn tất 3DS | Không chặn Sandbox API-level/demo; bổ sung khi cần kiểm thử giao diện toàn diện. |
 | GAP-04 | Mục tiêu hiệu năng/RPO/RTO | Chốt số liệu và kế hoạch đo nếu đồ án yêu cầu phần vận hành/performance. |
 
-## 7.3. Điều kiện chốt SRS baseline 1.0
+## 7.3. Phê duyệt baseline và kiểm soát thay đổi
 
-SRS được chốt khi:
+Chủ dự án đã xác nhận phê duyệt SRS trong cuộc trao đổi ngày **18/10/2026**. Phiên bản **1.0** là baseline yêu cầu cho phạm vi đồ án Cinema và tích hợp Stripe Sandbox.
 
-1. Người phụ trách xác nhận các quyết định tại mục 7.1.
-2. Migration và các hạng mục `RES-*` được áp dụng/kiểm chứng trên môi trường demo; mọi phần chưa hoàn thành được ghi rõ.
-3. Mỗi requirement MVP có ít nhất một tiêu chí nghiệm thu và đường truy vết kiểm thử.
-4. Không có secret, dữ liệu thẻ hoặc URL tạm thời trong tài liệu.
-5. Bất kỳ thay đổi nghiệp vụ nào sau khi chốt được ghi phiên bản, lý do, ảnh hưởng FR/BR/test và người phê duyệt.
+1. Phê duyệt xác lập phạm vi và các quyết định nghiệp vụ tại mục 7.1; không đồng nghĩa mọi yêu cầu đã được kiểm thử hoặc nghiệm thu đầy đủ.
+2. Trạng thái triển khai, bằng chứng kiểm thử và giới hạn được giữ riêng tại mục 3.1, 6.6 và 7.2. Không chuyển các mục “Hiện trạng” thành “Đã kiểm chứng” chỉ vì tài liệu được phê duyệt.
+3. Browser automation hoàn tất Checkout/3DS không thuộc cam kết của baseline hiện tại. Mục tiêu hiệu năng/RPO/RTO chưa được cam kết định lượng; phải được phê duyệt bổ sung trước khi đánh giá theo các chỉ tiêu này.
+4. Trước nghiệm thu hệ thống, mỗi yêu cầu trong phạm vi phải có tiêu chí chấp nhận và bằng chứng truy vết tương ứng; các thiếu hụt phải được ghi nhận, không mặc định đạt.
+5. Thay đổi sau baseline phải ghi phiên bản, lý do, ảnh hưởng đến FR/BR/NFR, use case và kiểm thử, cùng xác nhận của chủ dự án. Không đưa secret hoặc dữ liệu thẻ vào tài liệu.
 
 ---
 
@@ -555,7 +572,7 @@ POST /api/v1/bookings/{bookingId}/stripe/sandbox/payment-intent
 POST /api/v1/staff/tickets/check-in
 ```
 
-Automation endpoint cuối chỉ được hiện diện trong profile Stripe Sandbox có kiểm soát; không coi đó là API production.
+Endpoint `POST /api/v1/bookings/{bookingId}/stripe/sandbox/payment-intent` chỉ được hiện diện trong profile Stripe Sandbox có kiểm soát; không coi đó là API production.
 
 ## Phụ lục B — Bằng chứng và giới hạn Sandbox
 
