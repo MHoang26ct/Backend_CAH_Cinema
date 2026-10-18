@@ -21,6 +21,10 @@ public class PaymentRequestService {
         return repository.save(request);
     }
 
+    public Optional<PaymentGatewayRequest> findById(Long paymentRequestId) {
+        return repository.findById(paymentRequestId);
+    }
+
     public Optional<PaymentGatewayRequest> findLatestByBookingId(Long bookingId) {
         return repository.findLatestByBookingId(bookingId);
     }

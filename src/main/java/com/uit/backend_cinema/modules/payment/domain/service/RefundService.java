@@ -5,6 +5,7 @@ import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.payment.api.dto.ClaimRefundResponseDTO;
 import com.uit.backend_cinema.modules.payment.api.dto.ConfirmCashPayoutResponseDTO;
+import com.uit.backend_cinema.modules.payment.domain.entity.PaymentGatewayRequest;
 import com.uit.backend_cinema.modules.payment.domain.entity.PaymentReceipt;
 import com.uit.backend_cinema.modules.payment.domain.entity.Refund;
 import com.uit.backend_cinema.modules.payment.domain.entity.RefundStatus;
@@ -23,7 +24,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -31,23 +31,31 @@ public class RefundService {
 
     private static final Logger log = LoggerFactory.getLogger(RefundService.class);
     private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(VN_ZONE);
 
     private final RefundRepository refundRepository;
     private final PaymentReceiptRepository paymentReceiptRepository;
+    private final PaymentRequestService paymentRequestService;
     private final VnpayMerchantClient vnpayMerchantClient;
     private final Clock clock;
     private final ObjectMapper objectMapper;
+
+    @Autowired(required = false)
+    private com.uit.backend_cinema.modules.payment.stripe.domain.StripeRefundProcessor stripeRefundProcessor;
+
+    @Autowired(required = false)
+    private RefundMembershipService refundMembershipService;
 
     @Autowired
     public RefundService(
             RefundRepository refundRepository,
             PaymentReceiptRepository paymentReceiptRepository,
+            PaymentRequestService paymentRequestService,
             @Autowired(required = false) VnpayMerchantClient vnpayMerchantClient,
             Clock clock,
             ObjectMapper objectMapper) {
         this.refundRepository = refundRepository;
         this.paymentReceiptRepository = paymentReceiptRepository;
+        this.paymentRequestService = paymentRequestService;
         this.vnpayMerchantClient = vnpayMerchantClient;
         this.clock = clock != null ? clock : Clock.system(VN_ZONE);
         this.objectMapper = objectMapper;
@@ -138,6 +146,7 @@ public class RefundService {
             throw new BusinessException("Không thể xác nhận chi tiền (trạng thái đã thay đổi)", ErrorCode.REFUND_INVALID_STATUS);
         }
 
+        if (refundMembershipService != null) refundMembershipService.reconcile(refundId);
         log.info("[Refund CASH] Staff {} đã xác nhận chi tiền cho refund {} (số tiền={})", staffId, refundId, refund.getAmount());
         return ConfirmCashPayoutResponseDTO.builder()
                 .refundId(refundId)
@@ -154,6 +163,14 @@ public class RefundService {
      * Xử lý gửi yêu cầu hoàn tiền VNPay tự động ra cổng gateway ngoài DB transaction.
      */
     public void processOnlineRefund(Long refundId) {
+        Refund candidate = refundRepository.findById(refundId).orElse(null);
+        if (candidate != null && stripeRefundProcessor != null) {
+            PaymentReceipt receipt = paymentReceiptRepository.findById(candidate.getPaymentReceiptId()).orElse(null);
+            if (receipt != null && "STRIPE".equals(receipt.getGateway())) {
+                stripeRefundProcessor.process(refundId);
+                return;
+            }
+        }
         if (vnpayMerchantClient == null) {
             return;
         }
@@ -168,6 +185,18 @@ public class RefundService {
             return;
         }
 
+        PaymentGatewayRequest paymentRequest = receipt.getPaymentRequestId() == null || paymentRequestService == null
+                ? null
+                : paymentRequestService.findById(receipt.getPaymentRequestId()).orElse(null);
+        String originalTransactionDate = paymentRequest == null ? null : paymentRequest.getVnpCreateDate();
+        if (originalTransactionDate == null || originalTransactionDate.isBlank()) {
+            refund.setStatus(RefundStatus.REVIEW_REQUIRED);
+            refund.setGatewayResponseMessage("Thiếu vnp_CreateDate gốc của giao dịch VNPay; không gửi refund để tránh tham chiếu sai giao dịch");
+            refundRepository.save(refund);
+            log.error("[VNPay Refund] Refund {} thiếu vnp_CreateDate gốc, yêu cầu đối soát thủ công", refundId);
+            return;
+        }
+
         LocalDateTime now = LocalDateTime.now(clock);
         // Chuyển sang PROCESSING để claim
         refund.setStatus(RefundStatus.PROCESSING);
@@ -177,16 +206,13 @@ public class RefundService {
         try {
             boolean isFull = refund.getAmount().compareTo(receipt.getAmount()) >= 0;
             String transactionType = isFull ? "02" : "03";
-            String origDate = receipt.getPayDate() != null
-                    ? receipt.getPayDate().format(DATE_FORMATTER)
-                    : DATE_FORMATTER.format(now.atZone(VN_ZONE));
 
             VnpayRefundResponseDTO res = vnpayMerchantClient.refundTransaction(
                     receipt.getOrderId(),
                     refund.getAmount(),
                     transactionType,
                     receipt.getTransactionReference(),
-                    origDate,
+                    originalTransactionDate,
                     "system",
                     "Hoan tien don #" + refund.getBookingId(),
                     "127.0.0.1"
@@ -221,6 +247,7 @@ public class RefundService {
         }
 
         refundRepository.save(refund);
+        if (refundMembershipService != null) refundMembershipService.reconcile(refundId);
     }
 
     /**
@@ -228,6 +255,18 @@ public class RefundService {
      */
     @Scheduled(fixedDelayString = "${vnpay.refund-worker-interval-ms:60000}")
     public void scanAndProcessOnlineRefunds() {
+        if (stripeRefundProcessor != null) {
+            for (RefundStatus status : List.of(RefundStatus.REQUESTED, RefundStatus.PROCESSING, RefundStatus.UNKNOWN)) {
+                for (Refund refund : refundRepository.findByStatus(status)) {
+                    try {
+                        PaymentReceipt receipt = paymentReceiptRepository.findById(refund.getPaymentReceiptId()).orElse(null);
+                        if (receipt != null && "STRIPE".equals(receipt.getGateway())) stripeRefundProcessor.process(refund.getRefundId());
+                    } catch (Exception e) {
+                        log.warn("[Stripe Refund] Processing deferred for refund {}", refund.getRefundId());
+                    }
+                }
+            }
+        }
         if (vnpayMerchantClient == null) {
             return;
         }

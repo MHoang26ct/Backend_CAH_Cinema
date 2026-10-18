@@ -17,13 +17,17 @@ import com.uit.backend_cinema.modules.food_order.domain.service.FoodOrderService
 import com.uit.backend_cinema.modules.outbox.domain.service.OutboxEventService;
 import com.uit.backend_cinema.modules.payment.api.dto.ClaimRefundResponseDTO;
 import com.uit.backend_cinema.modules.payment.api.dto.ConfirmCashPayoutResponseDTO;
+import com.uit.backend_cinema.modules.payment.domain.entity.PaymentGatewayRequest;
 import com.uit.backend_cinema.modules.payment.domain.entity.PaymentReceipt;
 import com.uit.backend_cinema.modules.payment.domain.entity.Refund;
 import com.uit.backend_cinema.modules.payment.domain.entity.RefundCause;
 import com.uit.backend_cinema.modules.payment.domain.entity.RefundStatus;
 import com.uit.backend_cinema.modules.payment.domain.repository.PaymentReceiptRepository;
 import com.uit.backend_cinema.modules.payment.domain.repository.RefundRepository;
+import com.uit.backend_cinema.modules.payment.domain.service.PaymentRequestService;
 import com.uit.backend_cinema.modules.payment.domain.service.RefundService;
+import com.uit.backend_cinema.modules.payment.vnpay.api.dto.VnpayRefundResponseDTO;
+import com.uit.backend_cinema.modules.payment.vnpay.infrastructure.client.VnpayMerchantClient;
 import com.uit.backend_cinema.modules.price_config.domain.service.PriceConfigService;
 import com.uit.backend_cinema.modules.seat.domain.service.SeatService;
 import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
@@ -68,7 +72,9 @@ class CancellationAndRefundTest {
     @Mock private VoucherService voucherService;
     @Mock private PaymentConfirmationRepository paymentConfirmationRepository;
     @Mock private PaymentReceiptRepository paymentReceiptRepository;
+    @Mock private PaymentRequestService paymentRequestService;
     @Mock private RefundRepository refundRepository;
+    @Mock private VnpayMerchantClient vnpayMerchantClient;
     @Mock private OutboxEventService outboxEventService;
     @Mock private UserRepository userRepository;
     @Mock private Clock clock;
@@ -85,7 +91,7 @@ class CancellationAndRefundTest {
         objectMapper = new ObjectMapper();
 
         refundService = new RefundService(
-                refundRepository, paymentReceiptRepository, null, clock, objectMapper);
+                refundRepository, paymentReceiptRepository, paymentRequestService, null, clock, objectMapper);
 
         bookingService = new BookingService(
                 bookingRepository, seatService, showtimeService, priceConfigService,
@@ -319,7 +325,7 @@ class CancellationAndRefundTest {
     }
 
     @Test
-    @DisplayName("Rạp hủy suất chiếu: Hoàn 100%, hủy vé, giải phóng voucher và tạo Refund SHOWTIME_CANCELLED")
+    @DisplayName("Rạp hủy suất chiếu: Hoàn 100%, hủy vé, giữ voucher đã dùng và tạo Refund SHOWTIME_CANCELLED")
     void testRefundBookingsForCancelledShowtime() {
         Long showtimeId = 100L;
         Long bookingId = 1L;
@@ -338,10 +344,10 @@ class CancellationAndRefundTest {
 
         bookingService.refundBookingsForCancelledShowtime(showtimeId, "Sự cố máy chiếu");
 
-        assertEquals(BookingStatus.REFUNDED, booking.getStatus());
+        assertEquals(BookingStatus.CANCELLED, booking.getStatus());
         verify(ticketService).cancelTicketsForBooking(bookingId);
-        // Rạp hủy giải phóng voucher
-        verify(voucherService).releaseVoucherForExpiredBooking(77L);
+        // Voucher của booking đã thanh toán không được trả lại, kể cả khi rạp hủy suất.
+        verify(voucherService, never()).releaseVoucherForExpiredBooking(77L);
 
         ArgumentCaptor<Refund> refundCaptor = ArgumentCaptor.forClass(Refund.class);
         verify(refundRepository).save(refundCaptor.capture());
@@ -415,6 +421,78 @@ class CancellationAndRefundTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> refundService.confirmCashPayout(refundId, staffB));
         assertEquals(ErrorCode.REFUND_STAFF_MISMATCH, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("Refund VNPay dùng vnp_CreateDate gốc của payment request, không dùng PayDate")
+    void testOnlineRefundUsesOriginalVnpCreateDate() {
+        PaymentReceipt receipt = PaymentReceipt.builder()
+                .paymentReceiptId(20L)
+                .paymentRequestId(30L)
+                .bookingId(5L)
+                .gateway("VNPAY")
+                .transactionReference("VNPAY_TRANS_001")
+                .orderId("ORDER_001")
+                .amount(new BigDecimal("100000"))
+                .payDate(now.minusMinutes(5))
+                .build();
+        Refund refund = Refund.builder()
+                .refundId(10L)
+                .paymentReceiptId(20L)
+                .bookingId(5L)
+                .amount(new BigDecimal("100000"))
+                .status(RefundStatus.REQUESTED)
+                .build();
+        PaymentGatewayRequest paymentRequest = PaymentGatewayRequest.builder()
+                .paymentRequestId(30L)
+                .vnpCreateDate("20261017100000")
+                .build();
+
+        when(refundRepository.findById(10L)).thenReturn(Optional.of(refund));
+        when(paymentReceiptRepository.findById(20L)).thenReturn(Optional.of(receipt));
+        when(paymentRequestService.findById(30L)).thenReturn(Optional.of(paymentRequest));
+        when(vnpayMerchantClient.refundTransaction(
+                anyString(), any(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(VnpayRefundResponseDTO.builder().responseCode("00").transactionStatus("00").build());
+
+        RefundService onlineRefundService = new RefundService(
+                refundRepository, paymentReceiptRepository, paymentRequestService, vnpayMerchantClient, clock, objectMapper);
+        onlineRefundService.processOnlineRefund(10L);
+
+        verify(vnpayMerchantClient).refundTransaction(
+                eq("ORDER_001"), eq(new BigDecimal("100000")), eq("02"), eq("VNPAY_TRANS_001"),
+                eq("20261017100000"), eq("system"), anyString(), eq("127.0.0.1"));
+        assertEquals(RefundStatus.SUCCEEDED, refund.getStatus());
+    }
+
+    @Test
+    @DisplayName("Refund VNPay thiếu vnp_CreateDate phải chuyển review, không gửi request tham chiếu sai")
+    void testOnlineRefundWithoutOriginalCreateDateRequiresReview() {
+        PaymentReceipt receipt = PaymentReceipt.builder()
+                .paymentReceiptId(20L)
+                .paymentRequestId(30L)
+                .bookingId(5L)
+                .gateway("VNPAY")
+                .amount(new BigDecimal("100000"))
+                .build();
+        Refund refund = Refund.builder()
+                .refundId(10L)
+                .paymentReceiptId(20L)
+                .bookingId(5L)
+                .amount(new BigDecimal("100000"))
+                .status(RefundStatus.REQUESTED)
+                .build();
+
+        when(refundRepository.findById(10L)).thenReturn(Optional.of(refund));
+        when(paymentReceiptRepository.findById(20L)).thenReturn(Optional.of(receipt));
+        when(paymentRequestService.findById(30L)).thenReturn(Optional.of(PaymentGatewayRequest.builder().build()));
+
+        RefundService onlineRefundService = new RefundService(
+                refundRepository, paymentReceiptRepository, paymentRequestService, vnpayMerchantClient, clock, objectMapper);
+        onlineRefundService.processOnlineRefund(10L);
+
+        assertEquals(RefundStatus.REVIEW_REQUIRED, refund.getStatus());
+        verifyNoInteractions(vnpayMerchantClient);
     }
 
     @Test

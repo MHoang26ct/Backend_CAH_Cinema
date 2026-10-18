@@ -93,6 +93,9 @@ public class BookingService {
     @Value("${payment.momo.enabled:true}")
     private boolean momoEnabled = true;
 
+    @Value("${stripe.enabled:false}")
+    private boolean stripeEnabled;
+
     @Autowired
     public BookingService(BookingRepository bookingRepository,
             SeatService seatService,
@@ -262,6 +265,9 @@ public class BookingService {
             Long voucherId,
             BookingPaymentMethod paymentMethod) {
 
+        if (!stripeEnabled && paymentMethod == BookingPaymentMethod.STRIPE) {
+            throw new BusinessException("Stripe is disabled", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+        }
         if (!momoEnabled && paymentMethod == BookingPaymentMethod.MOMO) {
             throw new BusinessException("Cổng thanh toán MoMo tạm thời ngưng hỗ trợ", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
         }
@@ -408,6 +414,9 @@ public class BookingService {
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
         LocalDateTime now = LocalDateTime.now(clock);
 
+        if (booking.getPaymentMethod() == BookingPaymentMethod.STRIPE || "STRIPE".equalsIgnoreCase(gateway)) {
+            throw new BusinessException("Stripe requires its verified settlement flow", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+        }
         // Validate trạng thái (không cần check userId - server-to-server)
         if (booking.getStatus() == BookingStatus.PAID) {
             throw new BusinessException("Booking đã được thanh toán", ErrorCode.PAYMENT_ALREADY_CONFIRMED);
@@ -477,6 +486,9 @@ public class BookingService {
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
         LocalDateTime now = LocalDateTime.now(clock);
         validatePaymentRequest(userId, booking, now);
+        if (booking.getPaymentMethod() == BookingPaymentMethod.STRIPE || "STRIPE".equalsIgnoreCase(requestDTO.getGateway())) {
+            throw new BusinessException("Stripe requires a verified webhook", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+        }
 
         if (booking.getPaymentMethod() == BookingPaymentMethod.VNPAY && "CASH".equalsIgnoreCase(requestDTO.getGateway())) {
             throw new BusinessException("Không thể xác nhận tiền mặt cho đơn hàng chọn cổng VNPay", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
@@ -859,8 +871,9 @@ public class BookingService {
     }
 
     /**
-     * Refund toàn bộ booking còn active (PAID/PENDING) khi admin hủy showtime.
-     * - PAID  → CANCELLED + ticket CANCELLED + tạo nghĩa vụ hoàn tiền 100% (SHOWTIME_CANCELLED) + outbox
+     * Hủy toàn bộ booking còn active (PAID/PENDING) khi admin hủy showtime.
+     * - PAID  → CANCELLED + ticket CANCELLED + tạo nghĩa vụ hoàn tiền 100% (SHOWTIME_CANCELLED) + outbox.
+     *           CANCELLED không khẳng định gateway đã hoàn tiền.
      * - PENDING → CANCELLED + giải phóng seat lock và voucher
      */
     @Transactional
@@ -870,13 +883,14 @@ public class BookingService {
 
         for (Booking booking : activeBookings) {
             if (booking.getStatus() == BookingStatus.PAID) {
-                booking.setStatus(BookingStatus.REFUNDED);
+                // Financial completion is represented by Refund.status, not Booking.status.
+                booking.setStatus(BookingStatus.CANCELLED);
                 bookingRepository.save(booking);
 
                 ticketService.cancelTicketsForBooking(booking.getBookingId());
 
-                // Giải phóng voucher đã dùng
-                voucherService.releaseVoucherForExpiredBooking(booking.getVoucherId());
+                // Booking đã thanh toán giữ voucher đã dùng, kể cả khi rạp chủ động hủy suất.
+                // Chỉ booking PENDING hết hạn mới được trả lượt voucher qua expireSingleBooking.
 
                 // Tạo nghĩa vụ hoàn tiền 100%
                 if (refundRepository != null && paymentReceiptRepository != null) {

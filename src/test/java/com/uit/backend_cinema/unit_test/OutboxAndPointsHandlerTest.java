@@ -38,7 +38,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -86,7 +85,7 @@ class OutboxAndPointsHandlerTest {
     }
 
     @Test
-    @DisplayName("BOOKING_PAID: Khi booking đã CANCELLED, không cấp vé, không gửi email, đảo điểm nếu có, đánh dấu DONE")
+    @DisplayName("BOOKING_PAID: Khi booking đã CANCELLED, không cấp vé/email và không tự đảo điểm trước refund thành công")
     void testBookingPaidHandlerWhenBookingAlreadyCancelled() throws Exception {
         Long bookingId = 1L;
         Long userId = 10L;
@@ -115,9 +114,9 @@ class OutboxAndPointsHandlerTest {
         verify(ticketService, never()).finalizeTicketsForPaidBooking(any(), any());
         // Không tạo SEND_TICKET_EMAIL
         verify(outboxEventService, never()).createIfAbsent(eq(OutboxEventType.SEND_TICKET_EMAIL), any(), any());
-        // Khấu trừ điểm vì đơn đã hủy
-        verify(userRepository).deductPaidAndRecalcRank(userId, new BigDecimal("100000"));
-        assertFalse(booking.getIsPointsAccumulated());
+        // Chỉ RefundMembershipService được phép đảo điểm khi gateway xác nhận refund SUCCEEDED.
+        verify(userRepository, never()).deductPaidAndRecalcRank(any(), any());
+        assertTrue(booking.getIsPointsAccumulated());
         verify(outboxEventService).markDone(101L);
     }
 
@@ -235,7 +234,7 @@ class OutboxAndPointsHandlerTest {
         Booking booking = new Booking();
         booking.setBookingId(bookingId);
         booking.setUserId(walkInUserId);
-        booking.setStatus(BookingStatus.REFUNDED);
+        booking.setStatus(BookingStatus.CANCELLED);
         booking.setContactEmail(null);
 
         User walkInUser = new User();

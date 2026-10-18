@@ -9,6 +9,7 @@ import java.util.Optional;
  */
 public interface PaymentRequestRepository {
     PaymentGatewayRequest save(PaymentGatewayRequest request);
+    Optional<PaymentGatewayRequest> findById(Long paymentRequestId);
     Optional<PaymentGatewayRequest> findLatestByBookingId(Long bookingId);
     Optional<PaymentGatewayRequest> findLatestByBookingIdAndGateway(Long bookingId, String gateway);
     Optional<PaymentGatewayRequest> findByGatewayAndOrderId(String gateway, String orderId);

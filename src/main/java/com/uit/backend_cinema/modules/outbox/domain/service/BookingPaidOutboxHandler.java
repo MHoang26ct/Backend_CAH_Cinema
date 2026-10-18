@@ -56,16 +56,8 @@ public class BookingPaidOutboxHandler {
         // Nếu booking đã bị hủy hoặc hoàn tiền trước khi outbox chạy:
         if (booking.getStatus() == BookingStatus.CANCELLED || booking.getStatus() == BookingStatus.REFUNDED
                 || booking.getStatus() == BookingStatus.EXPIRED) {
-            // Không cấp vé, không gửi email vé, thu hồi tích điểm nếu có
-            if (Boolean.TRUE.equals(booking.getIsPointsAccumulated())) {
-                userRepository.findById(booking.getUserId()).ifPresent(user -> {
-                    if (user.getAccountType() != AccountType.WALK_IN && !Boolean.TRUE.equals(user.getIsDeleted())) {
-                        userRepository.deductPaidAndRecalcRank(booking.getUserId(), booking.getTotalAmount());
-                    }
-                });
-                booking.setIsPointsAccumulated(false);
-                bookingRepository.save(booking);
-            }
+            // Không cấp vé, không gửi email vé. Điểm chỉ bị đảo khi refund có bằng chứng SUCCEEDED;
+            // không được trừ toàn bộ booking chỉ vì outbox chạy sau khi booking đã hủy.
             ticketService.expireDraftItems(booking.getBookingId());
             foodOrderService.expireDraftItems(booking.getBookingId());
             outboxEventService.markDone(event.getOutboxEventId());

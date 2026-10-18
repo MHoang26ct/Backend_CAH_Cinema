@@ -56,8 +56,9 @@ public class ShowtimeCancelledOutboxHandler {
         Booking booking = bookingRepository.findById(payload.getBookingId())
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
 
-        // Chỉ gửi email nếu booking đã được refund
-        if (booking.getStatus() != BookingStatus.REFUNDED) {
+        // The showtime is cancelled and a refund obligation has been created. Do not imply
+        // gateway payout success; legacy REFUNDED records remain eligible for notification.
+        if (booking.getStatus() != BookingStatus.CANCELLED && booking.getStatus() != BookingStatus.REFUNDED) {
             outboxEventService.markDone(event.getOutboxEventId());
             return;
         }

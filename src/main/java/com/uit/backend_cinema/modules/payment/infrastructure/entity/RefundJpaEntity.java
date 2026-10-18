@@ -88,6 +88,12 @@ public class RefundJpaEntity {
     @Column(name = "gateway_response_message", columnDefinition = "TEXT")
     private String gatewayResponseMessage;
 
+    @Column(name = "membership_adjusted_at")
+    private LocalDateTime membershipAdjustedAt;
+
+    @Column(name = "membership_adjustment_reversed_at")
+    private LocalDateTime membershipAdjustmentReversedAt;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

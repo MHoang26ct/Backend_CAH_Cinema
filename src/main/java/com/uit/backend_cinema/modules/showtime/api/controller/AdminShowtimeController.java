@@ -77,7 +77,7 @@ public class AdminShowtimeController {
     /**
      * POST /api/v1/admin/showtime/cancel-by-room
      * Batch cancel toàn bộ showtime AVAILABLE của phòng trong khoảng ngày.
-     * Tự động refund booking PAID và hủy booking PENDING, gửi email thông báo.
+     * Hủy booking PAID/PENDING, tạo nghĩa vụ hoàn tiền cho payment đã thu và gửi email thông báo.
      */
     @PostMapping("/cancel-by-room")
     public ResponseEntity<?> cancelShowtimesByRoom(
@@ -98,6 +98,6 @@ public class AdminShowtimeController {
         }
 
         return ResponseEntity.ok(ApiResponse.success(
-                "Đã hủy " + cancelled.size() + " suất chiếu và xử lý refund thành công"));
+                "Đã hủy " + cancelled.size() + " suất chiếu và tạo yêu cầu hoàn tiền cho booking đủ điều kiện"));
     }
 }

@@ -85,3 +85,15 @@ vnpay:
   payment-request-ttl-minutes: 15
   connect-timeout-seconds: 10
   read-timeout-seconds: 15
+
+# Sandbox only. Credentials stay in .env; never enable live charges here.
+stripe:
+  enabled: ${STRIPE_ENABLED:false}
+  test-mode: ${STRIPE_TEST_MODE:true}
+  secret-key: ${STRIPE_SECRET_KEY:}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  account-id: ${STRIPE_ACCOUNT_ID:}
+  success-url: ${STRIPE_SUCCESS_URL:}
+  cancel-url: ${STRIPE_CANCEL_URL:}
+  sandbox-driver-enabled: ${PAYMENT_TEST_AUTOMATION_ENABLED:false}
+  sandbox-token: ${STRIPE_SANDBOX_TOKEN:}

@@ -12,6 +12,9 @@ public interface RefundRepository {
 
     Optional<Refund> findById(Long refundId);
 
+    /** Locks one refund while applying or reversing its membership adjustment. */
+    Optional<Refund> findByIdForUpdate(Long refundId);
+
     Optional<Refund> findByRequestReference(String requestReference);
 
     Optional<Refund> findByPaymentReceiptIdAndCause(Long paymentReceiptId, RefundCause cause);

@@ -226,7 +226,7 @@ CREATE TABLE bookings (
     user_id INT NOT NULL REFERENCES users(user_id),
     showtime_id INT NOT NULL REFERENCES showtimes(showtime_id),
     voucher_id INT REFERENCES vouchers(voucher_id),
-    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'VNPAY', 'MOMO')),
+    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'VNPAY', 'MOMO', 'STRIPE')),
     discount_amount DECIMAL(18,2) DEFAULT 0 CHECK (discount_amount >= 0),
     late_discount_amount DECIMAL(18,2) NOT NULL DEFAULT 0 CHECK (late_discount_amount >= 0),
     total_price DECIMAL(18,2) NOT NULL DEFAULT 0 CHECK (total_price >= 0),
@@ -332,7 +332,7 @@ CREATE TABLE food_order_items (
 CREATE TABLE invoices (
     invoice_id SERIAL PRIMARY KEY,
     booking_id INT NOT NULL REFERENCES bookings(booking_id),
-    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'VNPAY', 'MOMO')),
+    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'VNPAY', 'MOMO', 'STRIPE')),
     amount_paid DECIMAL(18,2) NOT NULL CHECK (amount_paid >= 0),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -464,6 +464,8 @@ CREATE TABLE refunds (
     gateway_response_code VARCHAR(50),
     gateway_transaction_no VARCHAR(100),
     gateway_response_message TEXT,
+    membership_adjusted_at TIMESTAMP,
+    membership_adjustment_reversed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_refunds_receipt_cause UNIQUE (payment_receipt_id, cause),
@@ -472,3 +474,31 @@ CREATE TABLE refunds (
 
 CREATE INDEX idx_refunds_booking ON refunds (booking_id);
 CREATE INDEX idx_refunds_status ON refunds (status);
+
+CREATE TABLE stripe_payments (
+    booking_id INT PRIMARY KEY REFERENCES bookings(booking_id),
+    payment_request_id INT NOT NULL UNIQUE REFERENCES payment_requests(payment_request_id),
+    mode VARCHAR(16) NOT NULL CHECK (mode IN ('CHECKOUT','API')),
+    amount BIGINT NOT NULL CHECK (amount > 0),
+    currency VARCHAR(3) NOT NULL CHECK (currency = 'vnd'),
+    account_id VARCHAR(100) NOT NULL,
+    idempotency_key VARCHAR(100) NOT NULL UNIQUE,
+    session_id VARCHAR(255) UNIQUE,
+    intent_id VARCHAR(255) UNIQUE,
+    pay_url TEXT,
+    state VARCHAR(30) NOT NULL DEFAULT 'CREATED' CHECK (state IN ('CREATED','SUCCEEDED','EXPIRED','REVIEW_REQUIRED')),
+    deadline TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    success_url TEXT NOT NULL,
+    cancel_url TEXT NOT NULL,
+    scenario VARCHAR(100),
+    CHECK ((mode='CHECKOUT' AND scenario IS NULL) OR
+           (mode='API' AND scenario IN ('pm_card_visa','pm_card_visa_chargeDeclined','pm_card_visa_chargeDeclinedInsufficientFunds','pm_card_threeDSecure2Required')))
+);
+CREATE INDEX idx_stripe_payments_deadline ON stripe_payments(deadline) WHERE state='CREATED';
+CREATE TABLE stripe_webhook_inbox (
+    event_id VARCHAR(255) PRIMARY KEY,
+    event_type VARCHAR(100) NOT NULL,
+    received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP
+);

@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -127,9 +128,9 @@ class BookingModuleServiceTest {
         bookingService.refundBookingsForCancelledShowtime(showtimeId, "Bảo trì phòng chiếu");
 
         // Asserts for PAID booking
-        assertEquals(BookingStatus.REFUNDED, paidBooking.getStatus());
+        assertEquals(BookingStatus.CANCELLED, paidBooking.getStatus());
         verify(bookingRepository).save(paidBooking);
-        verify(voucherService).releaseVoucherForExpiredBooking(301L);
+        verify(voucherService, never()).releaseVoucherForExpiredBooking(301L);
         verify(outboxEventService).createIfAbsent(
                 eq(com.uit.backend_cinema.modules.outbox.domain.entity.OutboxEventType.SHOWTIME_CANCELLED),
                 eq("booking-101"),

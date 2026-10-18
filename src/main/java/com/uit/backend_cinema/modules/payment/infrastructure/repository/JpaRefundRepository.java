@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,9 +14,14 @@ import org.springframework.stereotype.Repository;
 import com.uit.backend_cinema.modules.payment.domain.entity.RefundCause;
 import com.uit.backend_cinema.modules.payment.domain.entity.RefundStatus;
 import com.uit.backend_cinema.modules.payment.infrastructure.entity.RefundJpaEntity;
+import jakarta.persistence.LockModeType;
 
 @Repository
 public interface JpaRefundRepository extends JpaRepository<RefundJpaEntity, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM RefundJpaEntity r WHERE r.refundId = :refundId")
+    Optional<RefundJpaEntity> findByIdForUpdate(@Param("refundId") Long refundId);
+
     Optional<RefundJpaEntity> findByRequestReference(String requestReference);
 
     Optional<RefundJpaEntity> findByPaymentReceiptIdAndCause(Long paymentReceiptId, RefundCause cause);

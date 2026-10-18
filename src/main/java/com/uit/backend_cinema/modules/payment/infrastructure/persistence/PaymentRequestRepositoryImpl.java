@@ -29,6 +29,12 @@ public class PaymentRequestRepositoryImpl implements PaymentRequestRepository {
     }
 
     @Override
+    public Optional<PaymentGatewayRequest> findById(Long paymentRequestId) {
+        return jpaRepository.findById(paymentRequestId)
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public Optional<PaymentGatewayRequest> findLatestByBookingId(Long bookingId) {
         return jpaRepository.findFirstByBookingIdOrderByCreatedAtDesc(bookingId)
                 .map(mapper::toDomain);

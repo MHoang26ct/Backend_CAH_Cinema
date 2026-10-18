@@ -357,6 +357,7 @@ public class VnpayPaymentService {
             } else {
                 receipt = PaymentReceipt.builder()
                         .bookingId(bookingId)
+                        .paymentRequestId(paymentReq.getPaymentRequestId())
                         .gateway(GATEWAY)
                         .transactionReference(paymentRef)
                         .orderId(paymentReq.getOrderId())

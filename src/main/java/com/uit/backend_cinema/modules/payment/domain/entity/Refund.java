@@ -27,6 +27,10 @@ public class Refund {
     private String gatewayResponseCode;
     private String gatewayTransactionNo;
     private String gatewayResponseMessage;
+    /** Timestamp when this refund's successful provider outcome was reflected in member spend/points. */
+    private LocalDateTime membershipAdjustedAt;
+    /** Timestamp when a later provider failure reversed a previously applied membership adjustment. */
+    private LocalDateTime membershipAdjustmentReversedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

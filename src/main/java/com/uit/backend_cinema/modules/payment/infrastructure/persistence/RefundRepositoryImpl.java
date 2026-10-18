@@ -34,6 +34,11 @@ public class RefundRepositoryImpl implements RefundRepository {
     }
 
     @Override
+    public Optional<Refund> findByIdForUpdate(Long refundId) {
+        return jpaRepository.findByIdForUpdate(refundId).map(this::toDomain);
+    }
+
+    @Override
     public Optional<Refund> findByRequestReference(String requestReference) {
         return jpaRepository.findByRequestReference(requestReference).map(this::toDomain);
     }
@@ -80,6 +85,8 @@ public class RefundRepositoryImpl implements RefundRepository {
                 .gatewayResponseCode(entity.getGatewayResponseCode())
                 .gatewayTransactionNo(entity.getGatewayTransactionNo())
                 .gatewayResponseMessage(entity.getGatewayResponseMessage())
+                .membershipAdjustedAt(entity.getMembershipAdjustedAt())
+                .membershipAdjustmentReversedAt(entity.getMembershipAdjustmentReversedAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -102,6 +109,8 @@ public class RefundRepositoryImpl implements RefundRepository {
         entity.setGatewayResponseCode(domain.getGatewayResponseCode());
         entity.setGatewayTransactionNo(domain.getGatewayTransactionNo());
         entity.setGatewayResponseMessage(domain.getGatewayResponseMessage());
+        entity.setMembershipAdjustedAt(domain.getMembershipAdjustedAt());
+        entity.setMembershipAdjustmentReversedAt(domain.getMembershipAdjustmentReversedAt());
         entity.setCreatedAt(domain.getCreatedAt());
         entity.setUpdatedAt(domain.getUpdatedAt());
         return entity;

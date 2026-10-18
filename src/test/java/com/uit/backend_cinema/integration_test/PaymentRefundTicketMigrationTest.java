@@ -53,7 +53,7 @@ class PaymentRefundTicketMigrationTest {
         execute("INSERT INTO tickets (ticket_id, seat_id, showtime_id, booking_id, price) " +
                 "VALUES (2, 2, 1, 102, 100000)");
 
-        // Run migration
+        // Run payment/refund migration and subsequent membership-audit migration
         migrate();
 
         // Verify ticket 1 was backfilled to CANCELLED, ticket 2 stayed VALID
@@ -109,6 +109,9 @@ class PaymentRefundTicketMigrationTest {
         // Insert refund obligation
         execute("INSERT INTO refunds (payment_receipt_id, booking_id, cause, amount, request_reference) " +
                 "VALUES (1, 201, 'CUSTOMER_CANCELLED', 120000, 'REFUND_REQ_001')");
+        assertEquals(2, integer("SELECT count(*) FROM information_schema.columns " +
+                "WHERE table_schema=current_schema() AND table_name='refunds' " +
+                "AND column_name IN ('membership_adjusted_at', 'membership_adjustment_reversed_at')"));
 
         // Duplicate cause for same payment receipt fails (23505)
         assertEquals("23505", assertThrows(SQLException.class, () ->
@@ -167,6 +170,11 @@ class PaymentRefundTicketMigrationTest {
 
     private void migrate() throws Exception {
         execute(Files.readString(Path.of("migrations/20261017_02_payment_refund_tickets.sql")));
+        execute(Files.readString(Path.of("migrations/20261018_05_refund_membership_adjustment.sql")));
+    }
+
+    private int integer(String sql) throws SQLException {
+        return Integer.parseInt(scalar(sql));
     }
 
     private void execute(String sql) throws SQLException {
