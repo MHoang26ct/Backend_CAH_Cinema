@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
 import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
+import com.uit.backend_cinema.modules.ticket.domain.entity.TicketStatus;
 import com.uit.backend_cinema.modules.ticket.domain.repository.TicketRepository;
 import com.uit.backend_cinema.modules.ticket.infrastructure.mapper.TicketInfraMapper;
 import com.uit.backend_cinema.modules.ticket.infrastructure.repository.JpaTicketRepository;
@@ -43,7 +44,7 @@ public class TicketRepositoryImpl implements TicketRepository {
     public boolean existsSoldSeatByShowtimeIdAndSeatIds(Long showtimeId, List<Long> seatIds) {
         return seatIds != null
                 && !seatIds.isEmpty()
-                && jpaTicketRepository.existsByShowtimeIdAndSeatIdIn(showtimeId, seatIds);
+                && jpaTicketRepository.existsByShowtimeIdAndSeatIdInAndStatus(showtimeId, seatIds, TicketStatus.VALID);
     }
 
     @Override

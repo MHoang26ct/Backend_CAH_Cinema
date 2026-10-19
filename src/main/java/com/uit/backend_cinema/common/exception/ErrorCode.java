@@ -24,6 +24,8 @@ public enum ErrorCode {
     UNAUTHORIZED,               // Chưa đăng nhập
     FORBIDDEN,                  // Không có quyền
 
+    PAYMENT_NOT_CONFIRMED,     // Missing or ambiguous funding receipt: reconcile before cancellation
+
     // Resource
     RESOURCE_NOT_FOUND,         // Tài nguyên không tồn tại
     DUPLICATE_RESOURCE,         // Tài nguyên đã tồn tại
@@ -38,6 +40,9 @@ public enum ErrorCode {
     VOUCHER_HOLD_EXPIRED,
     PAYMENT_REF_DUPLICATE,
     PAYMENT_ALREADY_CONFIRMED,
+    PAYMENT_METHOD_NOT_SUPPORTED,
+    CASH_PAYMENT_REQUIRES_STAFF,
+    INVALID_CUSTOMER_TYPE,
 
     // Outbox / Ticket
     OUTBOX_EVENT_CREATE_FAILED,
@@ -64,5 +69,18 @@ public enum ErrorCode {
     VNPAY_SIGNATURE_INVALID,         // Chữ ký VNPay không hợp lệ
     VNPAY_PAYMENT_CREATION_FAILED,   // Build URL thanh toán thất bại
     VNPAY_ORDER_ID_INVALID,          // orderId không parse được bookingId
+    GATEWAY_TIMEOUT,                 // Gateway gọi timeout
+    GATEWAY_COMMUNICATION_FAILED,    // Lỗi kết nối gateway
+    VNPAY_TRANSACTION_FAILED,        // Giao dịch VNPay thất bại
 
+    // Cancellation & Refund
+    BOOKING_CANNOT_BE_CANCELLED,
+    BOOKING_CANCEL_DEADLINE_EXCEEDED,
+    BOOKING_ALREADY_CHECKED_IN,
+    REFUND_NOT_FOUND,
+    REFUND_INVALID_STATUS,
+    REFUND_ALREADY_CLAIMED,
+    REFUND_STAFF_MISMATCH,
+    REFUND_METHOD_MISMATCH,
+    QUOTE_EXPIRED_OR_CHANGED
 }

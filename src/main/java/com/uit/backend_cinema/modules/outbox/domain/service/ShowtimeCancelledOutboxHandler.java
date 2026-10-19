@@ -9,6 +9,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.modules.auth.domain.entity.AccountType;
 import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 import com.uit.backend_cinema.modules.booking.domain.entity.Booking;
@@ -55,8 +56,9 @@ public class ShowtimeCancelledOutboxHandler {
         Booking booking = bookingRepository.findById(payload.getBookingId())
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
 
-        // Chỉ gửi email nếu booking đã được refund
-        if (booking.getStatus() != BookingStatus.REFUNDED) {
+        // The showtime is cancelled and a refund obligation has been created. Do not imply
+        // gateway payout success; legacy REFUNDED records remain eligible for notification.
+        if (booking.getStatus() != BookingStatus.CANCELLED && booking.getStatus() != BookingStatus.REFUNDED) {
             outboxEventService.markDone(event.getOutboxEventId());
             return;
         }
@@ -67,13 +69,19 @@ public class ShowtimeCancelledOutboxHandler {
         Showtime showtime = showtimeService.getById(payload.getShowtimeId());
         Movie movie = movieService.getById(showtime.getMovieId());
 
-        notificationService.sendShowtimeCancelledEmail(
-                user.getEmail(),
-                booking.getBookingId(),
-                movie,
-                showtime,
-                payload.getReason()
-        );
+        String recipientEmail = (booking.getContactEmail() != null && !booking.getContactEmail().isBlank())
+                ? booking.getContactEmail()
+                : (user.getAccountType() != AccountType.WALK_IN ? user.getEmail() : null);
+
+        if (recipientEmail != null && !recipientEmail.isBlank()) {
+            notificationService.sendShowtimeCancelledEmail(
+                    recipientEmail,
+                    booking.getBookingId(),
+                    movie,
+                    showtime,
+                    payload.getReason()
+            );
+        }
 
         outboxEventService.markDone(event.getOutboxEventId());
     }

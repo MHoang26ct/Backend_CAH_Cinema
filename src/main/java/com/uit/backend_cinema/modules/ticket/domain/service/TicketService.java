@@ -108,6 +108,22 @@ public class TicketService {
         return ticketRepository.findAllByBookingId(bookingId);
     }
 
+    @Transactional
+    public void cancelTicketsForBooking(Long bookingId) {
+        List<Ticket> tickets = ticketRepository.findAllByBookingId(bookingId);
+        for (Ticket ticket : tickets) {
+            ticket.setStatus(com.uit.backend_cinema.modules.ticket.domain.entity.TicketStatus.CANCELLED);
+            ticketRepository.save(ticket);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasAnyCheckedInTicket(Long bookingId) {
+        return ticketRepository.findAllByBookingId(bookingId)
+                .stream()
+                .anyMatch(t -> Boolean.TRUE.equals(t.getIsCheckedIn()));
+    }
+
     private BigDecimal seatPrice(Seat seat, Showtime showtime, BigDecimal showtimeMultiplier) {
         return seat.getSeatType().getPriceMultiplier()
                 .multiply(showtime.getBasePrice())

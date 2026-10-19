@@ -23,4 +23,9 @@ public class InvoiceRepositoryImpl implements InvoiceRepository {
         InvoiceJpaEntity savedEntity = jpaInvoiceRepository.save(entity);
         return invoiceInfraMapper.toDomain(savedEntity);
     }
+
+    @Override
+    public boolean existsByBookingId(Long bookingId) {
+        return jpaInvoiceRepository.existsByBookingId(bookingId);
+    }
 }

@@ -20,7 +20,9 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import com.uit.backend_cinema.modules.booking.domain.entity.BookingPaymentMethod;
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingSource;
 import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
+import com.uit.backend_cinema.modules.booking.domain.entity.FoodFulfillmentStatus;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -64,6 +66,74 @@ public class BookingJpaEntity {
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
+
+    @Column(name = "payment_deadline")
+    private LocalDateTime paymentDeadline;
+
+    @Column(name = "reconciliation_deadline")
+    private LocalDateTime reconciliationDeadline;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "booking_source", nullable = false, length = 20)
+    private BookingSource bookingSource = BookingSource.ONLINE;
+
+    @Column(name = "created_by_staff_id")
+    private Long createdByStaffId;
+
+    @Column(name = "contact_name")
+    private String contactName;
+
+    @Column(name = "contact_email")
+    private String contactEmail;
+
+    @Column(name = "contact_phone", length = 20)
+    private String contactPhone;
+
+    @Column(name = "seat_subtotal_gross")
+    private BigDecimal seatSubtotalGross = BigDecimal.ZERO;
+
+    @Column(name = "food_subtotal_gross")
+    private BigDecimal foodSubtotalGross = BigDecimal.ZERO;
+
+    @Column(name = "rank_discount_amount")
+    private BigDecimal rankDiscountAmount = BigDecimal.ZERO;
+
+    @Column(name = "voucher_discount_seat")
+    private BigDecimal voucherDiscountSeat = BigDecimal.ZERO;
+
+    @Column(name = "voucher_discount_food")
+    private BigDecimal voucherDiscountFood = BigDecimal.ZERO;
+
+    @Column(name = "net_seat_amount")
+    private BigDecimal netSeatAmount = BigDecimal.ZERO;
+
+    @Column(name = "net_food_amount")
+    private BigDecimal netFoodAmount = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "food_fulfillment_status", nullable = false, length = 20)
+    private FoodFulfillmentStatus foodFulfillmentStatus = FoodFulfillmentStatus.NOT_APPLICABLE;
+
+    @Column(name = "food_fulfilled_at")
+    private LocalDateTime foodFulfilledAt;
+
+    @Column(name = "food_fulfilled_by_staff_id")
+    private Long foodFulfilledByStaffId;
+
+    @Column(name = "legacy_snapshot_status", length = 30)
+    private String legacySnapshotStatus;
+
+    @Column(name = "cancellation_policy_snapshot", columnDefinition = "TEXT")
+    private String cancellationPolicySnapshot;
+
+    @Column(name = "is_voucher_released", nullable = false)
+    private Boolean isVoucherReleased = false;
+
+    @Column(name = "is_points_accumulated", nullable = false)
+    private Boolean isPointsAccumulated = false;
+
+    @Column(name = "is_points_reversed", nullable = false)
+    private Boolean isPointsReversed = false;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false, nullable = false)

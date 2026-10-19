@@ -4,4 +4,6 @@ import com.uit.backend_cinema.modules.invoice.domain.entity.Invoice;
 
 public interface InvoiceRepository {
     Invoice save(Invoice invoice);
+
+    boolean existsByBookingId(Long bookingId);
 }

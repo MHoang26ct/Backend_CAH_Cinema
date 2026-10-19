@@ -129,7 +129,7 @@ public class NotificationService {
 
     /**
      * Gửi email thông báo hủy suất chiếu do bảo trì / sự cố.
-     * Booking sẽ được hoàn tiền; admin xử lý hoàn tiền thực tế ngoài hệ thống.
+     * Một nghĩa vụ hoàn tiền đã được tạo; gateway/nhân viên phải xác nhận kết quả chi trả riêng.
      */
     public void sendShowtimeCancelledEmail(String email, Long bookingId,
                                            Movie movie, Showtime showtime, String reason) {
@@ -148,8 +148,8 @@ public class NotificationService {
         content.append("Phim: ").append(movie.getTitle()).append("\n");
         content.append("Suất chiếu: ").append(showtime.getStartTime().format(formatter)).append("\n");
         content.append("Lý do: ").append(reason != null ? reason : "Sự cố kỹ thuật").append("\n\n");
-        content.append("Đơn đặt vé của bạn đã được hoàn tiền. ");
-        content.append("Vui lòng liên hệ hotline để biết thêm chi tiết.\n\n");
+        content.append("Yêu cầu hoàn tiền cho đơn đặt vé của bạn đã được tạo và đang được xử lý. ");
+        content.append("Vui lòng theo dõi trạng thái hoàn tiền hoặc liên hệ hotline để biết thêm chi tiết.\n\n");
         content.append("Chúng tôi xin lỗi vì sự bất tiện này.\n");
         content.append("Trân trọng,\nCAH Cinema");
         return content.toString();

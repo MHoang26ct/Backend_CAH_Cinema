@@ -29,23 +29,25 @@ public class AuthService {
     }
 
     public void sendRegistrationOtp(String email) {
-        if (userRepository.existsByEmail(email)) {
+        String normalizedEmail = email != null ? email.trim().toLowerCase() : null;
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new BusinessException("Email đã được sử dụng", ErrorCode.EMAIL_ALREADY_EXISTS);
         }
-        notificationService.sendRegistrationOtp(email);
+        notificationService.sendRegistrationOtp(normalizedEmail);
     }
 
     // Đăng ký tài khoản bằng email
     @Transactional // Bật ghi dữ liệu cho hàm này
     public User register(String email, String rawPassword, String name, String phone, String otp) {
-        if (userRepository.existsByEmail(email)) {
+        String normalizedEmail = email != null ? email.trim().toLowerCase() : null;
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new BusinessException("Email đã được sử dụng", ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        notificationService.verifyRegistrationOtp(email, otp);
+        notificationService.verifyRegistrationOtp(normalizedEmail, otp);
 
         User user = new User();
-        user.setEmail(email);
+        user.setEmail(normalizedEmail);
         user.setPassword(passwordEncoder.encode(rawPassword));
         user.setName(name);
         user.setPhone(phone);
@@ -58,12 +60,14 @@ public class AuthService {
 
     // Đăng nhập bằng email/password
     public User login(String email, String rawPassword) {
-        User user = userRepository.findByEmail(email)
+        String normalizedEmail = email != null ? email.trim().toLowerCase() : null;
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new BusinessException(
                         "Email hoặc mật khẩu không chính xác",
                         ErrorCode.INVALID_CREDENTIALS
                 ));
 
+        UserAccountPolicy.requireInteractive(user);
         if (user.getPassword() == null || !passwordEncoder.matches(rawPassword, user.getPassword())) {
             throw new BusinessException(
                     "Email hoặc mật khẩu không chính xác",
@@ -77,12 +81,13 @@ public class AuthService {
     // Đăng nhập hoặc đăng ký bằng Google
     @Transactional // Bật ghi dữ liệu cho hàm này
     public User loginOrRegisterWithGoogle(String email, String name, String avatarUrl, String providerId) {
-        Optional<User> existingUser = userRepository.findByEmail(email);
+        String normalizedEmail = email != null ? email.trim().toLowerCase() : null;
+        Optional<User> existingUser = userRepository.findByEmail(normalizedEmail);
 
         User user;
         if (existingUser.isEmpty()) {
             user = new User();
-            user.setEmail(email);
+            user.setEmail(normalizedEmail);
             user.setName(name);
             user.setAvatarUrl(avatarUrl);
             user.setProviderId(providerId);
@@ -91,6 +96,7 @@ public class AuthService {
             user.setIsDeleted(false);
         } else {
             user = existingUser.get();
+            UserAccountPolicy.requireInteractive(user);
             user.setName(name);
             user.setAvatarUrl(avatarUrl);
             user.setProviderId(providerId);
@@ -105,6 +111,7 @@ public class AuthService {
         if (user.isEmpty()) {
             throw new BusinessException("Email không tồn tại", ErrorCode.INVALID_CREDENTIALS);
         }
+        UserAccountPolicy.requireInteractive(user.get());
         user.get().setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user.get());
     }
@@ -117,6 +124,7 @@ public class AuthService {
             throw new BusinessException("Email không tồn tại", ErrorCode.INVALID_CREDENTIALS);
         }
         User user = userOpt.get();
+        UserAccountPolicy.requireInteractive(user);
         if (user.getPassword() == null || !passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new BusinessException("Mật khẩu cũ không chính xác", ErrorCode.INVALID_CREDENTIALS);
         }

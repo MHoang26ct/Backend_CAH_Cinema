@@ -36,6 +36,20 @@ Ví dụ register:
 
 Response thành công của đăng ký, login và Google login là `ApiResponse` chứa `accessToken`, `refreshToken` và thông tin `user`.
 
+## Phân biệt token và tương thích khi cập nhật
+
+- **Access token** có claim `purpose=ACCESS`, `sub` là định danh đăng nhập và `userId` khớp tài khoản hiện tại. Chỉ loại này dùng trong `Authorization: Bearer ...` để truy cập API cần đăng nhập. Quyền lấy từ tài khoản trong DB, không lấy từ claim role do token khai báo.
+- **Reset token** có `purpose=RESET_PASSWORD`, chỉ dùng làm `resetToken` tại `/api/v1/auth/fp-change-password` cho đúng email. Không dùng reset token để truy cập profile, booking hoặc API staff/admin.
+- **Ticket QR** có `purpose=TICKET_QR`, chỉ dùng trong luồng kiểm tra vé; không thay access token. Access/reset token cũng không thay được QR.
+- Token phải còn hạn; tài khoản dùng access token phải tồn tại và còn hợp lệ. Token không có purpose, purpose không đúng hoặc lẫn claim cũ `Purpose` đều bị từ chối.
+- **Chuyển phiên bản:** access token cũ không có purpose không còn được chấp nhận. Client gọi `/api/v1/auth/refresh` bằng refresh token còn hợp lệ hoặc đăng nhập lại để lấy access token mới. Reset token cũ dùng `Purpose="Change password"` cũng không còn hợp lệ; khách cần thực hiện lại luồng OTP quên mật khẩu. Định dạng refresh token không thay đổi. QR hiện có với `purpose=TICKET_QR` vẫn dùng được nếu còn hạn và đáp ứng kiểm tra vé hiện hành.
+
+## Tài khoản hệ thống WALK_IN
+
+`account_type` là định danh nội bộ bất biến (`REGISTERED` hoặc `WALK_IN`), không phải role và không nhận từ request đăng ký/profile. WALK_IN không được đăng nhập email/Google, liên kết Google, cấp hoặc dùng refresh token để lấy access, cấp reset token, đổi mật khẩu, xem lịch sử chung hay sửa profile. Access token đã ký trước đó cũng bị từ chối khi tài khoản tra trong DB là WALK_IN.
+
+**Triển khai:** phải chạy migration `migrations/20261017_01_account_type.sql` trước phiên bản code có field này, theo ghi chú backup/preflight trong file. Migration giữ nguyên các tài khoản cũ là REGISTERED; chưa seed WALK_IN và chưa mở API booking quầy. Không quay về code chưa có guard sau khi đã tạo tài khoản WALK_IN.
+
 ## User đã đăng nhập
 
 | Method | Endpoint | Request |

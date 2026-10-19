@@ -32,8 +32,8 @@ import static org.mockito.Mockito.when;
 class ShowtimeCancelledOutboxHandlerTest {
 
     @Test
-    @DisplayName("handle: Gửi email thành công nếu booking đã được REFUNDED")
-    void handle_bookingRefunded() throws Exception {
+    @DisplayName("handle: Gửi email khi booking bị CANCELLED do rạp hủy suất")
+    void handle_bookingCancelled() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         BookingRepository bookingRepository = mock(BookingRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
@@ -59,7 +59,7 @@ class ShowtimeCancelledOutboxHandlerTest {
 
         Booking booking = new Booking();
         booking.setBookingId(1L);
-        booking.setStatus(BookingStatus.REFUNDED); // quan trọng
+        booking.setStatus(BookingStatus.CANCELLED); // refund obligation is tracked separately
         when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
 
         User user = new User();

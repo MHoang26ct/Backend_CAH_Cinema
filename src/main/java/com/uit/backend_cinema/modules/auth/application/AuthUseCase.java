@@ -88,12 +88,8 @@ public class AuthUseCase {
 
     // Tạo token reset password
     public FP_VerifyOtpResponseOTP generateResetToken(String email) {
-        Map<String, Object> extraClaims = new HashMap<>();
-        extraClaims.put("Purpose", "Change password");
-
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
-        String resetToken = jwtUtil.generateToken(extraClaims, userDetails);
+        String resetToken = jwtUtil.generateResetToken(userDetails);
         FP_VerifyOtpResponseOTP response = new FP_VerifyOtpResponseOTP();
         response.setToken(resetToken);
         return response;

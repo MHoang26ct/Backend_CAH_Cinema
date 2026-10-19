@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import com.uit.backend_cinema.modules.auth.api.dto.UserDTO;
 import com.uit.backend_cinema.modules.auth.api.mapper.UserApiMapper;
 import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
+import com.uit.backend_cinema.modules.auth.domain.service.UserAccountPolicy;
 import com.uit.backend_cinema.modules.auth.infrastructure.projection.BookingInvoiceRow;
 import com.uit.backend_cinema.modules.booking.infrastructure.repository.JpaBookingRepository;
 
@@ -41,6 +43,7 @@ public class UserUseCase {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
 
+        UserAccountPolicy.requireInteractive(user);
         List<BookingInvoiceRow> rows = jpaBookingRepository.findTop5FullInvoicesByUserId(userId);
         List<FullInvoiceDTO> invoices = assembleInvoices(rows);
 
@@ -50,6 +53,18 @@ public class UserUseCase {
     // Cập nhật name / email / phone (chỉ field nào được gửi lên).
     @Transactional
     public UserDTO updateProfile(Long userId, String name, String email, String phone, String avatarUrl) {
+        UserAccountPolicy.requireInteractive(userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.RESOURCE_NOT_FOUND)));
+
+        if (email != null && !email.isBlank()) {
+            String normalizedEmail = email.trim().toLowerCase();
+            Optional<User> existing = userRepository.findByEmail(normalizedEmail);
+            if (existing.isPresent() && !existing.get().getUserId().equals(userId)) {
+                throw new BusinessException("Email đã được sử dụng bởi tài khoản khác", ErrorCode.EMAIL_ALREADY_EXISTS);
+            }
+            email = normalizedEmail;
+        }
+
         User updated = userRepository.updateProfile(userId, name, email, phone, avatarUrl);
         return userApiMapper.toDto(updated);
     }

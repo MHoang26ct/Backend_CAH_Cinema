@@ -29,6 +29,12 @@ public class PaymentRequestRepositoryImpl implements PaymentRequestRepository {
     }
 
     @Override
+    public Optional<PaymentGatewayRequest> findById(Long paymentRequestId) {
+        return jpaRepository.findById(paymentRequestId)
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public Optional<PaymentGatewayRequest> findLatestByBookingId(Long bookingId) {
         return jpaRepository.findFirstByBookingIdOrderByCreatedAtDesc(bookingId)
                 .map(mapper::toDomain);
@@ -38,5 +44,20 @@ public class PaymentRequestRepositoryImpl implements PaymentRequestRepository {
     public Optional<PaymentGatewayRequest> findByGatewayAndOrderId(String gateway, String orderId) {
         return jpaRepository.findByGatewayAndOrderId(gateway, orderId)
                 .map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<PaymentGatewayRequest> findLatestByBookingIdAndGateway(Long bookingId, String gateway) {
+        return jpaRepository.findFirstByGatewayAndBookingIdOrderByCreatedAtDesc(gateway, bookingId)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public java.util.List<PaymentGatewayRequest> findPendingReconciliationRequests(String gateway, java.time.LocalDateTime threshold) {
+        return jpaRepository.findTop10ByGatewayAndStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
+                gateway,
+                com.uit.backend_cinema.modules.payment.domain.entity.PaymentGatewayRequestStatus.CREATED,
+                threshold
+        ).stream().map(mapper::toDomain).toList();
     }
 }

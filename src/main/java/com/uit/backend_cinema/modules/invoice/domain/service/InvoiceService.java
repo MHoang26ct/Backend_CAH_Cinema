@@ -15,6 +15,9 @@ public class InvoiceService {
     }
 
     public void createInvoice(Long bookingId, String paymentMethod, BigDecimal amountPaid) {
+        if (invoiceRepository.existsByBookingId(bookingId)) {
+            return;
+        }
         Invoice invoice = Invoice.builder()
                 .bookingId(bookingId)
                 .paymentMethod(paymentMethod)

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
+import com.uit.backend_cinema.modules.ticket.domain.entity.TicketStatus;
 import com.uit.backend_cinema.modules.ticket.infrastructure.entity.TicketJpaEntity;
 
 public interface JpaTicketRepository extends JpaRepository<TicketJpaEntity, Long> {
@@ -17,11 +18,14 @@ public interface JpaTicketRepository extends JpaRepository<TicketJpaEntity, Long
 
     boolean existsByShowtimeIdAndSeatIdIn(Long showtimeId, Collection<Long> seatIds);
 
+    boolean existsByShowtimeIdAndSeatIdInAndStatus(Long showtimeId, Collection<Long> seatIds, TicketStatus status);
+
     @Query("""
             select t.seatId
             from TicketJpaEntity t, BookingJpaEntity b
             where t.bookingId = b.bookingId
               and t.showtimeId = :showtimeId
+              and t.status = com.uit.backend_cinema.modules.ticket.domain.entity.TicketStatus.VALID
               and b.status in :paidStatuses
             """)
     List<Long> findSoldSeatIdsByShowtimeId(@Param("showtimeId") Long showtimeId,

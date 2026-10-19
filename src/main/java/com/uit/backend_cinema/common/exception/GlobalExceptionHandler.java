@@ -48,6 +48,7 @@ public class GlobalExceptionHandler {
                  VOUCHER_HOLD_EXPIRED,
                  PAYMENT_REF_DUPLICATE,
                  PAYMENT_ALREADY_CONFIRMED,
+                 PAYMENT_NOT_CONFIRMED,
                  TICKET_ALREADY_USED ->
                     HttpStatus.CONFLICT;
 
@@ -84,7 +85,24 @@ public class GlobalExceptionHandler {
             case MOMO_SIGNATURE_INVALID,
                  MOMO_ORDER_ID_INVALID,
                  VNPAY_SIGNATURE_INVALID,
-                 VNPAY_ORDER_ID_INVALID -> HttpStatus.BAD_REQUEST;
+                 VNPAY_ORDER_ID_INVALID,
+                 VNPAY_TRANSACTION_FAILED,
+                 PAYMENT_METHOD_NOT_SUPPORTED,
+                 CASH_PAYMENT_REQUIRES_STAFF,
+                 INVALID_CUSTOMER_TYPE,
+                 BOOKING_CANNOT_BE_CANCELLED,
+                 BOOKING_CANCEL_DEADLINE_EXCEEDED,
+                 BOOKING_ALREADY_CHECKED_IN,
+                 REFUND_INVALID_STATUS,
+                 REFUND_STAFF_MISMATCH,
+                 REFUND_METHOD_MISMATCH,
+                 QUOTE_EXPIRED_OR_CHANGED -> HttpStatus.BAD_REQUEST;
+
+            case REFUND_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case REFUND_ALREADY_CLAIMED -> HttpStatus.CONFLICT;
+
+            case GATEWAY_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
+            case GATEWAY_COMMUNICATION_FAILED -> HttpStatus.BAD_GATEWAY;
         };
     }
 
@@ -159,6 +177,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, "Bad Request", ErrorCode.VALIDATION_FAILED,
                 "Dữ liệu đầu vào không đúng định dạng hoặc sai kiểu dữ liệu", null);
+    }
+
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatus(org.springframework.web.server.ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        return buildResponse(status, status.getReasonPhrase(), null, ex.getReason(), null);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        return buildResponse(HttpStatus.FORBIDDEN, "Forbidden", ErrorCode.FORBIDDEN, "Access denied", null);
     }
 
     // CATCH-ALL 500

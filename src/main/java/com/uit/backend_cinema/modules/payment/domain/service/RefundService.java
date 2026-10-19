@@ -1,0 +1,346 @@
+package com.uit.backend_cinema.modules.payment.domain.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.uit.backend_cinema.common.exception.BusinessException;
+import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.modules.payment.api.dto.ClaimRefundResponseDTO;
+import com.uit.backend_cinema.modules.payment.api.dto.ConfirmCashPayoutResponseDTO;
+import com.uit.backend_cinema.modules.payment.domain.entity.PaymentGatewayRequest;
+import com.uit.backend_cinema.modules.payment.domain.entity.PaymentReceipt;
+import com.uit.backend_cinema.modules.payment.domain.entity.Refund;
+import com.uit.backend_cinema.modules.payment.domain.entity.RefundStatus;
+import com.uit.backend_cinema.modules.payment.domain.repository.PaymentReceiptRepository;
+import com.uit.backend_cinema.modules.payment.domain.repository.RefundRepository;
+import com.uit.backend_cinema.modules.payment.vnpay.api.dto.VnpayRefundResponseDTO;
+import com.uit.backend_cinema.modules.payment.vnpay.infrastructure.client.VnpayMerchantClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.List;
+
+@Service
+public class RefundService {
+
+    private static final Logger log = LoggerFactory.getLogger(RefundService.class);
+    private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
+    private final RefundRepository refundRepository;
+    private final PaymentReceiptRepository paymentReceiptRepository;
+    private final PaymentRequestService paymentRequestService;
+    private final VnpayMerchantClient vnpayMerchantClient;
+    private final Clock clock;
+    private final ObjectMapper objectMapper;
+    private TransactionTemplate refundTransaction;
+
+    @Value("${vnpay.refund-review-after-seconds:900}")
+    private long refundReviewAfterSeconds = 900;
+
+    @Autowired(required = false)
+    private com.uit.backend_cinema.modules.payment.stripe.domain.StripeRefundProcessor stripeRefundProcessor;
+
+    @Autowired(required = false)
+    private RefundMembershipService refundMembershipService;
+
+    @Autowired
+    public RefundService(
+            RefundRepository refundRepository,
+            PaymentReceiptRepository paymentReceiptRepository,
+            PaymentRequestService paymentRequestService,
+            @Autowired(required = false) VnpayMerchantClient vnpayMerchantClient,
+            Clock clock,
+            ObjectMapper objectMapper,
+            PlatformTransactionManager transactionManager) {
+        this(refundRepository, paymentReceiptRepository, paymentRequestService, vnpayMerchantClient, clock, objectMapper);
+        this.refundTransaction = new TransactionTemplate(transactionManager);
+        // Commit the claim before dispatch, even when invoked from an existing transaction.
+        this.refundTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
+
+    public RefundService(
+            RefundRepository refundRepository,
+            PaymentReceiptRepository paymentReceiptRepository,
+            PaymentRequestService paymentRequestService,
+            @Autowired(required = false) VnpayMerchantClient vnpayMerchantClient,
+            Clock clock,
+            ObjectMapper objectMapper) {
+        this.refundRepository = refundRepository;
+        this.paymentReceiptRepository = paymentReceiptRepository;
+        this.paymentRequestService = paymentRequestService;
+        this.vnpayMerchantClient = vnpayMerchantClient;
+        this.clock = clock != null ? clock : Clock.system(VN_ZONE);
+        this.objectMapper = objectMapper;
+    }
+
+    /**
+     * Staff nhận xử lý độc quyền hoàn tiền mặt tại quầy (claim).
+     */
+    @Transactional
+    public ClaimRefundResponseDTO claimCashRefund(Long refundId, Long staffId) {
+        Refund refund = refundRepository.findById(refundId)
+                .orElseThrow(() -> new BusinessException("Yêu cầu hoàn tiền không tồn tại: " + refundId, ErrorCode.REFUND_NOT_FOUND));
+
+        PaymentReceipt receipt = paymentReceiptRepository.findById(refund.getPaymentReceiptId())
+                .orElseThrow(() -> new BusinessException("Biên nhận thanh toán không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!"CASH".equalsIgnoreCase(receipt.getGateway())) {
+            throw new BusinessException("Chỉ được nhận xử lý tiền mặt cho giao dịch CASH", ErrorCode.REFUND_METHOD_MISMATCH);
+        }
+
+        if (refund.getStatus() == RefundStatus.SUCCEEDED) {
+            throw new BusinessException("Yêu cầu hoàn tiền đã hoàn tất chi trả", ErrorCode.REFUND_INVALID_STATUS);
+        }
+
+        if (refund.getStatus() == RefundStatus.PROCESSING && refund.getActorStaffId() != null
+                && !refund.getActorStaffId().equals(staffId)) {
+            throw new BusinessException("Yêu cầu hoàn tiền này đang được xử lý bởi nhân viên khác (ID=" + refund.getActorStaffId() + ")",
+                    ErrorCode.REFUND_ALREADY_CLAIMED);
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        boolean claimed = refundRepository.claimCashRefund(refundId, staffId, now);
+        if (!claimed) {
+            throw new BusinessException("Không thể nhận xử lý yêu cầu hoàn tiền (trạng thái đã thay đổi)", ErrorCode.REFUND_INVALID_STATUS);
+        }
+
+        log.info("[Refund CASH] Staff {} đã claim refund {} cho booking {}", staffId, refundId, refund.getBookingId());
+        return ClaimRefundResponseDTO.builder()
+                .refundId(refundId)
+                .bookingId(refund.getBookingId())
+                .status(RefundStatus.PROCESSING)
+                .actorStaffId(staffId)
+                .claimedAt(now)
+                .amount(refund.getAmount())
+                .message("Đã nhận xử lý hoàn tiền mặt thành công")
+                .build();
+    }
+
+    /**
+     * Xác nhận đã chi tiền mặt cho khách tại quầy.
+     * Chỉ nhân viên đã claim mới được quyền xác nhận.
+     */
+    @Transactional
+    public ConfirmCashPayoutResponseDTO confirmCashPayout(Long refundId, Long staffId) {
+        Refund refund = refundRepository.findById(refundId)
+                .orElseThrow(() -> new BusinessException("Yêu cầu hoàn tiền không tồn tại: " + refundId, ErrorCode.REFUND_NOT_FOUND));
+
+        PaymentReceipt receipt = paymentReceiptRepository.findById(refund.getPaymentReceiptId())
+                .orElseThrow(() -> new BusinessException("Biên nhận thanh toán không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!"CASH".equalsIgnoreCase(receipt.getGateway())) {
+            throw new BusinessException("Không thể chi trả tiền mặt cho giao dịch " + receipt.getGateway(), ErrorCode.REFUND_METHOD_MISMATCH);
+        }
+
+        if (refund.getStatus() == RefundStatus.SUCCEEDED) {
+            return ConfirmCashPayoutResponseDTO.builder()
+                    .refundId(refundId)
+                    .bookingId(refund.getBookingId())
+                    .status(RefundStatus.SUCCEEDED)
+                    .actorStaffId(refund.getActorStaffId())
+                    .processedAt(refund.getProcessedAt())
+                    .amount(refund.getAmount())
+                    .message("Yêu cầu hoàn tiền đã được xác nhận chi trả trước đó")
+                    .build();
+        }
+
+        if (refund.getStatus() != RefundStatus.PROCESSING) {
+            throw new BusinessException("Yêu cầu hoàn tiền chưa được nhận xử lý", ErrorCode.REFUND_INVALID_STATUS);
+        }
+
+        if (!staffId.equals(refund.getActorStaffId())) {
+            throw new BusinessException("Chỉ nhân viên đã nhận xử lý mới có quyền xác nhận chi tiền", ErrorCode.REFUND_STAFF_MISMATCH);
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        boolean confirmed = refundRepository.confirmCashPayout(refundId, staffId, now);
+        if (!confirmed) {
+            throw new BusinessException("Không thể xác nhận chi tiền (trạng thái đã thay đổi)", ErrorCode.REFUND_INVALID_STATUS);
+        }
+
+        if (refundMembershipService != null) refundMembershipService.reconcile(refundId);
+        log.info("[Refund CASH] Staff {} đã xác nhận chi tiền cho refund {} (số tiền={})", staffId, refundId, refund.getAmount());
+        return ConfirmCashPayoutResponseDTO.builder()
+                .refundId(refundId)
+                .bookingId(refund.getBookingId())
+                .status(RefundStatus.SUCCEEDED)
+                .actorStaffId(staffId)
+                .processedAt(now)
+                .amount(refund.getAmount())
+                .message("Đã xác nhận chi tiền mặt cho khách thành công")
+                .build();
+    }
+
+    /**
+     * Xử lý gửi yêu cầu hoàn tiền VNPay tự động ra cổng gateway ngoài DB transaction.
+     */
+    public void processOnlineRefund(Long refundId) {
+        Refund candidate = refundRepository.findById(refundId).orElse(null);
+        if (candidate != null && stripeRefundProcessor != null) {
+            PaymentReceipt receipt = paymentReceiptRepository.findById(candidate.getPaymentReceiptId()).orElse(null);
+            if (receipt != null && "STRIPE".equals(receipt.getGateway())) {
+                stripeRefundProcessor.process(refundId);
+                return;
+            }
+        }
+        if (candidate == null) return;
+        PaymentReceipt candidateReceipt = paymentReceiptRepository.findById(candidate.getPaymentReceiptId()).orElse(null);
+        if (candidateReceipt == null || !"VNPAY".equalsIgnoreCase(candidateReceipt.getGateway())) return;
+        if (refundTransaction == null) {
+            // Never dispatch with a non-durable/in-memory-only claim.
+            throw new IllegalStateException("VNPay refund processing requires a transaction manager");
+        }
+
+        VnpayDispatch dispatch = refundTransaction.execute(status -> prepareVnpayDispatch(refundId));
+        if (dispatch == null) return;
+        Refund refund = dispatch.refund();
+        PaymentReceipt receipt = dispatch.receipt();
+        VnpayRefundResponseDTO response = null;
+        RefundStatus outcome;
+        String message;
+        try {
+            String transactionType = refund.getAmount().compareTo(receipt.getAmount()) >= 0 ? "02" : "03";
+            response = vnpayMerchantClient.refundTransaction(
+                    receipt.getOrderId(), refund.getAmount(), transactionType,
+                    receipt.getTransactionReference(), dispatch.originalTransactionDate(),
+                    "system", "Hoan tien don #" + refund.getBookingId(), "127.0.0.1");
+            message = response.getMessage();
+            if (response.isRefundSucceeded()) {
+                outcome = RefundStatus.SUCCEEDED;
+            } else if (response.isRefundProcessing()) {
+                outcome = RefundStatus.PROCESSING;
+            } else if (("00".equals(response.getResponseCode()) && "09".equals(response.getTransactionStatus()))
+                    || List.of("02", "03", "91", "95", "97").contains(String.valueOf(response.getResponseCode()))) {
+                outcome = RefundStatus.FAILED;
+            } else {
+                // An accepted request with an unfamiliar/missing status or a generic API
+                // error (99) does not establish rejection. Preserve uncertainty, never replay.
+                outcome = RefundStatus.UNKNOWN;
+                message = "VNPay refund outcome not established (transactionStatus="
+                        + response.getTransactionStatus() + "); no automatic retry. Provider: " + message;
+            }
+        } catch (BusinessException ex) {
+            outcome = ex.getCode() == ErrorCode.GATEWAY_TIMEOUT
+                    || ex.getCode() == ErrorCode.GATEWAY_COMMUNICATION_FAILED
+                    ? RefundStatus.UNKNOWN : RefundStatus.REVIEW_REQUIRED;
+            message = "VNPay refund outcome not established: " + ex.getCode()
+                    + "; no automatic retry; reconcile with VNPay before further payout.";
+            log.warn("[VNPay Refund] Refund {}: {}", refundId, message);
+        } catch (Exception ex) {
+            outcome = RefundStatus.UNKNOWN;
+            message = "VNPay refund outcome not established after " + ex.getClass().getSimpleName()
+                    + "; no automatic retry; reconcile with VNPay before further payout.";
+            log.warn("[VNPay Refund] Refund {}: {}", refundId, message);
+        }
+
+        // Do not save the detached claim over a concurrent review/terminal outcome.
+        VnpayRefundResponseDTO result = response;
+        RefundStatus resultStatus = outcome;
+        String resultMessage = message;
+        refundTransaction.executeWithoutResult(status -> {
+            Refund current = refundRepository.findByIdForUpdate(refundId).orElse(null);
+            if (current == null || current.getStatus() != RefundStatus.PROCESSING
+                    || !refund.getClaimedAt().equals(current.getClaimedAt())) return;
+            current.setStatus(resultStatus);
+            current.setGatewayResponseMessage(resultMessage);
+            if (result != null) {
+                current.setGatewayResponseCode(result.getResponseCode());
+                current.setGatewayTransactionNo(result.getTransactionNo());
+            }
+            if (resultStatus == RefundStatus.SUCCEEDED || resultStatus == RefundStatus.FAILED) {
+                current.setProcessedAt(LocalDateTime.now(clock));
+            }
+            refundRepository.save(current);
+            // Outcome and membership accounting commit together; a crash must not leave
+            // SUCCEEDED permanently outside the worker scan without its adjustment.
+            if (refundMembershipService != null) refundMembershipService.reconcile(refundId);
+        });
+    }
+
+    private VnpayDispatch prepareVnpayDispatch(Long refundId) {
+        Refund refund = refundRepository.findByIdForUpdate(refundId).orElse(null);
+        if (refund == null) return null;
+        PaymentReceipt receipt = paymentReceiptRepository.findById(refund.getPaymentReceiptId()).orElse(null);
+        if (receipt == null || !"VNPAY".equalsIgnoreCase(receipt.getGateway())) return null;
+
+        if (refund.getStatus() == RefundStatus.PROCESSING || refund.getStatus() == RefundStatus.UNKNOWN) {
+            LocalDateTime since = refund.getClaimedAt() != null ? refund.getClaimedAt() : refund.getCreatedAt();
+            if (since == null || !since.plusSeconds(Math.max(60, refundReviewAfterSeconds)).isAfter(LocalDateTime.now(clock))) {
+                // VNPay 2.1.0 querydr is keyed by the ORIGINAL payment txnRef/createDate.
+                // Its RequestId identifies the query, not the refund; even signed payment success
+                // (type 01/status 00) cannot prove this refund succeeded. No safe per-refund
+                // lookup is available in our contract, so escalate instead of query/replay.
+                String evidence = refund.getGatewayResponseMessage();
+                refund.setGatewayResponseMessage("VNPay refund " + refund.getStatus()
+                        + " exceeded reconciliation window (or has no claim timestamp). "
+                        + "No safe per-refund query is available; querydr reports the original payment. "
+                        + "Manual reconciliation with VNPay required before any further payout; do not resend."
+                        + (evidence == null ? "" : " Previous provider evidence: " + evidence));
+                refund.setStatus(RefundStatus.REVIEW_REQUIRED);
+                refundRepository.save(refund);
+                log.warn("[VNPay Refund] Refund {} requires manual reconciliation", refundId);
+            }
+            return null;
+        }
+        if (refund.getStatus() != RefundStatus.REQUESTED || vnpayMerchantClient == null) return null;
+
+        PaymentGatewayRequest paymentRequest = receipt.getPaymentRequestId() == null || paymentRequestService == null
+                ? null : paymentRequestService.findById(receipt.getPaymentRequestId()).orElse(null);
+        String originalTransactionDate = paymentRequest == null ? null : paymentRequest.getVnpCreateDate();
+        if (originalTransactionDate == null || originalTransactionDate.isBlank()) {
+            refund.setStatus(RefundStatus.REVIEW_REQUIRED);
+            refund.setGatewayResponseMessage("Thiếu vnp_CreateDate gốc của giao dịch VNPay; không gửi refund để tránh tham chiếu sai giao dịch");
+            refundRepository.save(refund);
+            return null;
+        }
+        refund.setStatus(RefundStatus.PROCESSING);
+        refund.setClaimedAt(LocalDateTime.now(clock));
+        refund.setProcessedAt(null);
+        refundRepository.save(refund);
+        return new VnpayDispatch(refund, receipt, originalTransactionDate);
+    }
+
+    private record VnpayDispatch(Refund refund, PaymentReceipt receipt, String originalTransactionDate) { }
+
+    /**
+     * Dispatch requested refunds and revisit unresolved outcomes without replaying VNPay refunds.
+     */
+    @Scheduled(fixedDelayString = "${vnpay.refund-worker-interval-ms:60000}")
+    public void scanAndProcessOnlineRefunds() {
+        if (stripeRefundProcessor != null) {
+            for (RefundStatus status : List.of(RefundStatus.REQUESTED, RefundStatus.PROCESSING, RefundStatus.UNKNOWN)) {
+                for (Refund refund : refundRepository.findByStatus(status)) {
+                    try {
+                        PaymentReceipt receipt = paymentReceiptRepository.findById(refund.getPaymentReceiptId()).orElse(null);
+                        if (receipt != null && "STRIPE".equals(receipt.getGateway())) stripeRefundProcessor.process(refund.getRefundId());
+                    } catch (Exception e) {
+                        log.warn("[Stripe Refund] Processing deferred for refund {}", refund.getRefundId());
+                    }
+                }
+            }
+        }
+        // Reconciliation remains available even if the optional VNPay client is disabled.
+        for (RefundStatus status : List.of(RefundStatus.REQUESTED, RefundStatus.PROCESSING, RefundStatus.UNKNOWN)) {
+            for (Refund refund : refundRepository.findByStatus(status)) {
+                try {
+                    PaymentReceipt receipt = paymentReceiptRepository.findById(refund.getPaymentReceiptId()).orElse(null);
+                    if (receipt != null && "VNPAY".equalsIgnoreCase(receipt.getGateway())) {
+                        processOnlineRefund(refund.getRefundId());
+                    }
+                } catch (Exception e) {
+                    log.error("[Refund Worker] Lỗi xử lý refund ID={}: {}", refund.getRefundId(), e.getMessage());
+                }
+            }
+        }
+    }
+}

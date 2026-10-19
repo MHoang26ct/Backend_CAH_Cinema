@@ -42,7 +42,8 @@ public interface JpaShowtimeRepository extends JpaRepository<ShowtimeJpaEntity, 
     @Query("update ShowtimeJpaEntity s set s.isDeleted = true where s.movieId = :movieId and s.isDeleted = false")
     void softDeleteByMovieId(@Param("movieId") Long movieId);
 
-    /** Tìm showtime AVAILABLE theo phòng trong khoảng thời gian (dùng cho batch cancel) */
+    /** Lock before selecting bookings so concurrent checkout cannot enter a cancelled showtime. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
         SELECT s FROM ShowtimeJpaEntity s
         WHERE s.roomId = :roomId

@@ -11,6 +11,8 @@ CREATE TABLE users (
     phone VARCHAR(20),
     avatar_url TEXT,
     auth_provider VARCHAR(20) NOT NULL CHECK (auth_provider IN ('EMAIL', 'GOOGLE')),
+    account_type VARCHAR(20) NOT NULL DEFAULT 'REGISTERED'
+        CONSTRAINT chk_users_account_type CHECK (account_type IN ('REGISTERED', 'WALK_IN')),
     total_paid  DECIMAL(18,2) NOT NULL DEFAULT 0 CHECK (total_paid  >= 0),
     total_point INT           NOT NULL DEFAULT 0 CHECK (total_point >= 0),
     rank_level  VARCHAR(20)   NOT NULL DEFAULT 'SILVER' CHECK (rank_level IN ('SILVER', 'GOLD', 'DIAMOND')),
@@ -18,6 +20,20 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN DEFAULT FALSE
 );
+
+CREATE UNIQUE INDEX uq_users_walk_in ON users (account_type) WHERE account_type = 'WALK_IN';
+
+CREATE FUNCTION prevent_user_account_type_change() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.account_type IS DISTINCT FROM OLD.account_type THEN
+        RAISE EXCEPTION 'Account type is immutable' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER trg_users_account_type_immutable
+    BEFORE UPDATE OF account_type ON users
+    FOR EACH ROW EXECUTE FUNCTION prevent_user_account_type_change();
 
 CREATE TABLE movies (
     movie_id SERIAL PRIMARY KEY,
@@ -210,12 +226,33 @@ CREATE TABLE bookings (
     user_id INT NOT NULL REFERENCES users(user_id),
     showtime_id INT NOT NULL REFERENCES showtimes(showtime_id),
     voucher_id INT REFERENCES vouchers(voucher_id),
-    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'VNPAY', 'MOMO')),
+    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'VNPAY', 'MOMO', 'STRIPE')),
     discount_amount DECIMAL(18,2) DEFAULT 0 CHECK (discount_amount >= 0),
     late_discount_amount DECIMAL(18,2) NOT NULL DEFAULT 0 CHECK (late_discount_amount >= 0),
     total_price DECIMAL(18,2) NOT NULL DEFAULT 0 CHECK (total_price >= 0),
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID', 'CANCELLED', 'EXPIRED', 'REFUNDED', 'CHECKED_IN')),
     expires_at TIMESTAMP NOT NULL,
+    payment_deadline TIMESTAMP,
+    reconciliation_deadline TIMESTAMP,
+    booking_source VARCHAR(20) NOT NULL DEFAULT 'ONLINE' CHECK (booking_source IN ('ONLINE', 'COUNTER')),
+    created_by_staff_id INT REFERENCES users(user_id),
+    contact_name VARCHAR(255),
+    contact_email VARCHAR(255),
+    contact_phone VARCHAR(20),
+    seat_subtotal_gross DECIMAL(18,2) DEFAULT 0 CHECK (seat_subtotal_gross >= 0),
+    food_subtotal_gross DECIMAL(18,2) DEFAULT 0 CHECK (food_subtotal_gross >= 0),
+    rank_discount_amount DECIMAL(18,2) DEFAULT 0 CHECK (rank_discount_amount >= 0),
+    voucher_discount_seat DECIMAL(18,2) DEFAULT 0 CHECK (voucher_discount_seat >= 0),
+    voucher_discount_food DECIMAL(18,2) DEFAULT 0 CHECK (voucher_discount_food >= 0),
+    net_seat_amount DECIMAL(18,2) DEFAULT 0 CHECK (net_seat_amount >= 0),
+    net_food_amount DECIMAL(18,2) DEFAULT 0 CHECK (net_food_amount >= 0),
+    food_fulfillment_status VARCHAR(20) NOT NULL DEFAULT 'NOT_APPLICABLE' CHECK (food_fulfillment_status IN ('NOT_APPLICABLE', 'PENDING', 'FULFILLED')),
+    food_fulfilled_at TIMESTAMP,
+    food_fulfilled_by_staff_id INT REFERENCES users(user_id),
+    cancellation_policy_snapshot TEXT,
+    is_voucher_released BOOLEAN NOT NULL DEFAULT FALSE,
+    is_points_accumulated BOOLEAN NOT NULL DEFAULT FALSE,
+    is_points_reversed BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     version BIGINT NOT NULL DEFAULT 0,
@@ -252,10 +289,14 @@ CREATE TABLE tickets (
     showtime_id INT NOT NULL REFERENCES showtimes(showtime_id),
     booking_id INT NOT NULL REFERENCES bookings(booking_id),
     price DECIMAL(18,2) NOT NULL CHECK (price >= 0),
+    status VARCHAR(20) NOT NULL DEFAULT 'VALID' CHECK (status IN ('VALID', 'CANCELLED')),
     is_checked_in BOOLEAN DEFAULT FALSE,
-    CONSTRAINT uq_tickets_booking_seat UNIQUE (booking_id, seat_id),
-    CONSTRAINT uq_tickets_showtime_seat UNIQUE (showtime_id, seat_id)
+    CONSTRAINT uq_tickets_booking_seat UNIQUE (booking_id, seat_id)
 );
+
+CREATE UNIQUE INDEX uq_tickets_valid_showtime_seat
+ON tickets (showtime_id, seat_id)
+WHERE status = 'VALID';
 
 CREATE TABLE food_orders (
     food_order_id SERIAL PRIMARY KEY,
@@ -291,7 +332,7 @@ CREATE TABLE food_order_items (
 CREATE TABLE invoices (
     invoice_id SERIAL PRIMARY KEY,
     booking_id INT NOT NULL REFERENCES bookings(booking_id),
-    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'VNPAY', 'MOMO')),
+    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'VNPAY', 'MOMO', 'STRIPE')),
     amount_paid DECIMAL(18,2) NOT NULL CHECK (amount_paid >= 0),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -357,6 +398,12 @@ CREATE TABLE payment_requests (
     -- Thông tin sau khi user thanh toán (cập nhật từ IPN/callback)
     gateway_trans_id VARCHAR(100),            -- Mã giao dịch phía gateway
     pay_type VARCHAR(30),                     -- Hình thức TT: qr, webApp, app, ...
+    vnp_create_date VARCHAR(14),
+    vnp_expire_date VARCHAR(14),
+    vnp_pay_date VARCHAR(14),
+    vnp_bank_code VARCHAR(50),
+    vnp_bank_tran_no VARCHAR(255),
+    vnp_card_type VARCHAR(50),
 
     -- Trạng thái nội bộ
     status VARCHAR(30) NOT NULL DEFAULT 'CREATED'
@@ -380,3 +427,78 @@ CREATE INDEX idx_payment_requests_booking_request
 -- Tra cứu theo gateway + order_id (dùng khi nhận IPN)
 CREATE INDEX idx_payment_requests_gateway_order
     ON payment_requests (gateway, order_id);
+
+CREATE TABLE payment_receipts (
+    payment_receipt_id SERIAL PRIMARY KEY,
+    booking_id INT NOT NULL REFERENCES bookings(booking_id),
+    payment_request_id INT REFERENCES payment_requests(payment_request_id),
+    gateway VARCHAR(30) NOT NULL,
+    transaction_reference VARCHAR(100) NOT NULL,
+    order_id VARCHAR(200),
+    amount DECIMAL(18,2) NOT NULL CHECK (amount >= 0),
+    pay_date TIMESTAMP,
+    verified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(30) NOT NULL DEFAULT 'RECORDED'
+        CHECK (status IN ('RECORDED', 'ALLOCATED', 'REFUNDED', 'OVERPAID')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_payment_receipts_gateway_trans UNIQUE (gateway, transaction_reference)
+);
+
+CREATE INDEX idx_payment_receipts_booking ON payment_receipts (booking_id);
+
+CREATE TABLE refunds (
+    refund_id SERIAL PRIMARY KEY,
+    payment_receipt_id INT NOT NULL REFERENCES payment_receipts(payment_receipt_id),
+    booking_id INT NOT NULL REFERENCES bookings(booking_id),
+    cause VARCHAR(50) NOT NULL
+        CHECK (cause IN ('CUSTOMER_CANCELLED', 'SHOWTIME_CANCELLED', 'EXPIRED_LATE_PAYMENT', 'DUPLICATE_CHARGE', 'SEAT_ALLOCATION_FAILED', 'MANUAL_STAFF')),
+    amount DECIMAL(18,2) NOT NULL CHECK (amount > 0),
+    policy_snapshot TEXT,
+    status VARCHAR(30) NOT NULL DEFAULT 'REQUESTED'
+        CHECK (status IN ('REQUESTED', 'PROCESSING', 'UNKNOWN', 'SUCCEEDED', 'FAILED', 'REVIEW_REQUIRED')),
+    request_reference VARCHAR(100) NOT NULL,
+    actor_staff_id INT REFERENCES users(user_id),
+    claimed_at TIMESTAMP,
+    processed_at TIMESTAMP,
+    gateway_response_code VARCHAR(50),
+    gateway_transaction_no VARCHAR(100),
+    gateway_response_message TEXT,
+    membership_adjusted_at TIMESTAMP,
+    membership_adjustment_reversed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_refunds_receipt_cause UNIQUE (payment_receipt_id, cause),
+    CONSTRAINT uq_refunds_request_ref UNIQUE (request_reference)
+);
+
+CREATE INDEX idx_refunds_booking ON refunds (booking_id);
+CREATE INDEX idx_refunds_status ON refunds (status);
+
+CREATE TABLE stripe_payments (
+    booking_id INT PRIMARY KEY REFERENCES bookings(booking_id),
+    payment_request_id INT NOT NULL UNIQUE REFERENCES payment_requests(payment_request_id),
+    mode VARCHAR(16) NOT NULL CHECK (mode IN ('CHECKOUT','API')),
+    amount BIGINT NOT NULL CHECK (amount > 0),
+    currency VARCHAR(3) NOT NULL CHECK (currency = 'vnd'),
+    account_id VARCHAR(100) NOT NULL,
+    idempotency_key VARCHAR(100) NOT NULL UNIQUE,
+    session_id VARCHAR(255) UNIQUE,
+    intent_id VARCHAR(255) UNIQUE,
+    pay_url TEXT,
+    state VARCHAR(30) NOT NULL DEFAULT 'CREATED' CHECK (state IN ('CREATED','SUCCEEDED','EXPIRED','REVIEW_REQUIRED')),
+    deadline TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    success_url TEXT NOT NULL,
+    cancel_url TEXT NOT NULL,
+    scenario VARCHAR(100),
+    CHECK ((mode='CHECKOUT' AND scenario IS NULL) OR
+           (mode='API' AND scenario IN ('pm_card_visa','pm_card_visa_chargeDeclined','pm_card_visa_chargeDeclinedInsufficientFunds','pm_card_threeDSecure2Required')))
+);
+CREATE INDEX idx_stripe_payments_deadline ON stripe_payments(deadline) WHERE state='CREATED';
+CREATE TABLE stripe_webhook_inbox (
+    event_id VARCHAR(255) PRIMARY KEY,
+    event_type VARCHAR(100) NOT NULL,
+    received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP
+);

@@ -21,11 +21,23 @@ public class PaymentRequestService {
         return repository.save(request);
     }
 
+    public Optional<PaymentGatewayRequest> findById(Long paymentRequestId) {
+        return repository.findById(paymentRequestId);
+    }
+
     public Optional<PaymentGatewayRequest> findLatestByBookingId(Long bookingId) {
         return repository.findLatestByBookingId(bookingId);
     }
 
     public Optional<PaymentGatewayRequest> findByGatewayAndOrderId(String gateway, String orderId) {
         return repository.findByGatewayAndOrderId(gateway, orderId);
+    }
+
+    public Optional<PaymentGatewayRequest> findLatestByBookingIdAndGateway(Long bookingId, String gateway) {
+        return repository.findLatestByBookingIdAndGateway(bookingId, gateway);
+    }
+
+    public java.util.List<PaymentGatewayRequest> findPendingReconciliationRequests(String gateway, java.time.LocalDateTime threshold) {
+        return repository.findPendingReconciliationRequests(gateway, threshold);
     }
 }

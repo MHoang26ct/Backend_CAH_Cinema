@@ -7,13 +7,41 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 
+import com.uit.backend_cinema.common.util.VndMoney;
+import com.uit.backend_cinema.modules.food_order.api.entity.FoodOrderItemRequestDTO;
+import com.uit.backend_cinema.modules.auth.domain.entity.AccountType;
 import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.entity.UserRank;
 import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
+import com.uit.backend_cinema.modules.auth.domain.service.UserAccountPolicy;
+import com.uit.backend_cinema.modules.booking.api.dto.CreateStaffBookingRequestDTO;
+import com.uit.backend_cinema.modules.booking.api.dto.CustomerLookupResponseDTO;
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingPaymentMethod;
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingSource;
+import com.uit.backend_cinema.modules.booking.domain.entity.CustomerType;
+import com.uit.backend_cinema.modules.booking.domain.entity.FoodFulfillmentStatus;
+import com.uit.backend_cinema.modules.booking.domain.entity.PriceSnapshot;
+import com.uit.backend_cinema.modules.payment.domain.entity.PaymentReceipt;
+import com.uit.backend_cinema.modules.payment.domain.entity.PaymentReceiptStatus;
+import com.uit.backend_cinema.modules.payment.domain.entity.Refund;
+import com.uit.backend_cinema.modules.payment.domain.entity.RefundCause;
+import com.uit.backend_cinema.modules.payment.domain.entity.RefundStatus;
+import com.uit.backend_cinema.modules.payment.domain.repository.PaymentReceiptRepository;
+import com.uit.backend_cinema.modules.payment.domain.repository.RefundRepository;
+import com.uit.backend_cinema.modules.payment.domain.service.RefundService;
+import com.uit.backend_cinema.modules.booking.api.dto.CancellationQuoteDTO;
+import com.uit.backend_cinema.modules.booking.api.dto.CancelBookingRequestDTO;
+import com.uit.backend_cinema.modules.booking.api.dto.CancelBookingResponseDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,6 +72,7 @@ import com.uit.backend_cinema.modules.voucher.domain.service.VoucherService;
 
 @Service
 public class BookingService {
+    private static final Logger log = LoggerFactory.getLogger(BookingService.class);
     private static final long CHECKOUT_TTL_MINUTES = 15L;
     private static final int PURGE_RETENTION_DAYS = 30;
 
@@ -55,10 +84,70 @@ public class BookingService {
     private final FoodOrderService foodOrderService;
     private final VoucherService voucherService;
     private final PaymentConfirmationRepository paymentConfirmationRepository;
+    private final PaymentReceiptRepository paymentReceiptRepository;
+    private final RefundRepository refundRepository;
+    private final RefundService refundService;
     private final OutboxEventService outboxEventService;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
     private final Clock clock;
+
+    @Value("${payment.momo.enabled:true}")
+    private boolean momoEnabled = true;
+
+    @Value("${stripe.enabled:false}")
+    private boolean stripeEnabled;
+
+    @Autowired
+    public BookingService(BookingRepository bookingRepository,
+            SeatService seatService,
+            ShowtimeService showtimeService,
+            PriceConfigService priceConfigService,
+            TicketService ticketService,
+            FoodOrderService foodOrderService,
+            VoucherService voucherService,
+            PaymentConfirmationRepository paymentConfirmationRepository,
+            PaymentReceiptRepository paymentReceiptRepository,
+            RefundRepository refundRepository,
+            OutboxEventService outboxEventService,
+            ObjectMapper objectMapper,
+            UserRepository userRepository,
+            Clock clock,
+            @Autowired(required = false) RefundService refundService) {
+        this.clock = clock;
+        this.bookingRepository = bookingRepository;
+        this.seatService = seatService;
+        this.showtimeService = showtimeService;
+        this.priceConfigService = priceConfigService;
+        this.ticketService = ticketService;
+        this.foodOrderService = foodOrderService;
+        this.voucherService = voucherService;
+        this.paymentConfirmationRepository = paymentConfirmationRepository;
+        this.paymentReceiptRepository = paymentReceiptRepository;
+        this.refundRepository = refundRepository;
+        this.outboxEventService = outboxEventService;
+        this.objectMapper = objectMapper;
+        this.userRepository = userRepository;
+        this.refundService = refundService;
+    }
+
+    public BookingService(BookingRepository bookingRepository,
+            SeatService seatService,
+            ShowtimeService showtimeService,
+            PriceConfigService priceConfigService,
+            TicketService ticketService,
+            FoodOrderService foodOrderService,
+            VoucherService voucherService,
+            PaymentConfirmationRepository paymentConfirmationRepository,
+            PaymentReceiptRepository paymentReceiptRepository,
+            OutboxEventService outboxEventService,
+            ObjectMapper objectMapper,
+            UserRepository userRepository,
+            Clock clock) {
+        this(bookingRepository, seatService, showtimeService, priceConfigService,
+             ticketService, foodOrderService, voucherService, paymentConfirmationRepository,
+             paymentReceiptRepository, null, outboxEventService, objectMapper, userRepository, clock, null);
+    }
 
     public BookingService(BookingRepository bookingRepository,
             SeatService seatService,
@@ -72,62 +161,221 @@ public class BookingService {
             ObjectMapper objectMapper,
             UserRepository userRepository,
             Clock clock) {
-        this.clock = clock;
-        this.bookingRepository = bookingRepository;
-        this.seatService = seatService;
-        this.showtimeService = showtimeService;
-        this.priceConfigService = priceConfigService;
-        this.ticketService = ticketService;
-        this.foodOrderService = foodOrderService;
-        this.voucherService = voucherService;
-        this.paymentConfirmationRepository = paymentConfirmationRepository;
-        this.outboxEventService = outboxEventService;
-        this.objectMapper = objectMapper;
-        this.userRepository = userRepository;
+        this(bookingRepository, seatService, showtimeService, priceConfigService,
+             ticketService, foodOrderService, voucherService, paymentConfirmationRepository,
+             null, outboxEventService, objectMapper, userRepository, clock);
+    }
+
+    public void setMomoEnabled(boolean momoEnabled) {
+        this.momoEnabled = momoEnabled;
     }
 
     @Transactional
     public PrePaymentBookingQuote createPrePaymentBooking(Long userId, CreateBookingRequestDTO requestDTO) {
-        Showtime showtime = showtimeService.getByIdForUpdate(requestDTO.getShowtimeId());
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.UNAUTHORIZED));
+        UserAccountPolicy.requireInteractive(user);
+
+        return createBookingInternal(
+                user,
+                userId,
+                BookingSource.ONLINE,
+                null,
+                user.getName(),
+                user.getEmail(),
+                user.getPhone(),
+                requestDTO.getShowtimeId(),
+                requestDTO.getSeatIds(),
+                requestDTO.getFoodItems(),
+                requestDTO.getVoucherId(),
+                requestDTO.getPaymentMethod()
+        );
+    }
+
+    @Transactional
+    public PrePaymentBookingQuote createStaffBooking(Long staffUserId, CreateStaffBookingRequestDTO requestDTO) {
+        User staff = userRepository.findById(staffUserId)
+                .orElseThrow(() -> new BusinessException("Nhân viên không tồn tại", ErrorCode.UNAUTHORIZED));
+        User customer;
+        String contactName;
+        String contactEmail;
+        String contactPhone;
+
+        if (requestDTO.getCustomerType() == CustomerType.WALK_IN) {
+            customer = userRepository.getOrCreateWalkInUser();
+            contactName = requestDTO.getContactName();
+            contactEmail = requestDTO.getContactEmail();
+            contactPhone = requestDTO.getContactPhone();
+        } else if (requestDTO.getCustomerType() == CustomerType.REGISTERED) {
+            if (requestDTO.getCustomerId() == null) {
+                throw new BusinessException("CustomerId không được để trống khi chọn khách hàng thành viên", ErrorCode.VALIDATION_FAILED);
+            }
+            customer = userRepository.findById(requestDTO.getCustomerId())
+                    .orElseThrow(() -> new BusinessException("Khách hàng không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+            UserAccountPolicy.requireInteractive(customer);
+            contactName = requestDTO.getContactName() != null ? requestDTO.getContactName() : customer.getName();
+            contactEmail = requestDTO.getContactEmail() != null ? requestDTO.getContactEmail() : customer.getEmail();
+            contactPhone = requestDTO.getContactPhone() != null ? requestDTO.getContactPhone() : customer.getPhone();
+        } else {
+            throw new BusinessException("Loại khách hàng không hợp lệ", ErrorCode.INVALID_CUSTOMER_TYPE);
+        }
+
+        return createBookingInternal(
+                customer,
+                staffUserId,
+                BookingSource.COUNTER,
+                staffUserId,
+                contactName,
+                contactEmail,
+                contactPhone,
+                requestDTO.getShowtimeId(),
+                requestDTO.getSeatIds(),
+                requestDTO.getFoodItems(),
+                requestDTO.getVoucherId(),
+                requestDTO.getPaymentMethod()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public CustomerLookupResponseDTO lookupCustomerByEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new BusinessException("Email không được để trống", ErrorCode.VALIDATION_FAILED);
+        }
+        User user = userRepository.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new BusinessException("Không tìm thấy khách hàng với email: " + email, ErrorCode.RESOURCE_NOT_FOUND));
+        UserAccountPolicy.requireInteractive(user);
+        return CustomerLookupResponseDTO.builder()
+                .userId(user.getUserId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .rankLevel(user.getRankLevel() != null ? user.getRankLevel().name() : "SILVER")
+                .build();
+    }
+
+    private PrePaymentBookingQuote createBookingInternal(
+            User customer,
+            Long lockOwnerId,
+            BookingSource bookingSource,
+            Long createdByStaffId,
+            String contactName,
+            String contactEmail,
+            String contactPhone,
+            Long showtimeId,
+            List<Long> seatIds,
+            List<FoodOrderItemRequestDTO> foodItems,
+            Long voucherId,
+            BookingPaymentMethod paymentMethod) {
+
+        if (!stripeEnabled && paymentMethod == BookingPaymentMethod.STRIPE) {
+            throw new BusinessException("Stripe is disabled", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+        }
+        if (!momoEnabled && paymentMethod == BookingPaymentMethod.MOMO) {
+            throw new BusinessException("Cổng thanh toán MoMo tạm thời ngưng hỗ trợ", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+        }
+
+        Showtime showtime = showtimeService.getByIdForUpdate(showtimeId);
         showtimeService.validateBookingWindow(showtime, LocalDateTime.now(clock));
-        List<Long> seatIds = requestDTO.getSeatIds();
-        List<Seat> selectedSeats = seatService.promoteLocksForCheckout(requestDTO.getShowtimeId(), seatIds,
-                showtime.getRoomId(), userId);
-        User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.UNAUTHORIZED));
+
+        List<Seat> selectedSeats = seatService.promoteLocksForCheckout(
+                showtimeId, seatIds, showtime.getRoomId(), lockOwnerId);
 
         try {
             LocalDateTime bookingTime = LocalDateTime.now(clock);
             showtimeService.validateBookingWindow(showtime, bookingTime);
+
             boolean late = bookingTime.isAfter(showtime.getStartTime().plusMinutes(15));
-            if (late && requestDTO.getVoucherId() != null) {
+            if (late && voucherId != null) {
                 throw new BusinessException("Giá vé vào xem muộn không áp dụng cùng voucher", ErrorCode.DISCOUNT_NOT_COMBINABLE);
             }
-            LocalDateTime expiresAt = bookingTime.plusMinutes(CHECKOUT_TTL_MINUTES);
-            BigDecimal showtimeMultiplier = priceConfigService.getPriceMultiplier(showtime.getStartTime(), showtime.getFormat());
-            BigDecimal seatSubtotal = calculateSeatSubtotal(selectedSeats, showtime, showtimeMultiplier);
-            BigDecimal subtotal = seatSubtotal;
-            Booking booking = createInitialBooking(userId, requestDTO, subtotal, expiresAt);
 
-            ticketService.createDraftItems(booking.getBookingId(), selectedSeats, showtime, showtimeMultiplier);
-            var foodDraftItems = foodOrderService.createDraftItems(booking.getBookingId(), requestDTO.getFoodItems());
-            BigDecimal foodSubtotal = foodOrderService.calculateDraftSubtotal(foodDraftItems);
-            BigDecimal factor = BigDecimal.ONE.subtract(user.getRankLevel().getDiscountRate());
-            BigDecimal seatSubtotalAfterRank = seatSubtotal.multiply(factor);
-            BigDecimal foodSubtotalAfterRank = foodSubtotal.multiply(factor);
-            subtotal = seatSubtotalAfterRank.add(foodSubtotalAfterRank);
-            booking.setTotalAmount(subtotal);
+            LocalDateTime paymentDeadline = bookingTime.plusMinutes(CHECKOUT_TTL_MINUTES);
+            LocalDateTime reconciliationDeadline = paymentDeadline.plusSeconds(30);
+            LocalDateTime expiresAt = paymentDeadline;
+
+            BigDecimal showtimeMultiplier = priceConfigService.getPriceMultiplier(showtime.getStartTime(), showtime.getFormat());
+            BigDecimal seatSubtotalGross = calculateSeatSubtotal(selectedSeats, showtime, showtimeMultiplier);
+
+            Booking booking = new Booking();
+            booking.setUserId(customer.getUserId() != null ? customer.getUserId() : lockOwnerId);
+            booking.setShowtimeId(showtimeId);
+            booking.setVoucherId(voucherId);
+            booking.setPaymentMethod(paymentMethod);
+            booking.setBookingSource(bookingSource);
+            booking.setCreatedByStaffId(createdByStaffId);
+            booking.setContactName(contactName);
+            booking.setContactEmail(contactEmail);
+            booking.setContactPhone(contactPhone);
+            booking.setPaymentDeadline(paymentDeadline);
+            booking.setReconciliationDeadline(reconciliationDeadline);
+            booking.setExpiresAt(expiresAt);
+            booking.setDiscountAmount(BigDecimal.ZERO);
+            booking.setLateDiscountAmount(BigDecimal.ZERO);
+            booking.setTotalAmount(seatSubtotalGross);
+            booking.setStatus(BookingStatus.PENDING);
+            booking.setIsDeleted(false);
             booking = bookingRepository.save(booking);
 
-            BigDecimal lateDiscount = late ? seatSubtotalAfterRank.multiply(new BigDecimal("0.50"))
-                    .setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+            ticketService.createDraftItems(booking.getBookingId(), selectedSeats, showtime, showtimeMultiplier);
+            var foodDraftItems = foodOrderService.createDraftItems(booking.getBookingId(), foodItems);
+            BigDecimal foodSubtotalGross = foodOrderService.calculateDraftSubtotal(foodDraftItems);
+
+            BigDecimal rankRate = (customer.getAccountType() == AccountType.WALK_IN || customer.getRankLevel() == null)
+                    ? BigDecimal.ZERO
+                    : customer.getRankLevel().getDiscountRate();
+            BigDecimal factor = BigDecimal.ONE.subtract(rankRate);
+
+            BigDecimal seatSubtotalAfterRank = seatSubtotalGross.multiply(factor);
+            BigDecimal foodSubtotalAfterRank = foodSubtotalGross.multiply(factor);
+            BigDecimal rankDiscount = (seatSubtotalGross.subtract(seatSubtotalAfterRank))
+                    .add(foodSubtotalGross.subtract(foodSubtotalAfterRank));
+
+            BigDecimal lateDiscount = late
+                    ? seatSubtotalAfterRank.multiply(new BigDecimal("0.50")).setScale(2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+            BigDecimal seatAfterLate = seatSubtotalAfterRank.subtract(lateDiscount);
+
+            BigDecimal subtotalBeforeVoucher = seatAfterLate.add(foodSubtotalAfterRank);
+            BigDecimal voucherDiscountTotal = BigDecimal.ZERO;
+            BigDecimal voucherDiscountSeat = BigDecimal.ZERO;
+            BigDecimal voucherDiscountFood = BigDecimal.ZERO;
+
+            if (!late) {
+                BigDecimal applied = voucherService.applyVoucherForBooking(voucherId, subtotalBeforeVoucher);
+                if (applied != null && applied.compareTo(BigDecimal.ZERO) > 0) {
+                    voucherDiscountTotal = applied;
+                    if (subtotalBeforeVoucher.compareTo(BigDecimal.ZERO) > 0) {
+                        voucherDiscountSeat = voucherDiscountTotal.multiply(seatAfterLate)
+                                .divide(subtotalBeforeVoucher, 2, RoundingMode.HALF_UP)
+                                .min(seatAfterLate);
+                        voucherDiscountFood = voucherDiscountTotal.subtract(voucherDiscountSeat).min(foodSubtotalAfterRank);
+                    }
+                }
+            }
+
+            BigDecimal discountAmount = lateDiscount.add(voucherDiscountTotal);
+            BigDecimal totalAmount = subtotalBeforeVoucher.subtract(voucherDiscountTotal).max(BigDecimal.ZERO);
+            BigDecimal netSeatAmount = seatAfterLate.subtract(voucherDiscountSeat).max(BigDecimal.ZERO);
+            BigDecimal netFoodAmount = foodSubtotalAfterRank.subtract(voucherDiscountFood).max(BigDecimal.ZERO);
+
+            booking.setSeatSubtotalGross(seatSubtotalGross);
+            booking.setFoodSubtotalGross(foodSubtotalGross);
+            booking.setRankDiscountAmount(rankDiscount);
             booking.setLateDiscountAmount(lateDiscount);
-            BigDecimal voucherDiscount = late ? BigDecimal.ZERO
-                    : voucherService.applyVoucherForBooking(requestDTO.getVoucherId(), subtotal);
-            BigDecimal discountAmount = lateDiscount.add(voucherDiscount);
-            Booking finalizedBooking = finalizeBookingAmount(booking, subtotal, discountAmount);
-            return buildQuote(finalizedBooking, seatSubtotalAfterRank, foodSubtotalAfterRank, discountAmount);
+            booking.setVoucherDiscountSeat(voucherDiscountSeat);
+            booking.setVoucherDiscountFood(voucherDiscountFood);
+            booking.setNetSeatAmount(netSeatAmount);
+            booking.setNetFoodAmount(netFoodAmount);
+            booking.setDiscountAmount(discountAmount);
+            booking.setTotalAmount(totalAmount);
+            booking.setFoodFulfillmentStatus((foodDraftItems == null || foodDraftItems.isEmpty())
+                    ? FoodFulfillmentStatus.NOT_APPLICABLE
+                    : FoodFulfillmentStatus.PENDING);
+            booking = bookingRepository.save(booking);
+
+            return buildQuote(booking, seatSubtotalAfterRank, foodSubtotalAfterRank, discountAmount);
         } catch (RuntimeException ex) {
-            seatService.releaseSeatLocksByOwner(requestDTO.getShowtimeId(), seatIds, userId);
+            seatService.releaseSeatLocksByOwner(showtimeId, seatIds, lockOwnerId);
             throw ex;
         }
     }
@@ -135,7 +383,7 @@ public class BookingService {
     public Booking getBooking(Long bookingId, Long userId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
-        if (!booking.getUserId().equals(userId)) {
+        if (!isAuthorizedForBooking(userId, booking)) {
             throw new BusinessException("Không có quyền truy cập booking này", ErrorCode.FORBIDDEN);
         }
         return booking;
@@ -143,7 +391,6 @@ public class BookingService {
 
     /**
      * Xác nhận thanh toán từ IPN callback của cổng thanh toán (server-to-server).
-
      * Không kiểm tra userId vì đây là server gọi server.
      * Dùng chung cho mọi gateway: MoMo, VNPay, ZaloPay, ...
      */
@@ -169,6 +416,9 @@ public class BookingService {
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
         LocalDateTime now = LocalDateTime.now(clock);
 
+        if (booking.getPaymentMethod() == BookingPaymentMethod.STRIPE || "STRIPE".equalsIgnoreCase(gateway)) {
+            throw new BusinessException("Stripe requires its verified settlement flow", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+        }
         // Validate trạng thái (không cần check userId - server-to-server)
         if (booking.getStatus() == BookingStatus.PAID) {
             throw new BusinessException("Booking đã được thanh toán", ErrorCode.PAYMENT_ALREADY_CONFIRMED);
@@ -191,6 +441,24 @@ public class BookingService {
             ticketService.finalizeTicketsForPaidBooking(bookingId, booking.getShowtimeId());
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException("Ghế đã được bán cho suất chiếu này", ErrorCode.SEAT_ALREADY_BOOKED, ex);
+        }
+
+        if (paymentReceiptRepository != null) {
+            PaymentReceipt receipt = PaymentReceipt.builder()
+                    .bookingId(bookingId)
+                    .gateway(gateway)
+                    .transactionReference(paymentRef)
+                    .orderId(bookingId.toString())
+                    .amount(booking.getTotalAmount())
+                    .payDate(now)
+                    .verifiedAt(now)
+                    .status(PaymentReceiptStatus.RECORDED)
+                    .build();
+            try {
+                paymentReceiptRepository.save(receipt);
+            } catch (Exception ex) {
+                // Receipt already saved
+            }
         }
 
         PaymentConfirmation confirmation = new PaymentConfirmation();
@@ -218,7 +486,16 @@ public class BookingService {
 
         Booking booking = bookingRepository.findByIdForUpdate(bookingId)
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
-        validatePaymentRequest(userId, booking, LocalDateTime.now(clock));
+        LocalDateTime now = LocalDateTime.now(clock);
+        validatePaymentRequest(userId, booking, now);
+        if (booking.getPaymentMethod() == BookingPaymentMethod.STRIPE || "STRIPE".equalsIgnoreCase(requestDTO.getGateway())) {
+            throw new BusinessException("Stripe requires a verified webhook", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+        }
+
+        if (booking.getPaymentMethod() == BookingPaymentMethod.VNPAY && "CASH".equalsIgnoreCase(requestDTO.getGateway())) {
+            throw new BusinessException("Không thể xác nhận tiền mặt cho đơn hàng chọn cổng VNPay", ErrorCode.PAYMENT_METHOD_NOT_SUPPORTED);
+        }
+
         List<Long> seatIds = ticketService.findActiveDraftSeatIds(bookingId);
         seatService.validateSeatsNotSold(booking.getShowtimeId(), seatIds);
 
@@ -230,6 +507,24 @@ public class BookingService {
             ticketService.finalizeTicketsForPaidBooking(bookingId, booking.getShowtimeId());
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException("Ghế đã được bán cho suất chiếu này", ErrorCode.SEAT_ALREADY_BOOKED, ex);
+        }
+
+        if (paymentReceiptRepository != null) {
+            PaymentReceipt receipt = PaymentReceipt.builder()
+                    .bookingId(bookingId)
+                    .gateway(requestDTO.getGateway())
+                    .transactionReference(requestDTO.getPaymentRef())
+                    .orderId(bookingId.toString())
+                    .amount(booking.getTotalAmount())
+                    .payDate(now)
+                    .verifiedAt(now)
+                    .status(PaymentReceiptStatus.RECORDED)
+                    .build();
+            try {
+                paymentReceiptRepository.save(receipt);
+            } catch (Exception ex) {
+                // Receipt already saved
+            }
         }
 
         PaymentConfirmation confirmation = new PaymentConfirmation();
@@ -274,7 +569,7 @@ public class BookingService {
         }
         Booking existingBooking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
-        if (!existingBooking.getUserId().equals(userId)) {
+        if (!isAuthorizedForBooking(userId, existingBooking)) {
             throw new BusinessException("Bạn không có quyền thanh toán cho booking này", ErrorCode.FORBIDDEN);
         }
         if (existingBooking.getStatus() == BookingStatus.PAID) {
@@ -284,7 +579,7 @@ public class BookingService {
     }
 
     private void validatePaymentRequest(Long userId, Booking booking, LocalDateTime now) {
-        if (!booking.getUserId().equals(userId)) {
+        if (!isAuthorizedForBooking(userId, booking)) {
             throw new BusinessException("Bạn không có quyền thanh toán cho booking này", ErrorCode.FORBIDDEN);
         }
         if (booking.getStatus() == BookingStatus.PAID) {
@@ -296,6 +591,18 @@ public class BookingService {
         if (!booking.getExpiresAt().isAfter(now)) {
             throw new BusinessException("Booking đã hết hạn thanh toán", ErrorCode.BOOKING_EXPIRED);
         }
+    }
+
+    private boolean isAuthorizedForBooking(Long userId, Booking booking) {
+        if (booking.getUserId() != null && booking.getUserId().equals(userId)) {
+            return true;
+        }
+        if (booking.getCreatedByStaffId() != null && booking.getCreatedByStaffId().equals(userId)) {
+            return true;
+        }
+        return userRepository.findById(userId)
+                .map(u -> "STAFF".equals(u.getRole()) || "ADMIN".equals(u.getRole()) || "ROLE_STAFF".equals(u.getRole()) || "ROLE_ADMIN".equals(u.getRole()))
+                .orElse(false);
     }
 
     private void createBookingPaidOutbox(Booking booking, String paymentRef) {
@@ -379,31 +686,272 @@ public class BookingService {
             return;
         }
 
+        releasePendingBookingResources(booking);
+    }
+
+    private void releasePendingBookingResources(Booking booking) {
         List<Long> seatIds = ticketService.findActiveDraftSeatIds(booking.getBookingId());
-        seatService.releaseSeatLocksByOwner(booking.getShowtimeId(), seatIds, booking.getUserId());
+        Long lockOwner = booking.getCreatedByStaffId() != null ? booking.getCreatedByStaffId() : booking.getUserId();
+        // Redis locks cannot roll back with SQL. Release only after durable cancellation/expiry.
+        Runnable releaseLocks = () -> {
+            try {
+                seatService.releaseSeatLocksByOwner(booking.getShowtimeId(), seatIds, lockOwner);
+            } catch (RuntimeException ex) {
+                log.warn("Seat lock release deferred to TTL for cancelled/expired booking {}", booking.getBookingId());
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override public void afterCommit() { releaseLocks.run(); }
+                    });
+        } else {
+            releaseLocks.run();
+        }
 
         voucherService.releaseVoucherForExpiredBooking(booking.getVoucherId());
         ticketService.expireDraftItems(booking.getBookingId());
         foodOrderService.expireDraftItems(booking.getBookingId());
     }
 
+    @Transactional(readOnly = true)
+    public CancellationQuoteDTO getCancellationQuote(Long bookingId, Long requesterUserId, boolean isStaffOrAdmin) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!isStaffOrAdmin) {
+            if (!booking.getUserId().equals(requesterUserId)) {
+                throw new BusinessException("Bạn không có quyền xem thông tin hủy của booking này", ErrorCode.FORBIDDEN);
+            }
+            User user = userRepository.findById(requesterUserId)
+                    .orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.UNAUTHORIZED));
+            UserAccountPolicy.requireInteractive(user);
+        }
+
+        return calculateCancellationQuote(booking, LocalDateTime.now(clock));
+    }
+
+    public CancellationQuoteDTO calculateCancellationQuote(Booking booking, LocalDateTime now) {
+        if ("REVIEW_REQUIRED".equals(booking.getLegacySnapshotStatus())) {
+            throw new BusinessException("Dữ liệu giá lịch sử cần đối soát trước khi báo giá hoặc hủy booking",
+                    ErrorCode.BOOKING_CANNOT_BE_CANCELLED);
+        }
+        if (booking.getNetSeatAmount() == null || booking.getNetFoodAmount() == null
+                || booking.getNetSeatAmount().signum() < 0 || booking.getNetFoodAmount().signum() < 0
+                || booking.getNetSeatAmount().add(booking.getNetFoodAmount()).compareTo(booking.getTotalAmount()) != 0) {
+            throw new BusinessException("Chi tiết giá thanh toán không hợp lệ; cần đối soát trước khi hủy",
+                    ErrorCode.BOOKING_CANNOT_BE_CANCELLED);
+        }
+        Showtime showtime = showtimeService.getById(booking.getShowtimeId());
+        LocalDateTime startTime = showtime.getStartTime();
+        long minutesUntilStart = java.time.Duration.between(now, startTime).toMinutes();
+        double hoursUntilStart = minutesUntilStart / 60.0;
+
+        boolean canCancel = true;
+        String reason = null;
+        BigDecimal ticketRefundRate = BigDecimal.ZERO;
+
+        if (booking.getStatus() != BookingStatus.PAID) {
+            canCancel = false;
+            reason = "Chỉ có thể hủy booking ở trạng thái đã thanh toán (PAID)";
+        } else if (ticketService.hasAnyCheckedInTicket(booking.getBookingId())) {
+            canCancel = false;
+            reason = "Vé đã được check-in / sử dụng, không thể hủy đơn";
+        } else if (minutesUntilStart < 120) { // < 2 hours
+            canCancel = false;
+            reason = "Đã quá thời hạn hủy vé (phải hủy trước giờ chiếu ít nhất 2 tiếng)";
+        } else if (minutesUntilStart >= 1440) { // >= 24 hours
+            ticketRefundRate = BigDecimal.valueOf(1.00).setScale(2, RoundingMode.HALF_UP);
+        } else if (minutesUntilStart >= 360) { // >= 6 hours
+            ticketRefundRate = BigDecimal.valueOf(0.80).setScale(2, RoundingMode.HALF_UP);
+        } else { // >= 2 hours
+            ticketRefundRate = BigDecimal.valueOf(0.50).setScale(2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal netSeat = booking.getNetSeatAmount();
+        BigDecimal netFood = booking.getNetFoodAmount();
+
+        BigDecimal ticketRefundAmount = BigDecimal.ZERO;
+        BigDecimal foodRefundAmount = BigDecimal.ZERO;
+
+        if (canCancel) {
+            ticketRefundAmount = VndMoney.round(netSeat.multiply(ticketRefundRate));
+            // Đồ ăn chưa phục vụ hoàn 100% net food
+            if (booking.getFoodFulfillmentStatus() != FoodFulfillmentStatus.FULFILLED) {
+                foodRefundAmount = netFood;
+            }
+        }
+
+        BigDecimal totalRefundAmount = ticketRefundAmount.add(foodRefundAmount);
+        BigDecimal retainedAmount = booking.getTotalAmount().subtract(totalRefundAmount);
+
+        String quoteToken = "QUOTE_" + booking.getBookingId() + "_" + totalRefundAmount.toPlainString() + "_" + ticketRefundRate.toPlainString();
+
+        return CancellationQuoteDTO.builder()
+                .bookingId(booking.getBookingId())
+                .showtimeStartTime(startTime)
+                .quoteTime(now)
+                .hoursUntilShowtime(hoursUntilStart)
+                .ticketRefundRate(ticketRefundRate)
+                .netSeatAmount(netSeat)
+                .ticketRefundAmount(ticketRefundAmount)
+                .netFoodAmount(netFood)
+                .foodRefundAmount(foodRefundAmount)
+                .totalRefundAmount(totalRefundAmount)
+                .retainedAmount(retainedAmount)
+                .canCancel(canCancel)
+                .reason(reason)
+                .quoteToken(quoteToken)
+                .build();
+    }
+
+    @Transactional
+    public CancelBookingResponseDTO cancelBooking(Long bookingId, Long requesterUserId, boolean isStaffOrAdmin, CancelBookingRequestDTO request) {
+        Booking booking = bookingRepository.findByIdForUpdate(bookingId)
+                .orElseThrow(() -> new BusinessException("Booking không tồn tại", ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!isStaffOrAdmin) {
+            if (!booking.getUserId().equals(requesterUserId)) {
+                throw new BusinessException("Bạn không có quyền hủy booking này", ErrorCode.FORBIDDEN);
+            }
+            User user = userRepository.findById(requesterUserId)
+                    .orElseThrow(() -> new BusinessException("User không tồn tại", ErrorCode.UNAUTHORIZED));
+            UserAccountPolicy.requireInteractive(user);
+        }
+
+        if (booking.getStatus() != BookingStatus.PAID) {
+            throw new BusinessException("Không thể hủy booking ở trạng thái " + booking.getStatus(), ErrorCode.BOOKING_CANNOT_BE_CANCELLED);
+        }
+
+        if (ticketService.hasAnyCheckedInTicket(bookingId)) {
+            throw new BusinessException("Vé của booking đã được check-in, không thể hủy đơn", ErrorCode.BOOKING_ALREADY_CHECKED_IN);
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        CancellationQuoteDTO currentQuote = calculateCancellationQuote(booking, now);
+
+        if (!currentQuote.isCanCancel()) {
+            throw new BusinessException(currentQuote.getReason(), ErrorCode.BOOKING_CANCEL_DEADLINE_EXCEEDED);
+        }
+
+        boolean hasToken = request != null && request.getQuoteToken() != null && !request.getQuoteToken().isBlank();
+        boolean hasAmount = request != null && request.getExpectedRefundAmount() != null;
+        if ((!hasToken && !hasAmount)
+                || (hasToken && !currentQuote.getQuoteToken().equals(request.getQuoteToken()))
+                || (hasAmount && request.getExpectedRefundAmount().compareTo(currentQuote.getTotalRefundAmount()) != 0)) {
+            throw new BusinessException("Phải xác nhận báo giá hiện tại bằng quoteToken hoặc expectedRefundAmount; vui lòng lấy lại báo giá",
+                    ErrorCode.QUOTE_EXPIRED_OR_CHANGED);
+        }
+
+        BigDecimal refundAmount = currentQuote.getTotalRefundAmount();
+        PaymentReceipt receipt = refundAmount.signum() > 0 ? requireAllocatedReceipt(booking, refundAmount) : null;
+        String policySnapshot;
+        try {
+            policySnapshot = objectMapper.writeValueAsString(currentQuote);
+        } catch (JsonProcessingException ex) {
+            throw new BusinessException("Không thể lưu chính sách hoàn tiền", ErrorCode.INTERNAL_ERROR, ex);
+        }
+        // Persist the obligation before invalidating tickets. Any storage error rolls back
+        // the whole cancellation; a missing receipt must never imply a successful refund.
+        Refund refund = receipt == null ? null : createCancellationRefund(booking, receipt, refundAmount,
+                RefundCause.CUSTOMER_CANCELLED, policySnapshot, now);
+
+        // 1. Chuyển trạng thái booking sang CANCELLED
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setCancellationPolicySnapshot(policySnapshot);
+        bookingRepository.save(booking);
+
+        // 2. Chuyển trạng thái vé sang CANCELLED để giải phóng ghế
+        ticketService.cancelTicketsForBooking(bookingId);
+
+        // No payout is claimed for zero-value cancellations (no refund obligation).
+        Long refundId = refund == null ? null : refund.getRefundId();
+        RefundStatus refundStatus = refund == null ? null : refund.getStatus();
+
+        log.info("[Cancellation] Booking {} đã hủy thành công bởi user/staff {}. Hoàn tiền: {}, giữ lại: {}",
+                bookingId, requesterUserId, refundAmount, currentQuote.getRetainedAmount());
+
+        return CancelBookingResponseDTO.builder()
+                .bookingId(bookingId)
+                .status(BookingStatus.CANCELLED)
+                .cancelledAt(now)
+                .refundId(refundId)
+                .refundAmount(refundAmount)
+                .retainedAmount(currentQuote.getRetainedAmount())
+                .refundStatus(refundStatus)
+                .paymentMethod(booking.getPaymentMethod())
+                .message("Hủy booking thành công")
+                .build();
+    }
+
+    private PaymentReceipt requireAllocatedReceipt(Booking booking, BigDecimal amount) {
+        if (paymentReceiptRepository == null || refundRepository == null) {
+            throw new BusinessException("Thiếu dịch vụ lưu nghĩa vụ hoàn tiền", ErrorCode.INTERNAL_ERROR);
+        }
+        // Receipts include late/duplicate collections. Only the successful confirmation
+        // identifies the transaction that actually funded these tickets.
+        PaymentConfirmation confirmation = paymentConfirmationRepository
+                .findByBookingIdAndStatus(booking.getBookingId(), PaymentConfirmationStatus.SUCCESS)
+                .orElseThrow(() -> new BusinessException("Cần đối soát chứng từ thanh toán trước khi hủy",
+                        ErrorCode.PAYMENT_NOT_CONFIRMED));
+        List<PaymentReceipt> receipts = paymentReceiptRepository.findByBookingId(booking.getBookingId()).stream()
+                .filter(r -> booking.getBookingId().equals(r.getBookingId()))
+                .filter(r -> confirmation.getGateway() != null && confirmation.getGateway().equals(r.getGateway()))
+                .filter(r -> confirmation.getPaymentRef() != null && confirmation.getPaymentRef().equals(r.getTransactionReference()))
+                .filter(r -> r.getStatus() == PaymentReceiptStatus.RECORDED || r.getStatus() == PaymentReceiptStatus.ALLOCATED)
+                .filter(r -> r.getVerifiedAt() != null && r.getAmount() != null
+                        && r.getAmount().compareTo(booking.getTotalAmount()) == 0 && r.getAmount().compareTo(amount) >= 0)
+                .toList();
+        if (receipts.size() != 1) {
+            throw new BusinessException("Không xác định được chứng từ thanh toán hợp lệ; cần đối soát trước khi hủy",
+                    ErrorCode.PAYMENT_NOT_CONFIRMED);
+        }
+        return receipts.get(0);
+    }
+
+    private Refund createCancellationRefund(Booking booking, PaymentReceipt receipt, BigDecimal amount,
+            RefundCause cause, String policy, LocalDateTime now) {
+        return refundRepository.save(Refund.builder()
+                .paymentReceiptId(receipt.getPaymentReceiptId())
+                .bookingId(booking.getBookingId()).cause(cause).amount(amount)
+                .policySnapshot(policy).status(RefundStatus.REQUESTED)
+                .requestReference("REFUND_CANCEL_" + booking.getBookingId())
+                .createdAt(now).build());
+    }
+
     /**
-     * Refund toàn bộ booking còn active (PAID/PENDING) khi admin hủy showtime.
-     * - PAID  → REFUNDED + tạo outbox email thông báo
-     * - PENDING → EXPIRED + giải phóng seat lock và voucher
+     * Hủy toàn bộ booking còn active (PAID/PENDING) khi admin hủy showtime.
+     * - PAID  → CANCELLED + ticket CANCELLED + tạo nghĩa vụ hoàn tiền 100% (SHOWTIME_CANCELLED) + outbox.
+     *           CANCELLED không khẳng định gateway đã hoàn tiền.
+     * - PENDING → CANCELLED + giải phóng seat lock và voucher
      */
     @Transactional
     public void refundBookingsForCancelledShowtime(Long showtimeId, String reason) {
         List<Booking> activeBookings = bookingRepository.findActiveByShowtimeId(showtimeId);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
 
-        for (Booking booking : activeBookings) {
+        for (Booking candidate : activeBookings) {
+            // Serialize against settlement/cancellation, then re-read the winning state.
+            Booking booking = bookingRepository.findByIdForUpdate(candidate.getBookingId()).orElseThrow();
             if (booking.getStatus() == BookingStatus.PAID) {
-                booking.setStatus(BookingStatus.REFUNDED);
+                if (booking.getTotalAmount().signum() > 0) {
+                    PaymentReceipt receipt = requireAllocatedReceipt(booking, booking.getTotalAmount());
+                    String policy;
+                    try {
+                        policy = objectMapper.writeValueAsString(java.util.Map.of("reason", reason == null ? "" : reason));
+                    } catch (JsonProcessingException ex) {
+                        throw new BusinessException("Không thể lưu chính sách hoàn tiền", ErrorCode.INTERNAL_ERROR, ex);
+                    }
+                    createCancellationRefund(booking, receipt, booking.getTotalAmount(), RefundCause.SHOWTIME_CANCELLED, policy, now);
+                }
+                // Financial completion is represented by Refund.status, not Booking.status.
+                booking.setStatus(BookingStatus.CANCELLED);
                 bookingRepository.save(booking);
 
-                // Giải phóng voucher đã dùng
-                voucherService.releaseVoucherForExpiredBooking(booking.getVoucherId());
+                ticketService.cancelTicketsForBooking(booking.getBookingId());
+
+                // Booking đã thanh toán giữ voucher đã dùng, kể cả khi rạp chủ động hủy suất.
+                // Chỉ booking PENDING bị hủy/hết hạn mới được trả lượt voucher.
 
                 // Tạo outbox event để gửi email thông báo (bất đồng bộ)
                 ShowtimeCancelledPayload payload = new ShowtimeCancelledPayload();
@@ -423,8 +971,10 @@ public class BookingService {
                 }
 
             } else if (booking.getStatus() == BookingStatus.PENDING) {
-                // Hủy booking PENDING: đánh dấu EXPIRED + giải phóng lock
-                expireSingleBooking(booking, now);
+                // Administrative cancellation is unconditional, even before expiry.
+                booking.setStatus(BookingStatus.CANCELLED);
+                bookingRepository.save(booking);
+                releasePendingBookingResources(booking);
             }
         }
     }

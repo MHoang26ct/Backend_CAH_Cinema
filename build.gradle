@@ -19,6 +19,7 @@ repositories {
 }
 
 dependencies {
+    implementation 'com.stripe:stripe-java:34.0.0'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-security'

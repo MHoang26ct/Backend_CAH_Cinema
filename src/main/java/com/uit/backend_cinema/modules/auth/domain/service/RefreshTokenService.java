@@ -11,6 +11,7 @@ import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
 import com.uit.backend_cinema.modules.auth.domain.entity.RefreshToken;
 import com.uit.backend_cinema.modules.auth.domain.repository.RefreshTokenRepository;
+import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 
 @Service
 @Transactional(readOnly = true)
@@ -19,14 +20,18 @@ public class RefreshTokenService {
     private final long REFRESH_TOKEN_EXPIRATION = 30L * 24 * 3600;
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserRepository userRepository;
 
-    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository) {
+    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository, UserRepository userRepository) {
         this.refreshTokenRepository = refreshTokenRepository;
+        this.userRepository = userRepository;
     }
 
     // Tạo token mới khi người dùng đăng nhập
     @Transactional
     public String createRefreshToken(Long userId) {
+        UserAccountPolicy.requireInteractive(userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("Tài khoản không hợp lệ", ErrorCode.INVALID_CREDENTIALS)));
         RefreshToken refreshToken = new RefreshToken();
 
         refreshToken.setUserId(userId);

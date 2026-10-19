@@ -17,6 +17,7 @@ public class User {
     private String phone;
     private String avatarUrl;
     private AuthProvider authProvider;
+    private AccountType accountType = AccountType.REGISTERED;
     private String role; // Tên role (VD: "ROLE_USER", "ROLE_ADMIN")
     private BigDecimal totalPaid = BigDecimal.ZERO;
     private Integer totalPoint = 0;
@@ -24,4 +25,8 @@ public class User {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Boolean isDeleted = false;
+
+    public boolean isInteractiveAccount() {
+        return accountType == AccountType.REGISTERED && Boolean.FALSE.equals(isDeleted);
+    }
 }

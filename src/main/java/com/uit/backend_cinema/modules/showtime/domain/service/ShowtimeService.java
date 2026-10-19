@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Clock;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -223,10 +224,15 @@ public class ShowtimeService {
             throw new BusinessException("Suất chiếu không được kéo dài quá 08:00 ngày hôm sau", ErrorCode.VALIDATION_FAILED);
         }
 
-        List<Showtime> existingShowtimes = showtimeRepository.findAllByRoomIdAndDate(
-                newShowtime.getRoomId(),
-                newShowtime.getStartTime().toLocalDate());
+        List<Showtime> existingShowtimes = new ArrayList<>();
+        existingShowtimes.addAll(showtimeRepository.findAllByRoomIdAndDate(newShowtime.getRoomId(), startDate.minusDays(1)));
+        existingShowtimes.addAll(showtimeRepository.findAllByRoomIdAndDate(newShowtime.getRoomId(), startDate));
+        existingShowtimes.addAll(showtimeRepository.findAllByRoomIdAndDate(newShowtime.getRoomId(), startDate.plusDays(1)));
+
         for (Showtime showtime : existingShowtimes) {
+            if (Boolean.TRUE.equals(showtime.getIsDeleted()) || showtime.getStatus() == ShowtimeStatus.CANCELLED) {
+                continue;
+            }
             if (!isCreate && Objects.equals(showtime.getShowtimeId(), newShowtime.getShowtimeId())) {
                 continue;
             }

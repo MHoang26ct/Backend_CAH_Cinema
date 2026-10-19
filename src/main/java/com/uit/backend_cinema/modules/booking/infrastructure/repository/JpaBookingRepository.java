@@ -44,7 +44,8 @@ public interface JpaBookingRepository extends JpaRepository<BookingJpaEntity, Lo
     int markExpiredIfPendingAndExpired(@Param("bookingId") Long bookingId, @Param("now") LocalDateTime now);
 
     /** Tìm booking PAID hoặc PENDING của 1 showtime (dùng khi hủy showtime để refund) */
-    @Query("SELECT b FROM BookingJpaEntity b WHERE b.showtimeId = :showtimeId AND b.status IN ('PAID', 'PENDING') AND b.isDeleted = false")
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM BookingJpaEntity b WHERE b.showtimeId = :showtimeId AND b.status IN ('PAID', 'PENDING') AND b.isDeleted = false ORDER BY b.bookingId")
     List<BookingJpaEntity> findActiveByShowtimeId(@Param("showtimeId") Long showtimeId);
 
     /**

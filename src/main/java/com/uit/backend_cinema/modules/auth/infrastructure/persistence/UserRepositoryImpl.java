@@ -5,7 +5,9 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.uit.backend_cinema.modules.auth.domain.entity.AccountType;
 import com.uit.backend_cinema.modules.auth.domain.entity.User;
 import com.uit.backend_cinema.modules.auth.domain.repository.UserRepository;
 import com.uit.backend_cinema.modules.auth.infrastructure.entity.RoleJpaEntity;
@@ -74,6 +76,11 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public void deductPaidAndRecalcRank(Long userId, BigDecimal amount) {
+        jpaUserRepository.deductPaidAndRecalcRank(userId, amount);
+    }
+
+    @Override
     public User updateProfile(Long userId, String name, String email, String phone, String avatarUrl) {
         UserJpaEntity entity = jpaUserRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User không tồn tại: " + userId));
@@ -82,6 +89,29 @@ public class UserRepositoryImpl implements UserRepository {
         if (phone != null) entity.setPhone(phone);
         if (avatarUrl != null) entity.setAvatarUrl(avatarUrl);
         return mapper.toDomain(jpaUserRepository.save(entity));
+    }
+
+    @Override
+    public Optional<User> findWalkInUser() {
+        return jpaUserRepository.findByAccountType(AccountType.WALK_IN).map(mapper::toDomain);
+    }
+
+    @Override
+    @Transactional
+    public User getOrCreateWalkInUser() {
+        return jpaUserRepository.findByAccountType(AccountType.WALK_IN)
+                .map(mapper::toDomain)
+                .orElseGet(() -> {
+                    UserJpaEntity walkIn = new UserJpaEntity();
+                    walkIn.setName("Khách vãng lai");
+                    walkIn.setAuthProvider("EMAIL");
+                    walkIn.setAccountType(AccountType.WALK_IN);
+                    walkIn.setTotalPaid(BigDecimal.ZERO);
+                    walkIn.setTotalPoint(0);
+                    walkIn.setRankLevel("SILVER");
+                    walkIn.setIsDeleted(false);
+                    return mapper.toDomain(jpaUserRepository.save(walkIn));
+                });
     }
 }
 
