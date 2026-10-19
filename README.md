@@ -105,12 +105,14 @@ Lưu ý:
 docker compose up -d
 ```
 
-2. Import schema và dữ liệu mẫu (nếu cần):
+2. Với **database mới**, import schema hoàn chỉnh và dữ liệu mẫu (nếu cần):
 
 ```bash
 psql -h localhost -U <db_user> -d cinema_db -f cah_cinema.sql
 psql -h localhost -U <db_user> -d cinema_db -f seed_background_data.sql
 ```
+
+`cah_cinema.sql` là baseline đầy đủ cho một lần khởi tạo database mới, gồm cả các cột snapshot hiện hành. **Không chạy lại file này trên database đã có dữ liệu.** Với database đang vận hành, giữ nguyên lịch sử và áp dụng các file trong `migrations/` theo thứ tự; không sửa, gộp hoặc bỏ migration đã từng triển khai.
 
 3. Chạy ứng dụng:
 
