@@ -37,6 +37,7 @@ public class Booking {
     private LocalDateTime foodFulfilledAt;
     private Long foodFulfilledByStaffId;
     private String cancellationPolicySnapshot;
+    private String legacySnapshotStatus;
     private Boolean isVoucherReleased = false;
     private Boolean isPointsAccumulated = false;
     private Boolean isPointsReversed = false;

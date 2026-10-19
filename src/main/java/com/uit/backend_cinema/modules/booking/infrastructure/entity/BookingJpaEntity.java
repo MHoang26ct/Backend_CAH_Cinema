@@ -120,6 +120,9 @@ public class BookingJpaEntity {
     @Column(name = "food_fulfilled_by_staff_id")
     private Long foodFulfilledByStaffId;
 
+    @Column(name = "legacy_snapshot_status", length = 30)
+    private String legacySnapshotStatus;
+
     @Column(name = "cancellation_policy_snapshot", columnDefinition = "TEXT")
     private String cancellationPolicySnapshot;
 

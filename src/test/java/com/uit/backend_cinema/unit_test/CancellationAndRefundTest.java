@@ -88,7 +88,12 @@ class CancellationAndRefundTest {
         when(clock.instant()).thenReturn(now.atZone(zone).toInstant());
         when(clock.getZone()).thenReturn(zone);
 
-        objectMapper = new ObjectMapper();
+        objectMapper = new ObjectMapper().findAndRegisterModules();
+        when(refundRepository.save(any())).thenAnswer(invocation -> {
+            Refund refund = invocation.getArgument(0);
+            refund.setRefundId(900L);
+            return refund;
+        });
 
         refundService = new RefundService(
                 refundRepository, paymentReceiptRepository, paymentRequestService, null, clock, objectMapper);
@@ -276,6 +281,15 @@ class CancellationAndRefundTest {
                 .gateway("VNPAY")
                 .amount(new BigDecimal("150000"))
                 .build();
+        receipt.setTransactionReference("settled");
+        receipt.setStatus(com.uit.backend_cinema.modules.payment.domain.entity.PaymentReceiptStatus.RECORDED);
+        receipt.setVerifiedAt(now);
+        PaymentConfirmation confirmation = new PaymentConfirmation();
+        confirmation.setGateway("VNPAY");
+        confirmation.setPaymentRef("settled");
+        when(paymentConfirmationRepository.findByBookingIdAndStatus(bookingId, PaymentConfirmationStatus.SUCCESS))
+                .thenReturn(Optional.of(confirmation));
+        when(bookingRepository.findByIdForUpdate(bookingId)).thenReturn(Optional.of(booking));
         when(paymentReceiptRepository.findByBookingId(bookingId)).thenReturn(List.of(receipt));
 
         CancelBookingRequestDTO req = CancelBookingRequestDTO.builder()
@@ -340,6 +354,15 @@ class CancellationAndRefundTest {
                 .gateway("VNPAY")
                 .amount(new BigDecimal("150000"))
                 .build();
+        receipt.setTransactionReference("settled");
+        receipt.setStatus(com.uit.backend_cinema.modules.payment.domain.entity.PaymentReceiptStatus.RECORDED);
+        receipt.setVerifiedAt(now);
+        PaymentConfirmation confirmation = new PaymentConfirmation();
+        confirmation.setGateway("VNPAY");
+        confirmation.setPaymentRef("settled");
+        when(paymentConfirmationRepository.findByBookingIdAndStatus(bookingId, PaymentConfirmationStatus.SUCCESS))
+                .thenReturn(Optional.of(confirmation));
+        when(bookingRepository.findByIdForUpdate(bookingId)).thenReturn(Optional.of(booking));
         when(paymentReceiptRepository.findByBookingId(bookingId)).thenReturn(List.of(receipt));
 
         bookingService.refundBookingsForCancelledShowtime(showtimeId, "Sự cố máy chiếu");
@@ -354,6 +377,151 @@ class CancellationAndRefundTest {
         Refund savedRefund = refundCaptor.getValue();
         assertEquals(RefundCause.SHOWTIME_CANCELLED, savedRefund.getCause());
         assertEquals(new BigDecimal("150000"), savedRefund.getAmount());
+    }
+
+    private Booking prepareCancellation() {
+        Booking booking = createPaidBooking(1L, 10L, 100L,
+                new BigDecimal("100000"), new BigDecimal("50000"), new BigDecimal("150000"));
+        when(bookingRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(booking));
+        when(showtimeService.getById(100L)).thenReturn(createShowtime(100L, now.plusHours(10)));
+        return booking;
+    }
+
+    private PaymentReceipt prepareReceipt(Booking booking) {
+        PaymentConfirmation confirmation = new PaymentConfirmation();
+        confirmation.setPaymentRef("funding-payment");
+        confirmation.setGateway("STRIPE");
+        when(paymentConfirmationRepository.findByBookingIdAndStatus(1L, PaymentConfirmationStatus.SUCCESS))
+                .thenReturn(Optional.of(confirmation));
+        PaymentReceipt receipt = PaymentReceipt.builder().paymentReceiptId(555L).bookingId(1L)
+                .gateway("STRIPE").transactionReference("funding-payment").verifiedAt(now)
+                .amount(booking.getTotalAmount())
+                .status(com.uit.backend_cinema.modules.payment.domain.entity.PaymentReceiptStatus.RECORDED).build();
+        when(paymentReceiptRepository.findByBookingId(1L)).thenReturn(List.of(receipt));
+        return receipt;
+    }
+
+    @Test
+    void missingQuoteConfirmationCannotCancel() {
+        Booking booking = prepareCancellation();
+        for (CancelBookingRequestDTO request : java.util.Arrays.asList(null, new CancelBookingRequestDTO(),
+                CancelBookingRequestDTO.builder().quoteToken(" ").build())) {
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> bookingService.cancelBooking(1L, 10L, true, request));
+            assertEquals(ErrorCode.QUOTE_EXPIRED_OR_CHANGED, ex.getCode());
+        }
+        assertEquals(BookingStatus.PAID, booking.getStatus());
+        verifyNoInteractions(refundRepository);
+        verify(ticketService, never()).cancelTicketsForBooking(any());
+    }
+
+    @Test
+    void staleTokenCannotBeBypassedByCorrectAmount() {
+        prepareCancellation();
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> bookingService.cancelBooking(1L, 10L, true, CancelBookingRequestDTO.builder()
+                        .quoteToken("QUOTE_1_150000_1.00").expectedRefundAmount(new BigDecimal("130000")).build()));
+        assertEquals(ErrorCode.QUOTE_EXPIRED_OR_CHANGED, ex.getCode());
+        verifyNoInteractions(refundRepository);
+    }
+
+    @Test
+    void tokenOnlyConfirmationUsesFundingReceiptNotFirstCollection() {
+        Booking booking = prepareCancellation();
+        PaymentReceipt funding = prepareReceipt(booking);
+        PaymentReceipt duplicate = PaymentReceipt.builder().paymentReceiptId(444L).bookingId(1L)
+                .gateway("STRIPE").transactionReference("duplicate-payment").amount(booking.getTotalAmount())
+                .verifiedAt(now).status(com.uit.backend_cinema.modules.payment.domain.entity.PaymentReceiptStatus.RECORDED).build();
+        when(paymentReceiptRepository.findByBookingId(1L)).thenReturn(List.of(duplicate, funding));
+        String token = bookingService.calculateCancellationQuote(booking, now).getQuoteToken();
+        CancelBookingResponseDTO result = bookingService.cancelBooking(1L, 10L, true,
+                CancelBookingRequestDTO.builder().quoteToken(token).build());
+        assertEquals(RefundStatus.REQUESTED, result.getRefundStatus());
+        assertEquals(900L, result.getRefundId());
+        verify(refundRepository).save(argThat(r -> r.getPaymentReceiptId().equals(555L)));
+    }
+
+    @Test
+    void missingReceiptFailsBeforeCancellationForCustomerAndAdmin() {
+        Booking booking = prepareCancellation();
+        when(bookingRepository.findActiveByShowtimeId(100L)).thenReturn(List.of(booking));
+        assertThrows(BusinessException.class, () -> bookingService.cancelBooking(1L, 10L, true,
+                CancelBookingRequestDTO.builder().expectedRefundAmount(new BigDecimal("130000")).build()));
+        assertThrows(BusinessException.class, () -> bookingService.refundBookingsForCancelledShowtime(100L, "maintenance"));
+        assertEquals(BookingStatus.PAID, booking.getStatus());
+        verify(bookingRepository, never()).save(any());
+        verify(ticketService, never()).cancelTicketsForBooking(any());
+        verifyNoInteractions(refundRepository);
+    }
+
+    @Test
+    void refundInsertFailureDoesNotReportCancellationSuccess() {
+        Booking booking = prepareCancellation();
+        prepareReceipt(booking);
+        doThrow(new org.springframework.dao.DataIntegrityViolationException("storage failed")).when(refundRepository).save(any());
+        assertThrows(org.springframework.dao.DataIntegrityViolationException.class,
+                () -> bookingService.cancelBooking(1L, 10L, true,
+                        CancelBookingRequestDTO.builder().expectedRefundAmount(new BigDecimal("130000")).build()));
+        assertEquals(BookingStatus.PAID, booking.getStatus());
+        verify(bookingRepository, never()).save(any());
+        verify(ticketService, never()).cancelTicketsForBooking(any());
+    }
+
+    @Test
+    void quarantinedHistoricalSnapshotBlocksQuoteAndCancelWithoutSideEffects() {
+        Booking booking = prepareCancellation();
+        booking.setLegacySnapshotStatus("REVIEW_REQUIRED");
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        assertThrows(BusinessException.class, () -> bookingService.getCancellationQuote(1L, 10L, true));
+        assertThrows(BusinessException.class, () -> bookingService.cancelBooking(1L, 10L, true,
+                CancelBookingRequestDTO.builder().expectedRefundAmount(new BigDecimal("130000")).build()));
+        verifyNoInteractions(refundRepository);
+        verify(bookingRepository, never()).save(any());
+        verify(ticketService, never()).cancelTicketsForBooking(any());
+    }
+
+    @Test
+    void staffPendingBookingIsCancelledBeforeDeadlineAndResourcesReleasedOnlyOnce() {
+        Booking booking = prepareCancellation();
+        booking.setStatus(BookingStatus.PENDING);
+        booking.setExpiresAt(now.plusMinutes(15));
+        booking.setCreatedByStaffId(20L);
+        booking.setVoucherId(99L);
+        when(bookingRepository.findActiveByShowtimeId(100L)).thenReturn(List.of(booking));
+        when(ticketService.findActiveDraftSeatIds(1L)).thenReturn(List.of(7L));
+        bookingService.refundBookingsForCancelledShowtime(100L, "maintenance");
+        bookingService.refundBookingsForCancelledShowtime(100L, "retry");
+        assertEquals(BookingStatus.CANCELLED, booking.getStatus());
+        verify(bookingRepository, times(1)).save(booking);
+        verify(seatService, times(1)).releaseSeatLocksByOwner(100L, List.of(7L), 20L);
+        verify(voucherService, times(1)).releaseVoucherForExpiredBooking(99L);
+        verify(ticketService, times(1)).expireDraftItems(1L);
+        verify(foodOrderService, times(1)).expireDraftItems(1L);
+        verify(bookingRepository, never()).markExpiredIfPendingAndExpired(any(), any());
+        verifyNoInteractions(refundRepository);
+    }
+
+    @Test
+    void quoteTokenBecomesInvalidAfterFoodIsFulfilled() {
+        Booking booking = prepareCancellation();
+        String token = bookingService.calculateCancellationQuote(booking, now).getQuoteToken();
+        booking.setFoodFulfillmentStatus(FoodFulfillmentStatus.FULFILLED);
+        BusinessException ex = assertThrows(BusinessException.class, () -> bookingService.cancelBooking(1L, 10L, true,
+                CancelBookingRequestDTO.builder().quoteToken(token).build()));
+        assertEquals(ErrorCode.QUOTE_EXPIRED_OR_CHANGED, ex.getCode());
+    }
+
+    @Test
+    void adminCancellationAlsoSelectsFundingReceipt() {
+        Booking booking = prepareCancellation();
+        PaymentReceipt funding = prepareReceipt(booking);
+        when(paymentReceiptRepository.findByBookingId(1L)).thenReturn(List.of(
+                PaymentReceipt.builder().paymentReceiptId(444L).bookingId(1L).gateway("VNPAY")
+                        .transactionReference("funding-payment").build(), funding));
+        when(bookingRepository.findActiveByShowtimeId(100L)).thenReturn(List.of(booking));
+        bookingService.refundBookingsForCancelledShowtime(100L, "maintenance");
+        verify(refundRepository).save(argThat(r -> r.getPaymentReceiptId().equals(555L)
+                && r.getAmount().compareTo(new BigDecimal("150000")) == 0));
     }
 
     @Test
@@ -456,7 +624,9 @@ class CancellationAndRefundTest {
                 .thenReturn(VnpayRefundResponseDTO.builder().responseCode("00").transactionStatus("00").build());
 
         RefundService onlineRefundService = new RefundService(
-                refundRepository, paymentReceiptRepository, paymentRequestService, vnpayMerchantClient, clock, objectMapper);
+                refundRepository, paymentReceiptRepository, paymentRequestService, vnpayMerchantClient, clock, objectMapper,
+                mock(org.springframework.transaction.PlatformTransactionManager.class));
+        when(refundRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(refund));
         onlineRefundService.processOnlineRefund(10L);
 
         verify(vnpayMerchantClient).refundTransaction(
@@ -488,7 +658,9 @@ class CancellationAndRefundTest {
         when(paymentRequestService.findById(30L)).thenReturn(Optional.of(PaymentGatewayRequest.builder().build()));
 
         RefundService onlineRefundService = new RefundService(
-                refundRepository, paymentReceiptRepository, paymentRequestService, vnpayMerchantClient, clock, objectMapper);
+                refundRepository, paymentReceiptRepository, paymentRequestService, vnpayMerchantClient, clock, objectMapper,
+                mock(org.springframework.transaction.PlatformTransactionManager.class));
+        when(refundRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(refund));
         onlineRefundService.processOnlineRefund(10L);
 
         assertEquals(RefundStatus.REVIEW_REQUIRED, refund.getStatus());

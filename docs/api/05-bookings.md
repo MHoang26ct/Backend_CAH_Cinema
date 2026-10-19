@@ -68,7 +68,12 @@ Request body (`StaffCreateBookingRequestDTO`):
 - Trước giờ chiếu >= 2h: hoàn 50% tiền vé net, giữ lại 50%.
 - Dưới 2h trước giờ chiếu: không cho phép hủy (`BOOKING_CANCEL_DEADLINE_EXCEEDED`).
 - Đồ ăn chưa giao (`!= FULFILLED`): hoàn 100% tiền đồ ăn net. Đồ ăn đã giao: không hoàn tiền đồ ăn.
-- Response trả kèm `quoteToken` và `policySnapshot` để client xác nhận khi gọi `/cancel`.
+- Response trả `quoteToken` và `totalRefundAmount`. Khi gọi `/cancel`, bắt buộc gửi ít nhất một trong `quoteToken` hoặc `expectedRefundAmount`. Backend tính lại quote dưới khóa booking; nếu gửi cả hai thì cả hai phải khớp. Thiếu xác nhận hoặc giá đã đổi trả `QUOTE_EXPIRED_OR_CHANGED`; client phải lấy lại quote. Token là dấu vân tay của báo giá, không phải token xác thực/quyền truy cập.
+- `policySnapshot` được lưu nội bộ cùng booking và refund, không phải trường trong response quote.
+- Booking lịch sử được đánh dấu `legacy_snapshot_status=REVIEW_REQUIRED` bị chặn quote/cancel với `BOOKING_CANNOT_BE_CANCELLED` cho đến khi đối soát có bằng chứng.
+- Refund chỉ được tạo từ receipt đã xác minh khớp `PaymentConfirmation SUCCESS` của booking (gateway + transaction reference), không lấy receipt đầu tiên trong danh sách. Thiếu/mâu thuẫn chứng từ trả HTTP 409 `PAYMENT_NOT_CONFIRMED`, giữ nguyên booking/vé; cần đối soát thủ công.
+- Hủy thành công trả `status=CANCELLED` và `refundStatus=REQUESTED` nếu có tiền phải hoàn. Đây **không** phải xác nhận đã hoàn tiền. Hủy có số tiền hoàn bằng 0 trả `refundId=null`, `refundStatus=null`.
+- Admin hủy suất: booking `PENDING` chuyển `CANCELLED` ngay dù chưa hết hạn; draft/voucher được giải phóng, Redis seat lock chỉ nhả sau commit. Booking `PAID` giữ voucher đã dùng. Trạng thái suất, booking và nghĩa vụ refund cùng một transaction; không báo thành công khi không thể ghi nghĩa vụ hoàn tiền.
 
 `paymentMethod` dùng enum backend (ví dụ `CASH`, `VNPAY`, `MOMO`). Chú ý: `CASH` online bị chặn với mã lỗi `CASH_PAYMENT_REQUIRES_STAFF`; MoMo trực tuyến bị chặn qua cờ tính năng `momoEnabled`.
 

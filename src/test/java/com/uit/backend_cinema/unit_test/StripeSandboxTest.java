@@ -148,6 +148,13 @@ class StripeSandboxTest {
         realSettlement().settle(payment,"pi_test",now.plusMinutes(14),now.plusMinutes(15).plusSeconds(10));
         assertEquals(BookingStatus.PAID,booking.getStatus());
     }
+    @Test void adminCancelledBookingNeverResurrectsBeforePaymentDeadline() {
+        booking.setStatus(BookingStatus.CANCELLED);
+        realSettlement().settle(payment,"pi_test",now,now);
+        assertEquals(BookingStatus.CANCELLED,booking.getStatus());
+        verify(refunds).save(argThat(r -> r.getAmount().intValueExact()==98000));
+        verify(tickets,never()).finalizeTicketsForPaidBooking(anyLong(),anyLong());
+    }
     @Test void expiredBookingNeverResurrects() {
         booking.setStatus(BookingStatus.EXPIRED); realSettlement().settle(payment,"pi_test",now,now);
         assertEquals(BookingStatus.EXPIRED,booking.getStatus()); verify(refunds).save(any());

@@ -121,7 +121,10 @@ class BookingModuleServiceTest {
 
         when(bookingRepository.findActiveByShowtimeId(showtimeId))
                 .thenReturn(List.of(paidBooking, pendingBooking));
-        when(bookingRepository.markExpiredIfPendingAndExpired(eq(102L), any(LocalDateTime.class))).thenReturn(1);
+        paidBooking.setTotalAmount(java.math.BigDecimal.ZERO); // Complimentary booking needs no refund.
+        pendingBooking.setExpiresAt(LocalDateTime.now().plusMinutes(15));
+        when(bookingRepository.findByIdForUpdate(101L)).thenReturn(java.util.Optional.of(paidBooking));
+        when(bookingRepository.findByIdForUpdate(102L)).thenReturn(java.util.Optional.of(pendingBooking));
         when(ticketService.findActiveDraftSeatIds(102L)).thenReturn(List.of(1L, 2L));
 
         // Call method
@@ -138,7 +141,9 @@ class BookingModuleServiceTest {
         );
 
         // Asserts for PENDING booking
-        verify(bookingRepository).markExpiredIfPendingAndExpired(eq(102L), any(LocalDateTime.class));
+        assertEquals(BookingStatus.CANCELLED, pendingBooking.getStatus());
+        verify(bookingRepository).save(pendingBooking);
+        verify(bookingRepository, never()).markExpiredIfPendingAndExpired(any(), any());
         verify(seatService).releaseSeatLocksByOwner(showtimeId, List.of(1L, 2L), 202L);
         verify(voucherService).releaseVoucherForExpiredBooking(302L);
         verify(ticketService).expireDraftItems(102L);

@@ -40,6 +40,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -684,9 +686,28 @@ public class BookingService {
             return;
         }
 
+        releasePendingBookingResources(booking);
+    }
+
+    private void releasePendingBookingResources(Booking booking) {
         List<Long> seatIds = ticketService.findActiveDraftSeatIds(booking.getBookingId());
         Long lockOwner = booking.getCreatedByStaffId() != null ? booking.getCreatedByStaffId() : booking.getUserId();
-        seatService.releaseSeatLocksByOwner(booking.getShowtimeId(), seatIds, lockOwner);
+        // Redis locks cannot roll back with SQL. Release only after durable cancellation/expiry.
+        Runnable releaseLocks = () -> {
+            try {
+                seatService.releaseSeatLocksByOwner(booking.getShowtimeId(), seatIds, lockOwner);
+            } catch (RuntimeException ex) {
+                log.warn("Seat lock release deferred to TTL for cancelled/expired booking {}", booking.getBookingId());
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override public void afterCommit() { releaseLocks.run(); }
+                    });
+        } else {
+            releaseLocks.run();
+        }
 
         voucherService.releaseVoucherForExpiredBooking(booking.getVoucherId());
         ticketService.expireDraftItems(booking.getBookingId());
@@ -711,6 +732,16 @@ public class BookingService {
     }
 
     public CancellationQuoteDTO calculateCancellationQuote(Booking booking, LocalDateTime now) {
+        if ("REVIEW_REQUIRED".equals(booking.getLegacySnapshotStatus())) {
+            throw new BusinessException("Dữ liệu giá lịch sử cần đối soát trước khi báo giá hoặc hủy booking",
+                    ErrorCode.BOOKING_CANNOT_BE_CANCELLED);
+        }
+        if (booking.getNetSeatAmount() == null || booking.getNetFoodAmount() == null
+                || booking.getNetSeatAmount().signum() < 0 || booking.getNetFoodAmount().signum() < 0
+                || booking.getNetSeatAmount().add(booking.getNetFoodAmount()).compareTo(booking.getTotalAmount()) != 0) {
+            throw new BusinessException("Chi tiết giá thanh toán không hợp lệ; cần đối soát trước khi hủy",
+                    ErrorCode.BOOKING_CANNOT_BE_CANCELLED);
+        }
         Showtime showtime = showtimeService.getById(booking.getShowtimeId());
         LocalDateTime startTime = showtime.getStartTime();
         long minutesUntilStart = java.time.Duration.between(now, startTime).toMinutes();
@@ -737,10 +768,8 @@ public class BookingService {
             ticketRefundRate = BigDecimal.valueOf(0.50).setScale(2, RoundingMode.HALF_UP);
         }
 
-        BigDecimal netSeat = booking.getNetSeatAmount() != null
-                ? booking.getNetSeatAmount()
-                : (booking.getTotalAmount().subtract(booking.getNetFoodAmount() != null ? booking.getNetFoodAmount() : BigDecimal.ZERO));
-        BigDecimal netFood = booking.getNetFoodAmount() != null ? booking.getNetFoodAmount() : BigDecimal.ZERO;
+        BigDecimal netSeat = booking.getNetSeatAmount();
+        BigDecimal netFood = booking.getNetFoodAmount();
 
         BigDecimal ticketRefundAmount = BigDecimal.ZERO;
         BigDecimal foodRefundAmount = BigDecimal.ZERO;
@@ -805,54 +834,39 @@ public class BookingService {
             throw new BusinessException(currentQuote.getReason(), ErrorCode.BOOKING_CANCEL_DEADLINE_EXCEEDED);
         }
 
-        if (request != null && request.getExpectedRefundAmount() != null) {
-            if (request.getExpectedRefundAmount().compareTo(currentQuote.getTotalRefundAmount()) != 0) {
-                throw new BusinessException("Mức hoàn tiền đã thay đổi (kỳ vọng: " + request.getExpectedRefundAmount()
-                        + ", thực tế: " + currentQuote.getTotalRefundAmount() + "). Vui lòng kiểm tra lại báo giá trước khi xác nhận hủy",
-                        ErrorCode.QUOTE_EXPIRED_OR_CHANGED);
-            }
+        boolean hasToken = request != null && request.getQuoteToken() != null && !request.getQuoteToken().isBlank();
+        boolean hasAmount = request != null && request.getExpectedRefundAmount() != null;
+        if ((!hasToken && !hasAmount)
+                || (hasToken && !currentQuote.getQuoteToken().equals(request.getQuoteToken()))
+                || (hasAmount && request.getExpectedRefundAmount().compareTo(currentQuote.getTotalRefundAmount()) != 0)) {
+            throw new BusinessException("Phải xác nhận báo giá hiện tại bằng quoteToken hoặc expectedRefundAmount; vui lòng lấy lại báo giá",
+                    ErrorCode.QUOTE_EXPIRED_OR_CHANGED);
         }
+
+        BigDecimal refundAmount = currentQuote.getTotalRefundAmount();
+        PaymentReceipt receipt = refundAmount.signum() > 0 ? requireAllocatedReceipt(booking, refundAmount) : null;
+        String policySnapshot;
+        try {
+            policySnapshot = objectMapper.writeValueAsString(currentQuote);
+        } catch (JsonProcessingException ex) {
+            throw new BusinessException("Không thể lưu chính sách hoàn tiền", ErrorCode.INTERNAL_ERROR, ex);
+        }
+        // Persist the obligation before invalidating tickets. Any storage error rolls back
+        // the whole cancellation; a missing receipt must never imply a successful refund.
+        Refund refund = receipt == null ? null : createCancellationRefund(booking, receipt, refundAmount,
+                RefundCause.CUSTOMER_CANCELLED, policySnapshot, now);
 
         // 1. Chuyển trạng thái booking sang CANCELLED
         booking.setStatus(BookingStatus.CANCELLED);
-        try {
-            booking.setCancellationPolicySnapshot(objectMapper.writeValueAsString(currentQuote));
-        } catch (JsonProcessingException ignored) {}
+        booking.setCancellationPolicySnapshot(policySnapshot);
         bookingRepository.save(booking);
 
         // 2. Chuyển trạng thái vé sang CANCELLED để giải phóng ghế
         ticketService.cancelTicketsForBooking(bookingId);
 
-        // 3. Xử lý nghĩa vụ hoàn tiền (Refund)
-        Long refundId = null;
-        RefundStatus refundStatus = RefundStatus.SUCCEEDED;
-
-        BigDecimal refundAmount = currentQuote.getTotalRefundAmount();
-        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
-            PaymentReceipt receipt = paymentReceiptRepository != null
-                    ? paymentReceiptRepository.findByBookingId(bookingId).stream().findFirst().orElse(null)
-                    : null;
-
-            if (receipt != null && refundRepository != null) {
-                Refund refund = Refund.builder()
-                        .paymentReceiptId(receipt.getPaymentReceiptId())
-                        .bookingId(bookingId)
-                        .cause(RefundCause.CUSTOMER_CANCELLED)
-                        .amount(refundAmount)
-                        .policySnapshot(booking.getCancellationPolicySnapshot())
-                        .status(RefundStatus.REQUESTED)
-                        .requestReference("REFUND_CANCEL_" + bookingId + "_" + System.currentTimeMillis())
-                        .createdAt(now)
-                        .build();
-                try {
-                    refund = refundRepository.save(refund);
-                    refundId = refund.getRefundId();
-                    refundStatus = refund.getStatus();
-                } catch (Exception ex) {
-                    log.warn("[Cancellation] Lỗi tạo refund obligation cho booking {}: {}", bookingId, ex.getMessage());
-                }
-            }
-        }
+        // No payout is claimed for zero-value cancellations (no refund obligation).
+        Long refundId = refund == null ? null : refund.getRefundId();
+        RefundStatus refundStatus = refund == null ? null : refund.getStatus();
 
         log.info("[Cancellation] Booking {} đã hủy thành công bởi user/staff {}. Hoàn tiền: {}, giữ lại: {}",
                 bookingId, requesterUserId, refundAmount, currentQuote.getRetainedAmount());
@@ -870,6 +884,41 @@ public class BookingService {
                 .build();
     }
 
+    private PaymentReceipt requireAllocatedReceipt(Booking booking, BigDecimal amount) {
+        if (paymentReceiptRepository == null || refundRepository == null) {
+            throw new BusinessException("Thiếu dịch vụ lưu nghĩa vụ hoàn tiền", ErrorCode.INTERNAL_ERROR);
+        }
+        // Receipts include late/duplicate collections. Only the successful confirmation
+        // identifies the transaction that actually funded these tickets.
+        PaymentConfirmation confirmation = paymentConfirmationRepository
+                .findByBookingIdAndStatus(booking.getBookingId(), PaymentConfirmationStatus.SUCCESS)
+                .orElseThrow(() -> new BusinessException("Cần đối soát chứng từ thanh toán trước khi hủy",
+                        ErrorCode.PAYMENT_NOT_CONFIRMED));
+        List<PaymentReceipt> receipts = paymentReceiptRepository.findByBookingId(booking.getBookingId()).stream()
+                .filter(r -> booking.getBookingId().equals(r.getBookingId()))
+                .filter(r -> confirmation.getGateway() != null && confirmation.getGateway().equals(r.getGateway()))
+                .filter(r -> confirmation.getPaymentRef() != null && confirmation.getPaymentRef().equals(r.getTransactionReference()))
+                .filter(r -> r.getStatus() == PaymentReceiptStatus.RECORDED || r.getStatus() == PaymentReceiptStatus.ALLOCATED)
+                .filter(r -> r.getVerifiedAt() != null && r.getAmount() != null
+                        && r.getAmount().compareTo(booking.getTotalAmount()) == 0 && r.getAmount().compareTo(amount) >= 0)
+                .toList();
+        if (receipts.size() != 1) {
+            throw new BusinessException("Không xác định được chứng từ thanh toán hợp lệ; cần đối soát trước khi hủy",
+                    ErrorCode.PAYMENT_NOT_CONFIRMED);
+        }
+        return receipts.get(0);
+    }
+
+    private Refund createCancellationRefund(Booking booking, PaymentReceipt receipt, BigDecimal amount,
+            RefundCause cause, String policy, LocalDateTime now) {
+        return refundRepository.save(Refund.builder()
+                .paymentReceiptId(receipt.getPaymentReceiptId())
+                .bookingId(booking.getBookingId()).cause(cause).amount(amount)
+                .policySnapshot(policy).status(RefundStatus.REQUESTED)
+                .requestReference("REFUND_CANCEL_" + booking.getBookingId())
+                .createdAt(now).build());
+    }
+
     /**
      * Hủy toàn bộ booking còn active (PAID/PENDING) khi admin hủy showtime.
      * - PAID  → CANCELLED + ticket CANCELLED + tạo nghĩa vụ hoàn tiền 100% (SHOWTIME_CANCELLED) + outbox.
@@ -881,8 +930,20 @@ public class BookingService {
         List<Booking> activeBookings = bookingRepository.findActiveByShowtimeId(showtimeId);
         LocalDateTime now = LocalDateTime.now(clock);
 
-        for (Booking booking : activeBookings) {
+        for (Booking candidate : activeBookings) {
+            // Serialize against settlement/cancellation, then re-read the winning state.
+            Booking booking = bookingRepository.findByIdForUpdate(candidate.getBookingId()).orElseThrow();
             if (booking.getStatus() == BookingStatus.PAID) {
+                if (booking.getTotalAmount().signum() > 0) {
+                    PaymentReceipt receipt = requireAllocatedReceipt(booking, booking.getTotalAmount());
+                    String policy;
+                    try {
+                        policy = objectMapper.writeValueAsString(java.util.Map.of("reason", reason == null ? "" : reason));
+                    } catch (JsonProcessingException ex) {
+                        throw new BusinessException("Không thể lưu chính sách hoàn tiền", ErrorCode.INTERNAL_ERROR, ex);
+                    }
+                    createCancellationRefund(booking, receipt, booking.getTotalAmount(), RefundCause.SHOWTIME_CANCELLED, policy, now);
+                }
                 // Financial completion is represented by Refund.status, not Booking.status.
                 booking.setStatus(BookingStatus.CANCELLED);
                 bookingRepository.save(booking);
@@ -890,30 +951,7 @@ public class BookingService {
                 ticketService.cancelTicketsForBooking(booking.getBookingId());
 
                 // Booking đã thanh toán giữ voucher đã dùng, kể cả khi rạp chủ động hủy suất.
-                // Chỉ booking PENDING hết hạn mới được trả lượt voucher qua expireSingleBooking.
-
-                // Tạo nghĩa vụ hoàn tiền 100%
-                if (refundRepository != null && paymentReceiptRepository != null) {
-                    PaymentReceipt receipt = paymentReceiptRepository.findByBookingId(booking.getBookingId())
-                            .stream().findFirst().orElse(null);
-                    if (receipt != null && booking.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
-                        Refund refund = Refund.builder()
-                                .paymentReceiptId(receipt.getPaymentReceiptId())
-                                .bookingId(booking.getBookingId())
-                                .cause(RefundCause.SHOWTIME_CANCELLED)
-                                .amount(booking.getTotalAmount())
-                                .policySnapshot("{\"reason\":\"" + reason + "\"}")
-                                .status(RefundStatus.REQUESTED)
-                                .requestReference("REFUND_SHOWTIME_" + showtimeId + "_" + booking.getBookingId())
-                                .createdAt(now)
-                                .build();
-                        try {
-                            refundRepository.save(refund);
-                        } catch (Exception ex) {
-                            log.warn("[Showtime Cancelled] Refund cho booking {} đã tồn tại: {}", booking.getBookingId(), ex.getMessage());
-                        }
-                    }
-                }
+                // Chỉ booking PENDING bị hủy/hết hạn mới được trả lượt voucher.
 
                 // Tạo outbox event để gửi email thông báo (bất đồng bộ)
                 ShowtimeCancelledPayload payload = new ShowtimeCancelledPayload();
@@ -933,8 +971,10 @@ public class BookingService {
                 }
 
             } else if (booking.getStatus() == BookingStatus.PENDING) {
-                // Hủy booking PENDING: giải phóng lock và hủy draft
-                expireSingleBooking(booking, now);
+                // Administrative cancellation is unconditional, even before expiry.
+                booking.setStatus(BookingStatus.CANCELLED);
+                bookingRepository.save(booking);
+                releasePendingBookingResources(booking);
             }
         }
     }

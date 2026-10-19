@@ -62,6 +62,9 @@ public class BookingFlowIntegrationTest extends TestcontainersConfig {
     private BookingRepository bookingRepository;
 
     @Autowired
+    private com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeCancellationService cancellationService;
+
+    @Autowired
     private JpaBookingRepository jpaBookingRepository;
 
     @Autowired
@@ -256,6 +259,61 @@ public class BookingFlowIntegrationTest extends TestcontainersConfig {
         Optional<BookingJpaEntity> dbBooking = jpaBookingRepository.findById(quote.getBookingId());
         assertTrue(dbBooking.isPresent());
         assertEquals(BookingStatus.EXPIRED, dbBooking.get().getStatus());
+    }
+
+    private Long createPendingForCancellation() {
+        CreateBookingRequestDTO request = new CreateBookingRequestDTO();
+        request.setShowtimeId(showtimeId);
+        request.setSeatIds(List.of(seatId));
+        request.setPaymentMethod(BookingPaymentMethod.MOMO);
+        return bookingService.createPrePaymentBooking(userId, request).getBookingId();
+    }
+
+    @Test
+    void administrativeCancellationBeforeDeadlineCommitsWithoutIssuingTickets() {
+        Long bookingId = createPendingForCancellation();
+        var date = jpaShowtimeRepository.findById(showtimeId).orElseThrow().getStartTime().toLocalDate();
+        assertEquals(1, cancellationService.cancelByRoom(roomId, date, date, "maintenance"));
+        var booking = jpaBookingRepository.findById(bookingId).orElseThrow();
+        assertEquals(BookingStatus.CANCELLED, booking.getStatus());
+        assertTrue(booking.getExpiresAt().isAfter(LocalDateTime.now()));
+        assertEquals(ShowtimeStatus.CANCELLED, jpaShowtimeRepository.findById(showtimeId).orElseThrow().getStatus());
+        org.mockito.Mockito.verify(seatLockRepository).unlock(showtimeId, seatId);
+        assertThrows(com.uit.backend_cinema.common.exception.BusinessException.class,
+                () -> bookingService.confirmPaymentByGateway(bookingId, "cancelled-payment", "MOMO"));
+        assertTrue(jpaPaymentConfirmationRepository.findAll().isEmpty());
+    }
+
+    @Test
+    void missingPaidReceiptRollsBackScheduleAndEarlierPendingCancellationWithoutUnlockingRedis() {
+        Long pendingId = createPendingForCancellation();
+        Long paidId = createPendingForCancellation();
+        var paid = jpaBookingRepository.findById(paidId).orElseThrow();
+        paid.setStatus(BookingStatus.PAID); // Historical booking with no verifiable receipt.
+        jpaBookingRepository.saveAndFlush(paid);
+        var date = jpaShowtimeRepository.findById(showtimeId).orElseThrow().getStartTime().toLocalDate();
+        assertThrows(com.uit.backend_cinema.common.exception.BusinessException.class,
+                () -> cancellationService.cancelByRoom(roomId, date, date, "maintenance"));
+        assertEquals(ShowtimeStatus.AVAILABLE, jpaShowtimeRepository.findById(showtimeId).orElseThrow().getStatus());
+        assertEquals(BookingStatus.PENDING, jpaBookingRepository.findById(pendingId).orElseThrow().getStatus());
+        assertEquals(BookingStatus.PAID, jpaBookingRepository.findById(paidId).orElseThrow().getStatus());
+        org.mockito.Mockito.verify(seatLockRepository, org.mockito.Mockito.never()).unlock(any(), any());
+    }
+
+    @Test
+    void legacyQuarantineSurvivesJpaMappingAndPreventsCancellation() {
+        Long bookingId = createPendingForCancellation();
+        var booking = jpaBookingRepository.findById(bookingId).orElseThrow();
+        booking.setStatus(BookingStatus.PAID);
+        booking.setLegacySnapshotStatus("REVIEW_REQUIRED");
+        jpaBookingRepository.saveAndFlush(booking);
+        assertThrows(com.uit.backend_cinema.common.exception.BusinessException.class,
+                () -> bookingService.getCancellationQuote(bookingId, userId, false));
+        assertThrows(com.uit.backend_cinema.common.exception.BusinessException.class,
+                () -> bookingService.cancelBooking(bookingId, userId, false,
+                        com.uit.backend_cinema.modules.booking.api.dto.CancelBookingRequestDTO.builder()
+                                .expectedRefundAmount(booking.getTotalAmount()).build()));
+        assertEquals(BookingStatus.PAID, jpaBookingRepository.findById(bookingId).orElseThrow().getStatus());
     }
 
     @Test

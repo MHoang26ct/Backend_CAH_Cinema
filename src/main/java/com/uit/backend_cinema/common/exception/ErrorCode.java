@@ -24,6 +24,8 @@ public enum ErrorCode {
     UNAUTHORIZED,               // Chưa đăng nhập
     FORBIDDEN,                  // Không có quyền
 
+    PAYMENT_NOT_CONFIRMED,     // Missing or ambiguous funding receipt: reconcile before cancellation
+
     // Resource
     RESOURCE_NOT_FOUND,         // Tài nguyên không tồn tại
     DUPLICATE_RESOURCE,         // Tài nguyên đã tồn tại

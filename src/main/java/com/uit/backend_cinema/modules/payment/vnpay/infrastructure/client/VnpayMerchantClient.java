@@ -46,6 +46,10 @@ public class VnpayMerchantClient {
                 .connectTimeout(vnpayProperties.getConnectTimeoutSeconds(), TimeUnit.SECONDS)
                 .readTimeout(vnpayProperties.getReadTimeoutSeconds(), TimeUnit.SECONDS)
                 .writeTimeout(vnpayProperties.getReadTimeoutSeconds(), TimeUnit.SECONDS)
+                // A connection failure can occur after VNPay accepted a refund. Never replay it.
+                .retryOnConnectionFailure(false)
+                .followRedirects(false)
+                .followSslRedirects(false)
                 .build();
     }
 
@@ -58,6 +62,8 @@ public class VnpayMerchantClient {
 
     /**
      * Truy vấn thông tin giao dịch (querydr) theo VNPay version 2.1.0.
+     * This looks up the original payment, not a refund request ID. A signed type-01
+     * success response is payment evidence only and must never settle a refund.
      */
     public VnpayQueryResponseDTO queryTransaction(String txnRef, String originalTransactionDate, String orderInfo, String ipAddr) {
         String requestId = generateRequestId();
@@ -185,7 +191,7 @@ public class VnpayMerchantClient {
             throw new BusinessException("Phản hồi VNPay không hợp lệ", ErrorCode.VNPAY_TRANSACTION_FAILED, ex);
         }
 
-        verifyRefundResponse(responseDto, txnRef);
+        verifyRefundResponse(responseDto, txnRef, transactionType, gatewayAmount);
         return responseDto;
     }
 
@@ -197,9 +203,20 @@ public class VnpayMerchantClient {
             throw new BusinessException("Không thể serialize request VNPay", ErrorCode.INTERNAL_ERROR, ex);
         }
 
+        RequestBody requestPayload = RequestBody.create(jsonPayload, JSON);
+        if ("refund".equals(command)) {
+            RequestBody delegate = requestPayload;
+            requestPayload = new RequestBody() {
+                @Override public MediaType contentType() { return delegate.contentType(); }
+                @Override public long contentLength() throws IOException { return delegate.contentLength(); }
+                @Override public void writeTo(okio.BufferedSink sink) throws IOException { delegate.writeTo(sink); }
+                // Also prevent HTTP follow-ups such as 503/Retry-After: 0 from replaying a refund.
+                @Override public boolean isOneShot() { return true; }
+            };
+        }
         Request request = new Request.Builder()
                 .url(vnpayProperties.getApiUrl())
-                .post(RequestBody.create(jsonPayload, JSON))
+                .post(requestPayload)
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
@@ -255,7 +272,8 @@ public class VnpayMerchantClient {
         }
     }
 
-    private void verifyRefundResponse(VnpayRefundResponseDTO responseDto, String expectedTxnRef) {
+    private void verifyRefundResponse(VnpayRefundResponseDTO responseDto, String expectedTxnRef,
+                                      String expectedTransactionType, long expectedAmount) {
         boolean validHash = VnpaySignatureBuilder.verifyTransactionResponse(
                 responseDto.getSecureHash(),
                 responseDto.getResponseId(),
@@ -284,9 +302,17 @@ public class VnpayMerchantClient {
             throw new BusinessException("TMN Code phản hồi không hợp lệ", ErrorCode.VNPAY_TRANSACTION_FAILED);
         }
 
-        if (responseDto.getTxnRef() != null && !responseDto.getTxnRef().equals(expectedTxnRef)) {
+        if (!expectedTxnRef.equals(responseDto.getTxnRef())) {
             log.warn("[VNPay Client] TxnRef trong phan hoi refund khong khop");
             throw new BusinessException("Mã tham chiếu giao dịch phản hồi không khớp", ErrorCode.VNPAY_TRANSACTION_FAILED);
+        }
+        if ((responseDto.getCommand() != null && !"refund".equals(responseDto.getCommand()))
+                || ("00".equals(responseDto.getResponseCode())
+                && (!expectedTransactionType.equals(responseDto.getTransactionType())
+                || !Long.valueOf(expectedAmount).equals(responseDto.getAmount())))) {
+            // Authentication alone is not enough: a signed original-payment response is
+            // not evidence that the requested full/partial refund has been processed.
+            throw new BusinessException("Phản hồi không khớp yêu cầu hoàn tiền VNPay", ErrorCode.VNPAY_TRANSACTION_FAILED);
         }
     }
 

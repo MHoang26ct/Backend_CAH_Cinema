@@ -48,6 +48,7 @@ public class GlobalExceptionHandler {
                  VOUCHER_HOLD_EXPIRED,
                  PAYMENT_REF_DUPLICATE,
                  PAYMENT_ALREADY_CONFIRMED,
+                 PAYMENT_NOT_CONFIRMED,
                  TICKET_ALREADY_USED ->
                     HttpStatus.CONFLICT;
 

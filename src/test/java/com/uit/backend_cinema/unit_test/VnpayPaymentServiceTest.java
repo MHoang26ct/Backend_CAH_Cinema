@@ -193,14 +193,15 @@ class VnpayPaymentServiceTest {
         verify(paymentConfirmationRepository).save(any(PaymentConfirmation.class));
     }
 
-    @Test
-    @DisplayName("handleIpnCallback: Tiền về sau paymentDeadline, lưu receipt và tạo Refund nghĩa vụ 100%")
-    void testIpnCallbackLatePaymentCreatesRefundObligation() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = BookingStatus.class, names = {"EXPIRED", "CANCELLED"})
+    @DisplayName("handleIpnCallback: Booking hết hạn/đã hủy không hồi sinh dù tiền về trước deadline")
+    void testIpnCallbackLatePaymentCreatesRefundObligation(BookingStatus status) {
         String orderId = "100_1729152000000";
         String txnRef = "VNPAY_TRANS_LATE";
         Long bookingId = 100L;
-        LocalDateTime expiredDeadline = now.minusMinutes(5);
-        Booking booking = createBooking(bookingId, 10L, BookingStatus.EXPIRED, expiredDeadline);
+        LocalDateTime deadline = status == BookingStatus.CANCELLED ? now.plusMinutes(15) : now.minusMinutes(5);
+        Booking booking = createBooking(bookingId, 10L, status, deadline);
 
         PaymentIpnResult ipnResult = PaymentIpnResult.builder()
                 .success(true)
@@ -236,7 +237,7 @@ class VnpayPaymentServiceTest {
 
         assertEquals("00", response.getRspCode());
         // Booking không bị hồi sinh vé
-        assertEquals(BookingStatus.EXPIRED, booking.getStatus());
+        assertEquals(status, booking.getStatus());
         verify(ticketService, never()).finalizeTicketsForPaidBooking(any(), any());
         // Khoản thu được ghi nhận bền vững
         verify(paymentReceiptRepository).save(any(PaymentReceipt.class));
@@ -244,7 +245,8 @@ class VnpayPaymentServiceTest {
         ArgumentCaptor<Refund> refundCaptor = ArgumentCaptor.forClass(Refund.class);
         verify(refundRepository).save(refundCaptor.capture());
         Refund refund = refundCaptor.getValue();
-        assertEquals(RefundCause.EXPIRED_LATE_PAYMENT, refund.getCause());
+        assertEquals(status == BookingStatus.CANCELLED ? RefundCause.SEAT_ALLOCATION_FAILED
+                : RefundCause.EXPIRED_LATE_PAYMENT, refund.getCause());
         assertEquals(new BigDecimal("100000"), refund.getAmount());
     }
 

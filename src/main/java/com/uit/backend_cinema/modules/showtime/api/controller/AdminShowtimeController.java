@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.uit.backend_cinema.common.util.ApiResponse;
-import com.uit.backend_cinema.modules.booking.domain.service.BookingService;
+import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeCancellationService;
 import com.uit.backend_cinema.modules.showtime.api.dto.CancelByRoomRequestDTO;
 import com.uit.backend_cinema.modules.showtime.api.dto.CreateShowtimeDTO;
 import com.uit.backend_cinema.modules.showtime.api.dto.UpdateShowtimeDTO;
@@ -31,13 +31,13 @@ import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
 public class AdminShowtimeController {
     private final ShowtimeService showtimeService;
     private final ShowtimeApiMapper mapper;
-    private final BookingService bookingService;
+    private final ShowtimeCancellationService cancellationService;
 
     public AdminShowtimeController(ShowtimeService showtimeService, ShowtimeApiMapper mapper,
-                                   BookingService bookingService) {
+                                   ShowtimeCancellationService cancellationService) {
         this.showtimeService = showtimeService;
         this.mapper = mapper;
-        this.bookingService = bookingService;
+        this.cancellationService = cancellationService;
     }
 
     @PostMapping
@@ -83,21 +83,9 @@ public class AdminShowtimeController {
     public ResponseEntity<?> cancelShowtimesByRoom(
             @Valid @RequestBody CancelByRoomRequestDTO requestDTO
     ) {
-        List<Showtime> cancelled = showtimeService.cancelShowtimesByRoomBetweenDates(
-                requestDTO.getRoomId(),
-                requestDTO.getFromDate(),
-                requestDTO.getToDate()
-        );
-
-        // Xử lý refund cho mỗi showtime đã cancel
-        for (Showtime showtime : cancelled) {
-            bookingService.refundBookingsForCancelledShowtime(
-                    showtime.getShowtimeId(),
-                    requestDTO.getReason()
-            );
-        }
-
+        int cancelled = cancellationService.cancelByRoom(requestDTO.getRoomId(),
+                requestDTO.getFromDate(), requestDTO.getToDate(), requestDTO.getReason());
         return ResponseEntity.ok(ApiResponse.success(
-                "Đã hủy " + cancelled.size() + " suất chiếu và tạo yêu cầu hoàn tiền cho booking đủ điều kiện"));
+                "Đã hủy " + cancelled + " suất chiếu và tạo yêu cầu hoàn tiền cho booking đủ điều kiện"));
     }
 }
