@@ -3,7 +3,10 @@ package com.uit.backend_cinema.modules.ticket.domain.service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -11,8 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.uit.backend_cinema.common.exception.BusinessException;
 import com.uit.backend_cinema.common.exception.ErrorCode;
+import com.uit.backend_cinema.common.util.CheckinCodeUtil;
+import com.uit.backend_cinema.modules.seat.api.util.SeatLabelUtil;
 import com.uit.backend_cinema.modules.seat.domain.entity.Seat;
+import com.uit.backend_cinema.modules.seat.domain.repository.SeatRepository;
 import com.uit.backend_cinema.modules.showtime.domain.entity.Showtime;
+import com.uit.backend_cinema.modules.ticket.api.dto.TicketItemResponseDTO;
 import com.uit.backend_cinema.modules.ticket.domain.entity.PendingTicketItem;
 import com.uit.backend_cinema.modules.ticket.domain.entity.Ticket;
 import com.uit.backend_cinema.modules.ticket.domain.repository.PendingTicketItemRepository;
@@ -22,11 +29,19 @@ import com.uit.backend_cinema.modules.ticket.domain.repository.TicketRepository;
 public class TicketService {
     private final TicketRepository ticketRepository;
     private final PendingTicketItemRepository pendingTicketItemRepository;
+    private final SeatRepository seatRepository;
 
     public TicketService(TicketRepository ticketRepository,
                          PendingTicketItemRepository pendingTicketItemRepository) {
+        this(ticketRepository, pendingTicketItemRepository, null);
+    }
+
+    public TicketService(TicketRepository ticketRepository,
+                         PendingTicketItemRepository pendingTicketItemRepository,
+                         SeatRepository seatRepository) {
         this.ticketRepository = ticketRepository;
         this.pendingTicketItemRepository = pendingTicketItemRepository;
+        this.seatRepository = seatRepository;
     }
 
     @Transactional
@@ -55,6 +70,7 @@ public class TicketService {
             ticket.setShowtimeId(showtimeId);
             ticket.setSeatId(item.getSeatId());
             ticket.setPrice(item.getUnitPrice());
+            ticket.setCheckinCode(generateUniqueCheckinCode());
             tickets.add(ticket);
         }
 
@@ -63,11 +79,80 @@ public class TicketService {
             if (tickets.isEmpty()) {
                 throw new BusinessException("Booking không có vé nháp để tạo vé", ErrorCode.RESOURCE_NOT_FOUND);
             }
+            ensureCheckinCodes(tickets);
             return tickets;
         }
 
         createTicketIfAbsent(tickets);
-        return findAllByBookingId(bookingId);
+        List<Ticket> savedTickets = findAllByBookingId(bookingId);
+        ensureCheckinCodes(savedTickets);
+        return savedTickets;
+    }
+
+    public String generateUniqueCheckinCode() {
+        for (int i = 0; i < 10; i++) {
+            String code = CheckinCodeUtil.generateCode();
+            if (!ticketRepository.existsByCheckinCode(code)) {
+                return code;
+            }
+        }
+        throw new IllegalStateException("Không thể tạo mã vé duy nhất");
+    }
+
+    private void ensureCheckinCodes(List<Ticket> tickets) {
+        for (Ticket ticket : tickets) {
+            if (ticket.getCheckinCode() == null || ticket.getCheckinCode().isBlank()) {
+                ticket.setCheckinCode(generateUniqueCheckinCode());
+                ticketRepository.save(ticket);
+            }
+        }
+    }
+
+    @Transactional
+    public List<TicketItemResponseDTO> getTicketDetailsByBookingId(Long bookingId) {
+        List<Ticket> tickets = findAllByBookingId(bookingId);
+        if (tickets == null || tickets.isEmpty()) {
+            return Collections.emptyList();
+        }
+        ensureCheckinCodes(tickets);
+        Map<Long, Seat> seatMap = Collections.emptyMap();
+        if (seatRepository != null) {
+            List<Seat> seats = seatRepository.findByIds(tickets.stream().map(Ticket::getSeatId).toList());
+            if (seats != null) {
+                seatMap = seats.stream().collect(Collectors.toMap(Seat::getSeatId, s -> s, (s1, s2) -> s1));
+            }
+        }
+        final Map<Long, Seat> finalSeatMap = seatMap;
+        return tickets.stream().map(t -> {
+            Seat seat = finalSeatMap.get(t.getSeatId());
+            String seatName = formatSeatName(seat);
+            return TicketItemResponseDTO.builder()
+                    .ticketId(t.getTicketId())
+                    .bookingId(t.getBookingId())
+                    .showtimeId(t.getShowtimeId())
+                    .seatId(t.getSeatId())
+                    .seatName(seatName)
+                    .price(t.getPrice())
+                    .checkinCode(t.getCheckinCode())
+                    .qrCode(t.getCheckinCode())
+                    .status(t.getStatus())
+                    .isCheckedIn(t.getIsCheckedIn())
+                    .build();
+        }).toList();
+    }
+
+    private String formatSeatName(Seat seat) {
+        if (seat == null) return "N/A";
+        String row = SeatLabelUtil.toRowLabel(seat.getSeatRow());
+        String col = SeatLabelUtil.toColLabel(seat.getSeatCol());
+        if (row != null && col != null) {
+            return row + col;
+        }
+        if (seat.getSeatRow() != null && seat.getSeatCol() != null) {
+            char rowLetter = (char) ('A' + seat.getSeatRow().intValue() - 1);
+            return rowLetter + String.valueOf(seat.getSeatCol().intValue());
+        }
+        return "N/A";
     }
 
     @Transactional

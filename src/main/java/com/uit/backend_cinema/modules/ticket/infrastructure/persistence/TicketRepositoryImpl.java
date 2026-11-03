@@ -61,6 +61,16 @@ public class TicketRepositoryImpl implements TicketRepository {
     }
 
     @Override
+    public Optional<Ticket> findByCheckinCode(String checkinCode) {
+        return jpaTicketRepository.findByCheckinCode(checkinCode).map(mapper::toDomain);
+    }
+
+    @Override
+    public boolean existsByCheckinCode(String checkinCode) {
+        return jpaTicketRepository.existsByCheckinCode(checkinCode);
+    }
+
+    @Override
     public Ticket save(Ticket ticket) {
         var entity = mapper.toEntity(ticket);
         var savedEntity = jpaTicketRepository.save(entity);

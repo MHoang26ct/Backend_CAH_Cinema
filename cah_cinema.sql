@@ -295,6 +295,7 @@ CREATE TABLE tickets (
     price DECIMAL(18,2) NOT NULL CHECK (price >= 0),
     status VARCHAR(20) NOT NULL DEFAULT 'VALID' CHECK (status IN ('VALID', 'CANCELLED')),
     is_checked_in BOOLEAN DEFAULT FALSE,
+    checkin_code VARCHAR(32) UNIQUE,
     CONSTRAINT uq_tickets_booking_seat UNIQUE (booking_id, seat_id)
 );
 

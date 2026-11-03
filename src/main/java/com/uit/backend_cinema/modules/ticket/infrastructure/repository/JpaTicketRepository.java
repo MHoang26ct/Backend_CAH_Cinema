@@ -2,6 +2,7 @@ package com.uit.backend_cinema.modules.ticket.infrastructure.repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,10 @@ public interface JpaTicketRepository extends JpaRepository<TicketJpaEntity, Long
     boolean existsByBookingIdAndSeatId(Long bookingId, Long seatId);
 
     List<TicketJpaEntity> findByBookingId(Long bookingId);
+
+    Optional<TicketJpaEntity> findByCheckinCode(String checkinCode);
+
+    boolean existsByCheckinCode(String checkinCode);
 
     boolean existsByShowtimeIdAndSeatIdIn(Long showtimeId, Collection<Long> seatIds);
 

@@ -15,4 +15,5 @@ public class Ticket {
     private BigDecimal price;
     private TicketStatus status = TicketStatus.VALID;
     private Boolean isCheckedIn = false;
+    private String checkinCode;
 }

@@ -104,8 +104,11 @@ public class NotificationService {
             content.append("- Ticket #")
                     .append(ticket.getTicketId())
                     .append(", Ghế: ")
-                    .append(seatName)
-                    .append("\n");
+                    .append(seatName);
+            if (ticket.getCheckinCode() != null && !ticket.getCheckinCode().isBlank()) {
+                content.append(", Mã vé: ").append(ticket.getCheckinCode());
+            }
+            content.append("\n");
         }
 
         content.append("\n=== Mã QR ===\n");
@@ -122,8 +125,13 @@ public class NotificationService {
 
     /**
      * Tạo chuỗi nội dung để mã hoá vào QR Code của một vé.
+     * Ưu tiên dùng checkinCode ngắn gọn (14 ký tự) để mã QR thoáng, quét nhanh;
+     * fallback sang JWT nếu vé chưa có checkinCode.
      */
     private String buildQRText(Ticket ticket, Long bookingId) {
+        if (ticket.getCheckinCode() != null && !ticket.getCheckinCode().isBlank()) {
+            return ticket.getCheckinCode();
+        }
         return jwtUtil.generateTicketQrToken(ticket.getTicketId(), bookingId, ticket.getShowtimeId());
     }
 
