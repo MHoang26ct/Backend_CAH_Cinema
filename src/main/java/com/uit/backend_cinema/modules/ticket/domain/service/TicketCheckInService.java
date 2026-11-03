@@ -87,22 +87,32 @@ public class TicketCheckInService {
 
     @Transactional
     public CheckInResponseDTO checkIn(CheckInRequestDTO request) {
-        Claims claims = jwtUtil.validateTicketQrToken(request.getQrToken());
-        if (claims == null) {
-            throw new BusinessException("Mã QR vé không hợp lệ hoặc đã hết hạn", ErrorCode.TICKET_INVALID_QR);
+        String tokenOrCode = request.getQrToken() != null ? request.getQrToken().trim() : "";
+        Ticket ticket = null;
+        Long ticketId;
+        Long showtimeId;
+        Long bookingId;
+
+        Claims claims = jwtUtil.validateTicketQrToken(tokenOrCode);
+        if (claims != null) {
+            Number ticketIdNum = claims.get("ticketId", Number.class);
+            Number showtimeIdNum = claims.get("showtimeId", Number.class);
+            Number bookingIdNum = claims.get("bookingId", Number.class);
+
+            if (ticketIdNum == null || showtimeIdNum == null || bookingIdNum == null) {
+                throw new BusinessException("Thông tin vé trong QR không đầy đủ", ErrorCode.TICKET_INVALID_QR);
+            }
+
+            ticketId = ticketIdNum.longValue();
+            showtimeId = showtimeIdNum.longValue();
+            bookingId = bookingIdNum.longValue();
+        } else {
+            ticket = ticketRepository.findByCheckinCode(tokenOrCode)
+                    .orElseThrow(() -> new BusinessException("Mã QR vé không hợp lệ hoặc đã hết hạn", ErrorCode.TICKET_INVALID_QR));
+            ticketId = ticket.getTicketId();
+            bookingId = ticket.getBookingId();
+            showtimeId = ticket.getShowtimeId();
         }
-
-        Number ticketIdNum = claims.get("ticketId", Number.class);
-        Number showtimeIdNum = claims.get("showtimeId", Number.class);
-        Number bookingIdNum = claims.get("bookingId", Number.class);
-
-        if (ticketIdNum == null || showtimeIdNum == null || bookingIdNum == null) {
-            throw new BusinessException("Thông tin vé trong QR không đầy đủ", ErrorCode.TICKET_INVALID_QR);
-        }
-
-        Long ticketId = ticketIdNum.longValue();
-        Long showtimeId = showtimeIdNum.longValue();
-        Long bookingId = bookingIdNum.longValue();
 
         // 1. Khóa booking trước ticket và fulfillment để tuần tự hóa các yêu cầu đồng thời
         Booking booking = bookingRepository.findByIdForUpdate(bookingId)
@@ -116,11 +126,13 @@ public class TicketCheckInService {
         }
 
         // 2. Kiểm tra thông tin vé
-        Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin vé trong hệ thống", ErrorCode.RESOURCE_NOT_FOUND));
+        if (ticket == null) {
+            ticket = ticketRepository.findById(ticketId)
+                    .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin vé trong hệ thống", ErrorCode.RESOURCE_NOT_FOUND));
 
-        if (!ticket.getBookingId().equals(bookingId) || !ticket.getShowtimeId().equals(showtimeId)) {
-            throw new BusinessException("Thông tin vé không khớp với mã QR đã quét", ErrorCode.TICKET_INVALID_QR);
+            if (!ticket.getBookingId().equals(bookingId) || !ticket.getShowtimeId().equals(showtimeId)) {
+                throw new BusinessException("Thông tin vé không khớp với mã QR đã quét", ErrorCode.TICKET_INVALID_QR);
+            }
         }
 
         if (ticket.getStatus() != TicketStatus.VALID) {

@@ -1,5 +1,7 @@
 package com.uit.backend_cinema.modules.booking.api.controller;
 
+import java.util.List;
+
 import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
@@ -13,20 +15,29 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.uit.backend_cinema.common.sercurity.CustomUserDetails;
 import com.uit.backend_cinema.common.util.ApiResponse;
+import com.uit.backend_cinema.modules.booking.api.dto.BookingStatusResponseDTO;
 import com.uit.backend_cinema.modules.booking.api.dto.CreateBookingRequestDTO;
 import com.uit.backend_cinema.modules.booking.api.mapper.BookingApiMapper;
+import com.uit.backend_cinema.modules.booking.domain.entity.Booking;
+import com.uit.backend_cinema.modules.booking.domain.entity.BookingStatus;
 import com.uit.backend_cinema.modules.booking.domain.entity.PrePaymentBookingQuote;
 import com.uit.backend_cinema.modules.booking.domain.service.BookingService;
+import com.uit.backend_cinema.modules.ticket.api.dto.TicketItemResponseDTO;
+import com.uit.backend_cinema.modules.ticket.domain.service.TicketService;
 
 @RestController
 @RequestMapping("/api/v1/bookings")
 public class BookingController {
     private final BookingService bookingService;
     private final BookingApiMapper bookingApiMapper;
+    private final TicketService ticketService;
 
-    public BookingController(BookingService bookingService, BookingApiMapper bookingApiMapper) {
+    public BookingController(BookingService bookingService,
+                             BookingApiMapper bookingApiMapper,
+                             TicketService ticketService) {
         this.bookingService = bookingService;
         this.bookingApiMapper = bookingApiMapper;
+        this.ticketService = ticketService;
     }
 
     @PostMapping
@@ -44,16 +55,30 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.success(response, "Tạo booking chờ thanh toán thành công"));
     }
 
-    @org.springframework.web.bind.annotation.GetMapping("/{bookingId}")
+    @GetMapping("/{bookingId}")
     public ResponseEntity<?> getBookingStatus(
-            @org.springframework.web.bind.annotation.PathVariable Long bookingId,
+            @PathVariable Long bookingId,
             @AuthenticationPrincipal CustomUserDetails user) {
-        com.uit.backend_cinema.modules.booking.domain.entity.Booking booking = bookingService.getBooking(bookingId, user.getUserId());
-        com.uit.backend_cinema.modules.booking.api.dto.BookingStatusResponseDTO response = com.uit.backend_cinema.modules.booking.api.dto.BookingStatusResponseDTO.builder()
+        Booking booking = bookingService.getBooking(bookingId, user.getUserId());
+        List<TicketItemResponseDTO> tickets = null;
+        if (booking.getStatus() == BookingStatus.PAID || booking.getStatus() == BookingStatus.CHECKED_IN) {
+            tickets = ticketService.getTicketDetailsByBookingId(bookingId);
+        }
+        BookingStatusResponseDTO response = BookingStatusResponseDTO.builder()
                 .bookingId(booking.getBookingId())
                 .status(booking.getStatus())
+                .tickets(tickets)
                 .build();
         return ResponseEntity.ok(ApiResponse.success(response, "Lấy trạng thái booking thành công"));
+    }
+
+    @GetMapping("/{bookingId}/tickets")
+    public ResponseEntity<?> getBookingTickets(
+            @PathVariable Long bookingId,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        bookingService.getBooking(bookingId, user.getUserId());
+        List<TicketItemResponseDTO> tickets = ticketService.getTicketDetailsByBookingId(bookingId);
+        return ResponseEntity.ok(ApiResponse.success(tickets, "Lấy danh sách vé thành công"));
     }
 
     @GetMapping("/{id}/cancellation-quote")

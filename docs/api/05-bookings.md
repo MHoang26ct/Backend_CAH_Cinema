@@ -56,7 +56,8 @@ Request body (`StaffCreateBookingRequestDTO`):
 | `DELETE` | `/api/v1/seats/{seatId}/lock` | query `showtimeId` bắt buộc |
 | `POST` | `/api/v1/seats/pre-lock` | `showtimeId`, `seatIds` (mảng không rỗng) |
 | `POST` | `/api/v1/bookings` | `showtimeId`, `paymentMethod`, `seatIds` bắt buộc; `voucherId`, `foodItems` tùy chọn |
-| `GET` | `/api/v1/bookings/{bookingId}` | Lấy trạng thái booking thuộc về user hiện tại |
+| `GET` | `/api/v1/bookings/{bookingId}` | Lấy trạng thái booking thuộc về user hiện tại (trả kèm `tickets` khi đã `PAID`/`CHECKED_IN`) |
+| `GET` | `/api/v1/bookings/{bookingId}/tickets` | Lấy danh sách vé chi tiết của booking |
 | `GET` | `/api/v1/bookings/{bookingId}/cancellation-quote` | Xem báo giá hủy đơn (chính chủ) |
 | `POST` | `/api/v1/bookings/{bookingId}/cancel` | Xác nhận hủy đơn với quote token (chính chủ) |
 | `POST` | `/api/v1/bookings/{bookingId}/momo/pay` | `requestId` bắt buộc; `requestType` tùy chọn |

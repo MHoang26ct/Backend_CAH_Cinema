@@ -18,5 +18,9 @@ public interface TicketRepository {
 
     Optional<Ticket> findById(Long ticketId);
 
+    Optional<Ticket> findByCheckinCode(String checkinCode);
+
+    boolean existsByCheckinCode(String checkinCode);
+
     Ticket save(Ticket ticket);
 }

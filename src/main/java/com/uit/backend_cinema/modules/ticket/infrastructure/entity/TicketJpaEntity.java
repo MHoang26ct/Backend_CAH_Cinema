@@ -52,4 +52,7 @@ public class TicketJpaEntity {
 
     @Column(name = "is_checked_in", nullable = false)
     private Boolean isCheckedIn = false;
+
+    @Column(name = "checkin_code", unique = true, length = 32)
+    private String checkinCode;
 }
