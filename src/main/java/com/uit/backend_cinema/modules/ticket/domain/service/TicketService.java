@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,7 @@ public class TicketService {
         this(ticketRepository, pendingTicketItemRepository, null);
     }
 
+    @Autowired
     public TicketService(TicketRepository ticketRepository,
                          PendingTicketItemRepository pendingTicketItemRepository,
                          SeatRepository seatRepository) {
