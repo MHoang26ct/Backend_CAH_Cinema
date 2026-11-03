@@ -2,6 +2,7 @@ package com.uit.backend_cinema.common.sercurity;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -30,6 +31,9 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final CustomAccessDeniedHandler accessDeniedHandler;
+
+    @Value("${CORS_ALLOWED_ORIGINS:https://mhoang26ct.online,http://localhost:5173}")
+    private List<String> allowedOrigins;
 
     // Inject service vào
     public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter, 
@@ -67,7 +71,7 @@ public class SecurityConfig {
                 // Tắt CSRF (Cross-Site Request Forgery) vì chúng ta dùng JWT (Stateless), không dùng Cookie
                 .csrf(AbstractHttpConfigurer::disable)
 
-                // Cấu hình CORS (Cho phép Mobile domain khác gọi API)
+                // CORS cho các origin frontend được cho phép
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 // Phân quyền cho từng URL cụ thể
@@ -125,13 +129,15 @@ public class SecurityConfig {
     }
 
     // CẤU HÌNH CORS (Cross-Origin Resource Sharing)
-    // Để App Mobile có thể gọi được API mà không bị trình duyệt chặn
+    // CORS_ALLOWED_ORIGINS là danh sách origin phân cách bằng dấu phẩy, không gồm path.
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("*")); // Trong thực tế nên để domain cụ thể (VD: https://myapp.com)
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        // JWT được gửi qua Authorization, không dùng cookie xác thực cross-origin.
+        configuration.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration); // Áp dụng luật này cho toàn bộ API

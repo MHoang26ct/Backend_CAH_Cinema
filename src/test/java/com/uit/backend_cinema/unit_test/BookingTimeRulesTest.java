@@ -81,6 +81,92 @@ class BookingTimeRulesTest {
         money(total, q.getTotalAmount()); money("0", q.getVoucherDiscountAmount());
         assertEquals(start.plusMinutes(minute + 15).plusSeconds(second), q.getExpiresAt());
     }
+    @Test void ut04PersistsPendingDeadlineAndCompletePriceSnapshot() {
+        time(start.minusHours(1));
+        var r = request();
+        r.setVoucherId(4L);
+        when(vouchers.applyVoucherForBooking(eq(4L), any())).thenReturn(new BigDecimal("20000"));
+        List<Booking> persisted = new ArrayList<>();
+        ObjectMapper snapshotMapper = new ObjectMapper().findAndRegisterModules();
+        doAnswer(invocation -> {
+            Booking booking = invocation.getArgument(0);
+            booking.setBookingId(9L);
+            // Copy at the repository boundary; later mutation cannot satisfy persistence assertions.
+            persisted.add(snapshotMapper.convertValue(booking, Booking.class));
+            return booking;
+        }).when(bookings).save(any());
+
+        var quote = service.createPrePaymentBooking(7L, r);
+
+        verify(bookings, times(2)).save(any());
+        assertEquals(2, persisted.size());
+        assertEquals(BookingStatus.PENDING, persisted.get(0).getStatus());
+        assertEquals(start.minusMinutes(45), persisted.get(0).getExpiresAt());
+        Booking saved = persisted.get(1);
+        assertEquals(BookingStatus.PENDING, saved.getStatus());
+        assertEquals(BookingStatus.PENDING, quote.getStatus());
+        assertEquals(7L, saved.getUserId());
+        assertEquals(3L, saved.getShowtimeId());
+        assertEquals(start.minusMinutes(45), saved.getExpiresAt());
+        assertEquals(start.minusMinutes(45), saved.getPaymentDeadline());
+        assertEquals(start.minusMinutes(45).plusSeconds(30), saved.getReconciliationDeadline());
+        assertEquals(start.minusMinutes(45), quote.getExpiresAt());
+        money("180000", saved.getSeatSubtotalGross());
+        money("30000", saved.getFoodSubtotalGross());
+        money("4200", saved.getRankDiscountAmount());
+        money("0", saved.getLateDiscountAmount());
+        money("17142.86", saved.getVoucherDiscountSeat());
+        money("2857.14", saved.getVoucherDiscountFood());
+        money("159257.14", saved.getNetSeatAmount());
+        money("26542.86", saved.getNetFoodAmount());
+        money("20000", saved.getDiscountAmount());
+        money("185800", saved.getTotalAmount());
+        money("185800", quote.getTotalAmount());
+        verifyNoInteractions(payments, outbox);
+    }
+
+    @Test void ut06ExpiryAtDeadlineUsesConditionalUpdateBeforeReleasingResources() {
+        Booking pending = new Booking();
+        pending.setBookingId(9L); pending.setUserId(7L); pending.setShowtimeId(3L);
+        pending.setVoucherId(4L); pending.setStatus(BookingStatus.PENDING);
+        pending.setExpiresAt(start);
+        when(bookings.findByStatusAndExpiresAtLessThanEqual(BookingStatus.PENDING, start))
+                .thenReturn(List.of(pending));
+        when(bookings.markExpiredIfPendingAndExpired(9L, start)).thenReturn(1);
+        when(tickets.findActiveDraftSeatIds(9L)).thenReturn(List.of(5L));
+
+        service.expirePendingBookings();
+
+        var order = inOrder(bookings, tickets, seats, vouchers, foods);
+        order.verify(bookings).findByStatusAndExpiresAtLessThanEqual(BookingStatus.PENDING, start);
+        order.verify(bookings).markExpiredIfPendingAndExpired(9L, start);
+        order.verify(tickets).findActiveDraftSeatIds(9L);
+        order.verify(seats).releaseSeatLocksByOwner(3L, List.of(5L), 7L);
+        order.verify(vouchers).releaseVoucherForExpiredBooking(4L);
+        order.verify(tickets).expireDraftItems(9L);
+        order.verify(foods).expireDraftItems(9L);
+        verify(bookings, never()).save(any());
+        verifyNoInteractions(payments, outbox);
+        // EXPIRED is written by the repository's conditional SQL, not this detached object.
+    }
+
+    @Test void ut06PaymentWinningExpiryRacePreventsAllResourceCleanup() {
+        Booking paid = new Booking();
+        paid.setBookingId(9L); paid.setStatus(BookingStatus.PAID); paid.setExpiresAt(start);
+        // A stale scan may still contain a booking whose payment has since won the race.
+        when(bookings.findByStatusAndExpiresAtLessThanEqual(BookingStatus.PENDING, start))
+                .thenReturn(List.of(paid));
+        when(bookings.markExpiredIfPendingAndExpired(9L, start)).thenReturn(0);
+
+        service.expirePendingBookings();
+
+        assertEquals(BookingStatus.PAID, paid.getStatus());
+        verify(bookings).findByStatusAndExpiresAtLessThanEqual(BookingStatus.PENDING, start);
+        verify(bookings).markExpiredIfPendingAndExpired(9L, start);
+        verify(bookings, never()).save(any());
+        verifyNoInteractions(seats, vouchers, tickets, foods, payments, outbox);
+    }
+
     @Test void latePriceRoundsHalfUp() {
         time(start.plusMinutes(16)); show.setBasePrice(new BigDecimal("0.05"));
         money("0.04", service.createPrePaymentBooking(7L, request()).getLateDiscountAmount());

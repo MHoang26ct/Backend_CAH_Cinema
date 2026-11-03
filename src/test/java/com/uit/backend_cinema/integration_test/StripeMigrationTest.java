@@ -3,6 +3,7 @@ package com.uit.backend_cinema.integration_test;
 import com.uit.backend_cinema.modules.payment.stripe.domain.StripePayment;
 import com.uit.backend_cinema.modules.payment.stripe.infrastructure.StripePaymentStore;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -22,6 +23,7 @@ import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Disabled("Migration file removed as schema is consolidated in cah_cinema.sql")
 @Testcontainers
 class StripeMigrationTest {
     @Container static final PostgreSQLContainer<?> DB=new PostgreSQLContainer<>("postgres:15-alpine");

@@ -19,6 +19,7 @@ import com.uit.backend_cinema.modules.showtime.domain.service.ShowtimeService;
 import com.uit.backend_cinema.modules.ticket.domain.service.TicketService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -28,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /** Real PostgreSQL migration tests; no application server, gateways or live database. */
+@Disabled("Migration file removed as schema is consolidated in cah_cinema.sql")
 @Testcontainers
 class LegacyFoodSnapshotsMigrationTest {
     @Container
