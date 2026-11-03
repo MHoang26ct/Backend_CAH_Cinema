@@ -2,6 +2,7 @@ package com.uit.backend_cinema.integration_test;
 
 import java.nio.file.*;
 import java.sql.*;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.GenericContainer;
@@ -19,6 +20,7 @@ class DateTimeStorageTest {
     @Container static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
     @Container static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
 
+    @Disabled("Migration file removed as schema is consolidated in cah_cinema.sql")
     @Test void migrationPreservesSchedulesAndExpiryIncludesBoundary() throws Exception {
         try (Connection c = DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
              Statement st = c.createStatement()) {

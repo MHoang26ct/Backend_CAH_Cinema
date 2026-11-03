@@ -246,8 +246,7 @@ CREATE TABLE bookings (
     voucher_discount_food DECIMAL(18,2) DEFAULT 0 CHECK (voucher_discount_food >= 0),
     net_seat_amount DECIMAL(18,2) DEFAULT 0 CHECK (net_seat_amount >= 0),
     net_food_amount DECIMAL(18,2) DEFAULT 0 CHECK (net_food_amount >= 0),
-    -- Fresh installations include the current legacy-reconciliation guard. Existing
-    -- databases receive these fields through migrations/20261019_06_legacy_food_snapshots.sql.
+    -- Trạng thái đối soát dữ liệu snapshot lịch sử
     legacy_snapshot_status VARCHAR(30) CHECK (legacy_snapshot_status IN ('RECOVERED', 'REVIEW_REQUIRED')),
     legacy_snapshot_reason TEXT,
     legacy_snapshot_evidence JSONB,

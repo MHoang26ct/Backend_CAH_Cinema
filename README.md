@@ -175,6 +175,21 @@ Một số nhóm API chính:
   - `src/main/java/com/uit/backend_cinema/common/sercurity/SecurityConfig.java`
   - `src/main/java/com/uit/backend_cinema/common/sercurity/JwtAuthenticationFilter.java`
 
+### CORS cho frontend
+
+Mặc định chỉ cho phép `https://mhoang26ct.online` và `http://localhost:5173`.
+Có thể thay danh sách bằng biến môi trường hoặc `.env` (cần khởi động lại backend):
+
+```dotenv
+CORS_ALLOWED_ORIGINS=https://mhoang26ct.online,http://localhost:5173
+```
+
+Mỗi origin gồm scheme, hostname và port nếu có; không thêm path hoặc dấu `/` cuối.
+Cấu hình áp dụng cho toàn bộ API, giữ các method `GET, POST, PUT, PATCH, DELETE, OPTIONS`
+và header `Authorization, Content-Type, Accept`. FE gửi JWT bằng `Authorization: Bearer ...`,
+không bật `withCredentials`/`credentials: "include"` vì backend không dùng cookie xác thực cross-origin.
+CORS không thay thế JWT/phân quyền; webhook server-to-server không có header `Origin` vẫn được xử lý bình thường.
+
 ## 10. Gợi ý quy trình phát triển
 
 1. Tạo branch tính năng từ `main`.

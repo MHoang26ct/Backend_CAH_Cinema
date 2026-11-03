@@ -38,6 +38,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -132,6 +134,126 @@ class CancellationAndRefundTest {
         u.setUserId(userId);
         u.setAccountType(AccountType.REGISTERED);
         return u;
+    }
+
+    @ParameterizedTest(name = "UT10: {0}h {1}s before showtime")
+    @CsvSource({
+            "24, -1, true, 0.80, 80000, 50000, 130000, 20000",
+            "24,  0, true, 1.00, 100000, 50000, 150000, 0",
+            "24,  1, true, 1.00, 100000, 50000, 150000, 0",
+            "6,  -1, true, 0.50, 50000, 50000, 100000, 50000",
+            "6,   0, true, 0.80, 80000, 50000, 130000, 20000",
+            "6,   1, true, 0.80, 80000, 50000, 130000, 20000",
+            "2,  -1, false, 0, 0, 0, 0, 150000",
+            "2,   0, true, 0.50, 50000, 50000, 100000, 50000",
+            "2,   1, true, 0.50, 50000, 50000, 100000, 50000"
+    })
+    void ut10ExactRefundBoundaries(int hours, int seconds, boolean allowed, String rate,
+                                  String ticket, String food, String total, String retained) {
+        Booking booking = prepareCancellation();
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        when(userRepository.findById(10L)).thenReturn(Optional.of(createRegisteredUser(10L)));
+        when(showtimeService.getById(100L))
+                .thenReturn(createShowtime(100L, now.plusHours(hours).plusSeconds(seconds)));
+
+        CancellationQuoteDTO quote = bookingService.getCancellationQuote(1L, 10L, false);
+
+        assertEquals(allowed, quote.isCanCancel());
+        assertMoney(rate, quote.getTicketRefundRate());
+        assertMoney(ticket, quote.getTicketRefundAmount());
+        assertMoney(food, quote.getFoodRefundAmount());
+        assertMoney(total, quote.getTotalRefundAmount());
+        assertMoney(retained, quote.getRetainedAmount());
+        assertEquals(BookingStatus.PAID, booking.getStatus());
+        verify(bookingRepository, never()).save(any());
+        verifyNoInteractions(refundRepository, paymentReceiptRepository);
+    }
+
+    @ParameterizedTest(name = "UT11: net seat {0}, net food {1}")
+    @CsvSource({
+            "100000.98, 10.02, 100011.00, 50000, 50010.02, 50000.98",
+            "100001.00, 10.25, 100011.25, 50001, 50011.25, 50000.00",
+            "100001.02, 10.23, 100011.25, 50001, 50011.23, 50000.02"
+    })
+    void ut11FractionalNetRoundsTicketHalfUpToWholeVndButPreservesFood(
+            String netSeat, String netFood, String paid, String ticket, String total, String retained) {
+        Booking booking = createPaidBooking(1L, 10L, 100L,
+                new BigDecimal(netSeat), new BigDecimal(netFood), new BigDecimal(paid));
+        // Gross values are deliberately different: the refund must use the paid net snapshot.
+        booking.setSeatSubtotalGross(new BigDecimal("200000"));
+        booking.setFoodSubtotalGross(new BigDecimal("1000"));
+        when(showtimeService.getById(100L)).thenReturn(createShowtime(100L, now.plusHours(3)));
+
+        CancellationQuoteDTO quote = bookingService.calculateCancellationQuote(booking, now);
+
+        assertTrue(quote.isCanCancel());
+        assertMoney("0.50", quote.getTicketRefundRate());
+        assertMoney(ticket, quote.getTicketRefundAmount());
+        assertMoney(netFood, quote.getFoodRefundAmount());
+        assertMoney(total, quote.getTotalRefundAmount());
+        assertMoney(retained, quote.getRetainedAmount());
+        assertMoney(netSeat, booking.getNetSeatAmount());
+        assertMoney(netFood, booking.getNetFoodAmount());
+        verifyNoInteractions(refundRepository, paymentReceiptRepository);
+    }
+
+    @ParameterizedTest(name = "UT18: {0}, checked-in={1}, seconds until show={2}")
+    @CsvSource({
+            "PENDING, false, 90000, BOOKING_CANNOT_BE_CANCELLED",
+            "CHECKED_IN, true, 90000, BOOKING_CANNOT_BE_CANCELLED",
+            "PAID, true, 90000, BOOKING_ALREADY_CHECKED_IN",
+            "PAID, false, 7199, BOOKING_CANCEL_DEADLINE_EXCEEDED"
+    })
+    void ut18CancellationGuardsDoNotWriteOrReleaseResources(BookingStatus status, boolean checkedIn,
+                                                            long seconds, ErrorCode expectedCode) {
+        Booking booking = prepareCancellation();
+        booking.setStatus(status);
+        when(userRepository.findById(10L)).thenReturn(Optional.of(createRegisteredUser(10L)));
+        when(ticketService.hasAnyCheckedInTicket(1L)).thenReturn(checkedIn);
+        when(showtimeService.getById(100L)).thenReturn(createShowtime(100L, now.plusSeconds(seconds)));
+
+        BusinessException error = assertThrows(BusinessException.class, () -> bookingService.cancelBooking(
+                1L, 10L, false, CancelBookingRequestDTO.builder().expectedRefundAmount(new BigDecimal("150000")).build()));
+
+        assertEquals(expectedCode, error.getCode());
+        assertEquals(status, booking.getStatus());
+        assertNull(booking.getCancellationPolicySnapshot());
+        verify(bookingRepository, never()).save(any());
+        verify(ticketService, never()).cancelTicketsForBooking(any());
+        verifyNoInteractions(refundRepository, paymentReceiptRepository, seatService, voucherService, foodOrderService);
+    }
+
+    @ParameterizedTest(name = "UT18: cancellation at 2h + {0}s is allowed")
+    @CsvSource({"0", "1"})
+    void ut18CancellationAtOrAboveTwoHoursCreatesObligationNotPayout(int seconds) {
+        Booking booking = prepareCancellation();
+        prepareReceipt(booking);
+        when(userRepository.findById(10L)).thenReturn(Optional.of(createRegisteredUser(10L)));
+        when(showtimeService.getById(100L))
+                .thenReturn(createShowtime(100L, now.plusHours(2).plusSeconds(seconds)));
+
+        CancelBookingResponseDTO result = bookingService.cancelBooking(1L, 10L, false,
+                CancelBookingRequestDTO.builder().expectedRefundAmount(new BigDecimal("100000")).build());
+
+        assertEquals(BookingStatus.CANCELLED, booking.getStatus());
+        assertEquals(BookingStatus.CANCELLED, result.getStatus());
+        assertEquals(RefundStatus.REQUESTED, result.getRefundStatus());
+        assertMoney("100000", result.getRefundAmount());
+        assertMoney("50000", result.getRetainedAmount());
+        ArgumentCaptor<Refund> capture = ArgumentCaptor.forClass(Refund.class);
+        verify(refundRepository).save(capture.capture());
+        assertMoney("100000", capture.getValue().getAmount());
+        assertEquals(RefundStatus.REQUESTED, capture.getValue().getStatus());
+        assertEquals(RefundCause.CUSTOMER_CANCELLED, capture.getValue().getCause());
+        assertEquals(555L, capture.getValue().getPaymentReceiptId());
+        verify(bookingRepository).save(booking);
+        verify(ticketService).cancelTicketsForBooking(1L);
+        verifyNoInteractions(vnpayMerchantClient, voucherService);
+    }
+
+    private static void assertMoney(String expected, BigDecimal actual) {
+        assertNotNull(actual);
+        assertEquals(0, new BigDecimal(expected).compareTo(actual), "Expected amount " + expected + ", got " + actual);
     }
 
     @Test
